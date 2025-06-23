@@ -99,7 +99,7 @@ async def preload_data_cache():
 app = FastAPI(
     title="EchoTuner API",
     description="AI-powered playlist generation with real-time song search",
-    version="1.2.0",
+    version="1.2.1",
     lifespan=lifespan
 )
 
@@ -128,20 +128,25 @@ async def root():
 async def health_check():
     """Check API health and service status"""
 
-    return {
-        "status": "healthy",
-        "version": "1.2.0", 
-        "services": {
-            "prompt_validator": prompt_validator.is_ready(),
-            "playlist_generator": playlist_generator.is_ready(),
-            "rate_limiter": rate_limiter.is_ready()
-        },
-        "features": {
-            "spotify_search": playlist_generator.spotify_search.is_ready(),
-            "ai_generation": settings.USE_OLLAMA,
-            "rate_limiting": settings.DAILY_LIMIT_ENABLED
+    if settings.DEBUG:
+        return {
+            "status": "healthy",
+            "version": "1.2.1", 
+            "services": {
+                "prompt_validator": prompt_validator.is_ready(),
+                "playlist_generator": playlist_generator.is_ready(),
+                "rate_limiter": rate_limiter.is_ready()
+            },
+            "features": {
+                "spotify_search": playlist_generator.spotify_search.is_ready(),
+                "ai_generation": settings.USE_OLLAMA,
+                "rate_limiting": settings.DAILY_LIMIT_ENABLED
+            }
         }
-    }
+    
+    else:
+        logger.warning("API health check is disabled in production mode")
+        raise HTTPException(status_code=403, detail="API health check is disabled in production mode")
 
 @app.post("/reload-config")
 async def reload_config():
@@ -189,7 +194,7 @@ async def generate_playlist(request: PlaylistRequest):
         songs = await playlist_generator.generate_playlist(
             prompt=request.prompt,
             user_context=request.user_context,
-            count=request.count or 30
+            count=settings.MAX_SONGS_PER_PLAYLIST if settings.DEBUG else request.count
         )
 
         if settings.DAILY_LIMIT_ENABLED:

@@ -168,7 +168,6 @@ class SpotifySearchService:
                     artist=", ".join([artist["name"] for artist in track["artists"]]),
                     album=track["album"]["name"],
                     spotify_id=track["id"],
-                    preview_url=track.get("preview_url"),
                     duration_ms=track.get("duration_ms"),
                     popularity=track.get("popularity", 50)
                 )

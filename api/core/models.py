@@ -8,7 +8,6 @@ class Song(BaseModel):
     artist: str
     album: Optional[str] = None
     spotify_id: Optional[str] = None
-    preview_url: Optional[str] = None
     duration_ms: Optional[int] = None
     popularity: Optional[int] = None
     genres: Optional[List[str]] = []

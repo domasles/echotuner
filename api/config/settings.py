@@ -30,6 +30,7 @@ class Settings:
 
     DAILY_LIMIT_ENABLED: bool = os.getenv("DAILY_LIMIT_ENABLED", "false").lower() == "true"
     MAX_PLAYLISTS_PER_DAY: int = int(os.getenv("MAX_PLAYLISTS_PER_DAY", 3))
+    MAX_SONGS_PER_PLAYLIST: int = int(os.getenv("MAX_SONGS_PER_PLAYLIST", 30))
     MAX_REFINEMENTS_PER_PLAYLIST: int = int(os.getenv("MAX_REFINEMENTS_PER_PLAYLIST", 3))
 
     CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "true").lower() == "true"
