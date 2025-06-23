@@ -38,7 +38,7 @@ class PromptValidatorService:
             await self._ensure_model_available()
             await self._compute_reference_embeddings()
             
-            logger.info("Mood validation with Ollama initialized successfully!")
+            logger.info("Prompt validator initialized successfully!")
             self.initialized = True
             
         except RuntimeError:
@@ -201,7 +201,7 @@ class PromptValidatorService:
                 max_similarity = np.max(similarities)
                 is_similar = max_similarity > self.prompt_validation_threshold
 
-                logger.debug(f"Semantic similarity: {max_similarity:.3f}, threshold: {self.prompt_validation_threshold}, valid: {is_similar}")
+                logger.info(f"Semantic similarity: {max_similarity:.3f}, threshold: {self.prompt_validation_threshold}, valid: {is_similar}")
                 return is_similar
                     
             except RuntimeError:

@@ -21,6 +21,8 @@ class PlaylistGeneratorService:
     """
     
     def __init__(self):
+        self.spotify_search = SpotifySearchService()
+
         self.ollama_base_url = settings.OLLAMA_BASE_URL
         self.model_name = settings.OLLAMA_GENERATION_MODEL
         self.use_ollama = settings.USE_OLLAMA
@@ -31,6 +33,8 @@ class PlaylistGeneratorService:
         """Initialize the AI model and Spotify search service"""
         
         try:
+            await self.spotify_search.initialize()
+            
             if not self.use_ollama:
                 logger.error("Ollama is required for this application")
                 raise RuntimeError("Ollama must be enabled. Set USE_OLLAMA=true in environment variables.")

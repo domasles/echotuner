@@ -12,7 +12,6 @@ from core.models import PlaylistRequest, PlaylistResponse, RateLimitStatus
 from config.settings import settings
 
 from services.playlist_generator import PlaylistGeneratorService
-from services.spotify_search_service import SpotifySearchService
 from services.prompt_validator import PromptValidatorService
 from services.rate_limiter import RateLimiterService
 
@@ -71,7 +70,6 @@ app.add_middleware(
 rate_limiter = RateLimiterService()
 prompt_validator = PromptValidatorService()
 playlist_generator = PlaylistGeneratorService()
-spotify_search_service = SpotifySearchService()
 
 @app.on_event("startup")
 async def startup_event():
@@ -82,9 +80,8 @@ async def startup_event():
     await rate_limiter.initialize()
     await prompt_validator.initialize()
     await playlist_generator.initialize()
-    await spotify_search_service.initialize()
-    
-    logger.info(f"Spotify Search: {'ENABLED' if spotify_search_service.is_ready() else 'FALLBACK MODE'}")
+
+    logger.info(f"Spotify Search: {'ENABLED' if playlist_generator.spotify_search.is_ready() else 'FALLBACK MODE'}")
     logger.info(f"AI Generation: {'OLLAMA' if settings.USE_OLLAMA else 'BASIC MODE'}")
     logger.info(f"Rate Limiting: {'ENABLED' if settings.DAILY_LIMIT_ENABLED else 'DISABLED'}")
     logger.info("EchoTuner API ready!")
@@ -115,7 +112,7 @@ async def health_check():
             "rate_limiter": rate_limiter.is_ready()
         },
         "features": {
-            "spotify_search": spotify_search_service.is_ready(),
+            "spotify_search": playlist_generator.spotify_search.is_ready(),
             "ai_generation": settings.USE_OLLAMA,
             "rate_limiting": settings.DAILY_LIMIT_ENABLED
         }
