@@ -1,4 +1,4 @@
-# EchoTuner API v1.0 Dependencies
+# EchoTuner API Dependencies
 # Core FastAPI and server
 fastapi==0.115.13
 uvicorn[standard]==0.34.3

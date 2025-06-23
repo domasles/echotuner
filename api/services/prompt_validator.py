@@ -27,8 +27,6 @@ class PromptValidatorService:
         """Initialize the model asynchronously"""
 
         try:
-            logger.info("Initializing mood validation with Ollama...")
-            
             if not self.use_ollama:
                 logger.error("Ollama is required for this application")
                 raise RuntimeError("Ollama must be enabled. Set USE_OLLAMA=true in environment variables.")
@@ -40,16 +38,16 @@ class PromptValidatorService:
             await self._ensure_model_available()
             await self._compute_reference_embeddings()
             
-            self.initialized = True
             logger.info("Mood validation with Ollama initialized successfully!")
+            self.initialized = True
             
         except RuntimeError:
             raise
 
         except Exception as e:
             logger.error(f"Prompt validator initialization failed: {e}")
-            raise RuntimeError(f"Failed to initialize prompt validator: {e}")
-    
+            raise RuntimeError(f"Prompt validator initialization failed: {e}")
+
     def is_ready(self) -> bool:
         """Check if the service is ready"""
         

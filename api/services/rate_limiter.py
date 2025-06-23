@@ -23,17 +23,21 @@ class RateLimiterService:
 
         self.initialized = False
     
-    def initialize(self):
+    async def initialize(self):
         """Initialize the database and create tables if needed"""
+
         try:
             self._create_tables()
-            self.initialized = True
             logger.info("Rate limiter initialized successfully")
+            self.initialized = True
+
+        except RuntimeError:
+            raise
 
         except Exception as e:
             logger.error(f"Error initializing rate limiter: {e}")
-            self.initialized = False
-    
+            raise RuntimeError(f"Rate limiter initialization failed: {e}")
+
     def is_ready(self) -> bool:
         """Check if the service is ready"""
         

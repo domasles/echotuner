@@ -68,25 +68,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-playlist_generator = PlaylistGeneratorService()
-prompt_validator = PromptValidatorService()
-spotify_search_service = SpotifySearchService()
 rate_limiter = RateLimiterService()
+prompt_validator = PromptValidatorService()
+playlist_generator = PlaylistGeneratorService()
+spotify_search_service = SpotifySearchService()
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
-    logger.info("Starting EchoTuner API v1.0...")
 
+    logger.info("Starting EchoTuner API...")
+
+    await rate_limiter.initialize()
     await prompt_validator.initialize()
     await playlist_generator.initialize()
-
-    rate_limiter.initialize()
+    await spotify_search_service.initialize()
     
-    logger.info("EchoTuner API ready!")
     logger.info(f"Spotify Search: {'ENABLED' if spotify_search_service.is_ready() else 'FALLBACK MODE'}")
     logger.info(f"AI Generation: {'OLLAMA' if settings.USE_OLLAMA else 'BASIC MODE'}")
     logger.info(f"Rate Limiting: {'ENABLED' if settings.DAILY_LIMIT_ENABLED else 'DISABLED'}")
+    logger.info("EchoTuner API ready!")
 
 @app.get("/")
 async def root():
@@ -218,7 +219,7 @@ async def get_rate_limit_status(device_id: str):
         raise HTTPException(status_code=500, detail=f"Error checking rate limit: {str(e)}")
 
 if __name__ == "__main__":
-    logger.info("EchoTuner API v1.0 - AI-Powered Playlist Generation")
+    logger.info("EchoTuner API - AI-Powered Playlist Generation")
 
     uvicorn.run(
         "main:app",

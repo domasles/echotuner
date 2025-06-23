@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 EchoTuner Setup Script
-Automated setup for EchoTuner API v1.0
+Automated setup for EchoTuner API
 """
 
 import subprocess
@@ -30,8 +30,7 @@ def run_command(command, description):
 def main():
     """Main setup function"""
 
-    print("EchoTuner v1.0 Setup")
-
+    print("EchoTuner Setup")
  
     if sys.version_info < (3, 8):
         print("Error: Python 3.8 or higher is required")

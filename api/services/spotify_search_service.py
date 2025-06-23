@@ -25,6 +25,7 @@ class SpotifySearchService:
         
     async def initialize(self):
         """Initialize Spotify client"""
+
         try:
             if not self.client_id or not self.client_secret:
                 logger.error("Spotify credentials not found")
@@ -40,6 +41,7 @@ class SpotifySearchService:
             )
             
             await self._test_connection()
+
             logger.info("Spotify Search Service initialized successfully!")
             self.initialized = True
             
