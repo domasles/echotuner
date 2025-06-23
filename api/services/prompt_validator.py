@@ -2,15 +2,13 @@ import numpy as np
 import requests
 import logging
 
+from services.data_loader import data_loader
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 class PromptValidatorService:
-    """
-    Lightweight model to validate if user input is music/mood related.
-    Uses Ollama with thenlper/gte-small for embedding-based validation.
-    """
+    """Lightweight model to validate if user input is music/mood related."""
     
     def __init__(self):
         self.ollama_base_url = settings.OLLAMA_BASE_URL
@@ -47,7 +45,7 @@ class PromptValidatorService:
         except Exception as e:
             logger.error(f"Prompt validator initialization failed: {e}")
             raise RuntimeError(f"Prompt validator initialization failed: {e}")
-
+        
     def is_ready(self) -> bool:
         """Check if the service is ready"""
         
@@ -108,19 +106,7 @@ class PromptValidatorService:
         """Pre-compute embeddings for music-related reference texts"""
 
         try:
-            music_references = [
-                "I want to listen to music",
-                "I'm feeling happy and want upbeat songs",
-                "I need relaxing music",
-                "Play some energetic music",
-                "I'm sad and want emotional songs",
-                "I want to hear my favorite artist",
-                "Put on some background music",
-                "I need workout music",
-                "Play romantic songs",
-                "I want to discover new music"
-            ]
-            
+            music_references = data_loader.get_prompt_references()        
             embeddings = []
 
             for text in music_references:

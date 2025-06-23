@@ -14,20 +14,12 @@ from config.settings import settings
 from services.playlist_generator import PlaylistGeneratorService
 from services.prompt_validator import PromptValidatorService
 from services.rate_limiter import RateLimiterService
-
-COLORS = {
-    'DEBUG': 'cyan',
-    'INFO': 'green',
-    'WARNING': 'yellow',
-    'ERROR': 'red',
-    'CRITICAL': 'bright_red',
-    "EchoTuner": 'magenta'
-}
+from services.data_loader import data_loader
 
 class CustomFormatter(logging.Formatter):
     def format(self, record):
         raw_level = record.levelname
-        color = COLORS.get(raw_level, None)
+        color = settings.LOGGER_COLORS.get(raw_level, None)
 
         colored_level = click.style(raw_level, fg=color) if color else raw_level
 
@@ -117,6 +109,28 @@ async def health_check():
             "rate_limiting": settings.DAILY_LIMIT_ENABLED
         }
     }
+
+@app.post("/reload-config")
+async def reload_config():
+    """Reload JSON configuration files without restarting the server"""
+
+    if settings.DEBUG:
+        try:
+            data_loader.reload_cache()
+            logger.info("Configuration files reloaded successfully")
+
+            return {
+                "message": "Configuration reloaded successfully",
+                "status": "success"
+            }
+        
+        except Exception as e:
+            logger.error(f"Failed to reload configuration: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to reload configuration: {str(e)}")
+        
+    else:
+        logger.warning("Configuration reload is disabled in production mode")
+        raise HTTPException(status_code=403, detail="Configuration reload is disabled in production mode")
 
 @app.post("/generate-playlist", response_model=PlaylistResponse)
 async def generate_playlist(request: PlaylistRequest):
@@ -220,8 +234,12 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "main:app",
+
         host=settings.API_HOST,
         port=settings.API_PORT,
+
+        log_level=settings.LOG_LEVEL.lower(),
+
         reload=settings.DEBUG,
-        log_level=settings.LOG_LEVEL.lower()
+        reload_excludes=["data", "__pycache__", "venv", ".env", ".git", ".vscode"],
     )

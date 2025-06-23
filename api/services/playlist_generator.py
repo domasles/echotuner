@@ -9,16 +9,14 @@ import json
 from typing import List, Dict, Any, Optional
 
 from services.spotify_search_service import SpotifySearchService
+from services.data_loader import data_loader
 from core.models import Song, UserContext
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 class PlaylistGeneratorService:
-    """
-    AI service that generates playlists using real-time song search.
-    Uses Ollama with phi3:mini to generate search queries, then searches Spotify for actual songs.
-    """
+    """AI service that generates playlists using real-time song search."""
     
     def __init__(self):
         self.spotify_search = SpotifySearchService()
@@ -179,19 +177,36 @@ class PlaylistGeneratorService:
             if user_context:
                 if user_context.favorite_genres:
                     context += f"Favorite genres: {', '.join(user_context.favorite_genres)}\n"
+
                 if user_context.favorite_artists:
                     context += f"Favorite artists: {', '.join(user_context.favorite_artists)}\n"
+
                 if user_context.energy_preference:
-                    context += f"Energy preference: {user_context.energy_preference}\n"
+                    context += f"Energy preference: {user_context.energy_preference}\n"   
+
+            genre_patterns = data_loader.get_genre_patterns()
+            activity_patterns = data_loader.get_activity_patterns()
+            activity_energy_mapping = data_loader.get_activity_energy_mapping()
+            mood_patterns = data_loader.get_mood_patterns()
+
+            available_genres = list(genre_patterns.keys())
+            available_activities = list(activity_patterns.keys())
+            activity_energies = {k: v for k, v in activity_energy_mapping.items() if k in available_activities}
+            available_moods = list(mood_patterns.keys())
 
             ai_prompt = f"""
                 Analyze this music request and generate search keywords:
                 {context}
 
-                Based on this request, provide:
+                Available genres: {', '.join(available_genres)}
+                Available activities: {', '.join(available_activities)}
+                Activity energy mappings: {activity_energies}
+                Available moods: {', '.join(available_moods)}
+
+                Based on this request and the available data above, provide:
                 1. 3-5 mood keywords for searching songs
-                2. 2-3 relevant music genres
-                3. Energy level (low/medium/high)
+                2. 2-3 relevant music genres (use the available genres list above)
+                3. Energy level (low/medium/high) - consider activity energy mappings
                 4. Brief explanation of the mood
 
                 Format your response as JSON:
@@ -205,8 +220,11 @@ class PlaylistGeneratorService:
                 Examples:
                 - "I'm feeling sad and nostalgic" → {{"mood_keywords": ["sad", "melancholy", "nostalgic"], "genres": ["ballad", "alternative"], "energy_level": "low"}}
                 - "Need pump up music for gym" → {{"mood_keywords": ["energetic", "pump up", "workout"], "genres": ["hip hop", "rock"], "energy_level": "high"}}
-                - "Chill study music" → {{"mood_keywords": ["chill", "calm", "focus"], "genres": ["ambient", "indie"], "energy_level": "low"}}
-                """
+                - "Chill study music" → {{"mood_keywords": ["chill", "calm", "focus"], "genres": ["ambient", "lo-fi"], "energy_level": "low"}}
+                - "I need something close to 90s rap for my deep coding session" → {{"mood_keywords": ["focus", "coding", "90s", "nostalgic"], "genres": ["90s rap", "hip hop"], "energy_level": "low"}}
+                - "Play some classic rock from the 70s for my workout" → {{"mood_keywords": ["workout", "classic", "energetic"], "genres": ["70s", "classic rock"], "energy_level": "high"}}
+                - "I want lo-fi hip hop for concentration" → {{"mood_keywords": ["concentration", "chill", "focus"], "genres": ["lo-fi", "hip hop"], "energy_level": "low"}}
+            """
             
             response = await asyncio.to_thread(
                 ollama.generate,
@@ -245,39 +263,66 @@ class PlaylistGeneratorService:
 
         text_to_analyze = f"{prompt} {ai_text}".lower()
 
-        mood_patterns = {
-            "happy": ["happy", "joy", "upbeat", "cheerful", "positive", "excited"],
-            "sad": ["sad", "melancholy", "depressed", "down", "blue", "sorrowful"],
-            "energetic": ["energetic", "pump", "intense", "powerful", "workout", "gym"],
-            "chill": ["chill", "relaxed", "calm", "peaceful", "mellow", "laid back"],
-            "romantic": ["romantic", "love", "intimate", "tender", "sweet"],
-            "nostalgic": ["nostalgic", "memories", "past", "vintage", "throwback"]
-        }
+        mood_patterns = data_loader.get_mood_patterns()
         
         for mood, keywords in mood_patterns.items():
             if any(keyword in text_to_analyze for keyword in keywords):
                 mood_keywords.append(mood)
 
-        genre_patterns = {
-            "pop": ["pop", "mainstream", "radio"],
-            "rock": ["rock", "guitar", "band"],
-            "hip hop": ["hip hop", "rap", "urban"],
-            "electronic": ["electronic", "edm", "dance"],
-            "indie": ["indie", "alternative", "underground"],
-            "r&b": ["r&b", "soul", "rhythm"],
-            "country": ["country", "folk", "acoustic"],
-            "jazz": ["jazz", "smooth", "saxophone"]
-        }
+        genre_patterns = data_loader.get_genre_patterns()
         
         for genre, keywords in genre_patterns.items():
             if any(keyword in text_to_analyze for keyword in keywords):
                 genres.append(genre)
- 
-        if any(word in text_to_analyze for word in ["energetic", "pump", "intense", "workout", "party"]):
+
+        energy_trigger_words = data_loader.get_energy_trigger_words()
+        
+        if any(word in text_to_analyze for word in energy_trigger_words.get("high", [])):
             energy_level = "high"
 
-        elif any(word in text_to_analyze for word in ["chill", "calm", "relaxed", "study", "sleep"]):
+        elif any(word in text_to_analyze for word in energy_trigger_words.get("low", [])):
             energy_level = "low"
+
+        elif any(word in text_to_analyze for word in energy_trigger_words.get("ultra-high", [])):
+            energy_level = "high"
+
+        elif any(word in text_to_analyze for word in energy_trigger_words.get("ultra-low", [])):
+            energy_level = "low"
+
+        activity_patterns = data_loader.get_activity_patterns()
+        activity_energy_mapping = data_loader.get_activity_energy_mapping()
+        
+        for activity, keywords in activity_patterns.items():
+            if any(keyword in text_to_analyze for keyword in keywords):
+                if activity in activity_energy_mapping:
+                    mapped_energy = activity_energy_mapping[activity]
+
+                    if mapped_energy in ["ultra-low", "ultra-high"]:
+                        energy_level = "low" if mapped_energy == "ultra-low" else "high"
+
+                    else:
+                        energy_level = mapped_energy
+
+                    break
+
+        time_contexts = data_loader.get_time_contexts()
+
+        for time_period, keywords in time_contexts.items():
+            if any(keyword in text_to_analyze for keyword in keywords):
+                mood_keywords.append(time_period)
+                break
+
+        emotion_intensities = data_loader.get_emotion_intensities()
+
+        for intensity_level, modifiers in emotion_intensities.items():
+            if any(modifier in text_to_analyze for modifier in modifiers):
+                if intensity_level == "extreme" and energy_level == "medium":
+                    energy_level = "high"
+
+                elif intensity_level == "mild" and energy_level == "high":
+                    energy_level = "medium"
+
+                break
 
         if user_context:
             if user_context.favorite_genres:
@@ -307,7 +352,7 @@ class PlaylistGeneratorService:
             return []
 
         additional_songs = []
-        broader_keywords = ["popular", "trending", "top hits"]
+        broader_keywords = data_loader.get_broader_keywords()
 
         for keyword in broader_keywords:
             if len(additional_songs) >= needed:

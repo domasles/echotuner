@@ -1,0 +1,110 @@
+{
+    "energy_terms": {
+        "low": {
+            "keywords": ["chill", "relaxed", "calm", "mellow", "peaceful", "tranquil", "soothing", "gentle", "soft", "quiet", "zen", "meditative", "serene", "still", "restful", "unhurried", "lazy", "sleepy", "drowsy", "lethargic", "subdued", "hushed", "whispered", "tender", "delicate"],
+            "search_terms": ["chill", "relaxed", "calm", "mellow", "peaceful", "ambient", "downtempo", "lo-fi", "acoustic", "ballad", "slow", "soft rock", "folk", "new age", "meditation", "spa", "lullaby", "classical", "piano", "instrumental"]
+        },
+        "medium": {
+            "keywords": ["upbeat", "smooth", "groovy", "moderate", "balanced", "steady", "comfortable", "flowing", "rhythmic", "melodic", "casual", "easygoing", "regular", "standard", "normal", "walking pace", "cruising", "coasting", "floating", "gliding", "swaying", "nodding", "tapping", "bouncing", "grooving"],
+            "search_terms": ["upbeat", "smooth", "groovy", "mid-tempo", "pop", "indie", "alternative", "folk", "soul", "funk", "jazz", "r&b", "reggae", "country", "singer-songwriter", "easy listening", "soft pop", "adult contemporary", "classic rock", "blues"]
+        },
+        "high": {
+            "keywords": ["energetic", "pump up", "intense", "powerful", "explosive", "driving", "aggressive", "fast", "vigorous", "dynamic", "electric", "charged", "pumped", "amped", "fired up", "hyped", "adrenaline", "turbo", "maximum", "extreme", "wild", "crazy", "insane", "fierce", "savage"],
+            "search_terms": ["energetic", "pump up", "intense", "powerful", "rock", "metal", "edm", "hip hop", "punk", "hardcore", "dance", "techno", "dubstep", "drum and bass", "thrash", "speed metal", "power metal", "hard rock", "alternative rock", "industrial"]
+        },
+        "ultra-low": {
+            "keywords": ["sleep", "lullaby", "whisper", "silence", "stillness", "motionless", "frozen", "suspended", "floating", "drifting", "barely audible", "faint", "ethereal", "ghostly", "atmospheric", "ambient", "drone", "minimalist", "spacious", "empty", "void", "weightless", "timeless", "infinite", "transcendent"],
+            "search_terms": ["sleep", "lullaby", "ambient", "drone", "minimal", "meditation", "nature sounds", "white noise", "ASMR", "healing", "spa", "new age", "classical", "solo piano", "string quartet", "harp", "flute", "tibetan bowls", "rain sounds", "ocean waves"]
+        },
+        "ultra-high": {
+            "keywords": ["explosive", "nuclear", "volcanic", "lightning", "thunderous", "earth-shattering", "mind-blowing", "devastating", "obliterating", "annihilating", "apocalyptic", "cataclysmic", "supersonic", "hypersonic", "breakneck", "lightning-fast", "bullet-speed", "rocket-powered", "jet-fueled", "turbo-charged", "supercharged", "nitro-boosted", "overdrive", "redline", "maximum"],
+            "search_terms": ["extreme metal", "death metal", "black metal", "grindcore", "speedcore", "gabber", "hardcore techno", "breakcore", "digital hardcore", "noise", "power violence", "thrashcore", "metalcore", "deathcore", "mathcore", "cybergrind", "brutal death metal", "technical death metal", "war metal", "blackened death metal"]
+        }
+    },
+    "energy_trigger_words": {
+        "ultra-high": ["explosive", "nuclear", "devastating", "obliterating", "apocalyptic", "supersonic", "lightning-fast", "rocket-powered", "turbo-charged", "maximum overdrive", "redline", "breakneck", "earth-shattering", "mind-blowing", "annihilating", "cataclysmic", "volcanic", "thunderous", "hypersonic", "bullet-speed"],
+        "high": ["energetic", "pump", "intense", "workout", "party", "dance", "aggressive", "fast", "powerful", "explosive", "electric", "charged", "pumped", "amped", "fired up", "hyped", "adrenaline", "turbo", "wild", "crazy", "insane", "fierce", "savage", "driving", "vigorous", "dynamic"],
+        "medium": ["upbeat", "smooth", "groovy", "moderate", "balanced", "flowing", "melodic", "rhythmic", "steady", "comfortable", "casual", "easygoing", "regular", "normal", "walking", "cruising", "coasting", "floating", "gliding", "swaying", "nodding", "tapping", "bouncing", "grooving"],
+        "low": ["chill", "calm", "relaxed", "study", "sleep", "peaceful", "soft", "gentle", "quiet", "meditative", "zen", "serene", "still", "restful", "unhurried", "lazy", "sleepy", "drowsy", "subdued", "hushed", "whispered", "tender", "delicate", "soothing", "tranquil"],
+        "ultra-low": ["sleep", "lullaby", "whisper", "silence", "stillness", "motionless", "frozen", "suspended", "floating", "drifting", "barely audible", "faint", "ethereal", "ghostly", "atmospheric", "drone", "minimalist", "spacious", "empty", "weightless", "timeless", "infinite", "transcendent", "void"]
+    },
+    "activity_energy_mapping": {
+        "workout": "high",
+        "gym": "high", 
+        "exercise": "high",
+        "running": "high",
+        "cardio": "high",
+        "party": "high",
+        "dancing": "high",
+        "club": "high",
+        "celebration": "high",
+        "study": "low",
+        "reading": "low",
+        "focus": "low",
+        "concentration": "low",
+        "coding": "low",
+        "programming": "low",
+        "development": "low",
+        "deep work": "low",
+        "software engineering": "low",
+        "meditation": "ultra-low",
+        "sleep": "ultra-low",
+        "relaxation": "low",
+        "spa": "ultra-low",
+        "yoga": "low",
+        "cooking": "medium",
+        "driving": "medium",
+        "commute": "medium",
+        "cleaning": "medium",
+        "housework": "medium",
+        "morning routine": "medium",
+        "work": "medium",
+        "productivity": "medium",
+        "creative work": "medium",
+        "background": "low",
+        "ambient": "ultra-low"
+    },
+    "tempo_ranges": {
+        "ultra-low": {
+            "bpm_range": "40-60",
+            "description": "Very slow, meditative, sleep-inducing"
+        },
+        "low": {
+            "bpm_range": "60-90", 
+            "description": "Slow to moderate, relaxing, contemplative"
+        },
+        "medium": {
+            "bpm_range": "90-120",
+            "description": "Moderate tempo, comfortable, walking pace"
+        },
+        "high": {
+            "bpm_range": "120-160",
+            "description": "Fast, energetic, danceable, workout-friendly"
+        },
+        "ultra-high": {
+            "bpm_range": "160+",
+            "description": "Very fast, intense, aggressive, extreme sports"
+        }
+    },
+    "mood_energy_correlations": {
+        "happy": "medium-high",
+        "sad": "low",
+        "angry": "high", 
+        "peaceful": "ultra-low",
+        "excited": "high",
+        "melancholic": "low",
+        "confident": "medium-high",
+        "anxious": "medium",
+        "romantic": "low-medium",
+        "nostalgic": "low-medium",
+        "rebellious": "high",
+        "mysterious": "low",
+        "playful": "medium-high",
+        "sophisticated": "medium",
+        "motivational": "high",
+        "spiritual": "ultra-low",
+        "adventurous": "high",
+        "healing": "ultra-low",
+        "celebratory": "high"
+    }
+}

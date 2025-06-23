@@ -34,4 +34,13 @@ class Settings:
 
     CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "true").lower() == "true"
 
+    LOGGER_COLORS = {
+        'DEBUG': 'cyan',
+        'INFO': 'green',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'bright_red',
+        "EchoTuner": 'magenta'
+    }
+
 settings = Settings()

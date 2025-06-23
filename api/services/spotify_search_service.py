@@ -5,6 +5,7 @@ import random
 from typing import List, Optional
 
 from spotipy.oauth2 import SpotifyClientCredentials
+from services.data_loader import data_loader
 from config.settings import settings
 from core.models import Song
 
@@ -119,18 +120,23 @@ class SpotifySearchService:
                     queries.append(f"{mood_keywords[0]} genre:{genre}")
  
         if energy_level:
-            energy_terms = {
-                "low": ["chill", "relaxed", "calm", "mellow"],
-                "medium": ["upbeat", "smooth", "groovy"],
-                "high": ["energetic", "pump up", "intense", "powerful"]
-            }
+            energy_terms = data_loader.get_energy_terms()
             
             if energy_level in energy_terms:
-                for term in energy_terms[energy_level][:2]:
+                search_terms = energy_terms[energy_level].get("search_terms", [])
+
+                for term in search_terms[:2]:
                     queries.append(term)
 
         if mood_keywords and energy_level:
-            energy_map = {"low": "chill", "medium": "upbeat", "high": "energetic"}
+            energy_terms = data_loader.get_energy_terms()
+            energy_map = {}
+
+            for level, data in energy_terms.items():
+                search_terms = data.get("search_terms", [])
+
+                if search_terms:
+                    energy_map[level] = search_terms[0]
 
             if energy_level in energy_map:
                 queries.append(f"{mood_keywords[0]} {energy_map[energy_level]}")
@@ -190,7 +196,6 @@ class SpotifySearchService:
         variety_count = count - top_count
         
         selected = sorted_songs[:top_count]
-
         remaining = sorted_songs[top_count:]
 
         if remaining and variety_count > 0:
