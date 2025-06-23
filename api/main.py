@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uvicorn
 import click
@@ -6,6 +7,7 @@ import sys
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from core.models import PlaylistRequest, PlaylistResponse, RateLimitStatus
@@ -45,10 +47,60 @@ logger = logging.getLogger(__name__)
 api_dir = Path(__file__).parent
 sys.path.insert(0, str(api_dir))
 
+rate_limiter = RateLimiterService()
+prompt_validator = PromptValidatorService()
+playlist_generator = PlaylistGeneratorService()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handle startup and shutdown events"""
+
+    logger.info("Starting EchoTuner API...")
+    
+    try:
+        init_tasks = [
+            rate_limiter.initialize(),
+            prompt_validator.initialize(),
+            playlist_generator.initialize()
+        ]
+
+        cache_task = asyncio.create_task(preload_data_cache())
+
+        await asyncio.gather(*init_tasks)
+
+        logger.info(f"Spotify Search: {'ENABLED' if playlist_generator.spotify_search.is_ready() else 'FALLBACK MODE'}")
+        logger.info(f"AI Generation: {'OLLAMA' if settings.USE_OLLAMA else 'BASIC MODE'}")
+        logger.info(f"Rate Limiting: {'ENABLED' if settings.DAILY_LIMIT_ENABLED else 'DISABLED'}")
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize EchoTuner API: {e}")
+        raise
+    
+    yield
+
+async def preload_data_cache():
+    """Pre-load frequently used data in background"""
+    try:
+        loop = asyncio.get_event_loop()
+        
+        preload_tasks = [
+            loop.run_in_executor(None, data_loader.get_mood_patterns),
+            loop.run_in_executor(None, data_loader.get_genre_patterns),
+            loop.run_in_executor(None, data_loader.get_activity_patterns),
+            loop.run_in_executor(None, data_loader.get_energy_trigger_words),
+        ]
+        
+        await asyncio.gather(*preload_tasks, return_exceptions=True)
+        logger.info("Data cache preloaded successfully!")
+        
+    except Exception as e:
+        logger.warning(f"Cache preloading failed (non-critical): {e}")
+
 app = FastAPI(
     title="EchoTuner API",
     description="AI-powered playlist generation with real-time song search",
-    version="1.0.0"
+    version="1.1.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -58,25 +110,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-rate_limiter = RateLimiterService()
-prompt_validator = PromptValidatorService()
-playlist_generator = PlaylistGeneratorService()
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on startup"""
-
-    logger.info("Starting EchoTuner API...")
-
-    await rate_limiter.initialize()
-    await prompt_validator.initialize()
-    await playlist_generator.initialize()
-
-    logger.info(f"Spotify Search: {'ENABLED' if playlist_generator.spotify_search.is_ready() else 'FALLBACK MODE'}")
-    logger.info(f"AI Generation: {'OLLAMA' if settings.USE_OLLAMA else 'BASIC MODE'}")
-    logger.info(f"Rate Limiting: {'ENABLED' if settings.DAILY_LIMIT_ENABLED else 'DISABLED'}")
-    logger.info("EchoTuner API ready!")
 
 @app.get("/")
 async def root():
@@ -97,7 +130,7 @@ async def health_check():
 
     return {
         "status": "healthy",
-        "version": "1.0.1", 
+        "version": "1.1.0", 
         "services": {
             "prompt_validator": prompt_validator.is_ready(),
             "playlist_generator": playlist_generator.is_ready(),

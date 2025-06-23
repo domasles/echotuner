@@ -11,6 +11,9 @@ httpx==0.28.1
 requests==2.32.4
 aiohttp==3.12.13
 
+# Loading JSON
+ujson==5.10.0
+
 # AI and ML
 ollama==0.5.1
 numpy==2.3.1

@@ -1,4 +1,4 @@
-import requests
+import httpx
 import asyncio
 import logging
 
@@ -26,11 +26,13 @@ class PlaylistGeneratorService:
         self.use_ollama = settings.USE_OLLAMA
 
         self.initialized = False
+        self.http_client = None
 
     async def initialize(self):
         """Initialize the AI model and Spotify search service"""
         
         try:
+            self.http_client = httpx.AsyncClient(timeout=settings.OLLAMA_TIMEOUT)
             await self.spotify_search.initialize()
             
             if not self.use_ollama:
@@ -62,7 +64,7 @@ class PlaylistGeneratorService:
         """Check if Ollama is running and accessible"""
 
         try:
-            response = requests.get(f"{self.ollama_base_url}/api/tags", timeout=settings.OLLAMA_TIMEOUT)
+            response = await self.http_client.get(f"{self.ollama_base_url}/api/tags")
             return response.status_code == 200
 
         except:
@@ -72,7 +74,7 @@ class PlaylistGeneratorService:
         """Ensure the required model is available"""
 
         try:
-            response = requests.get(f"{self.ollama_base_url}/api/tags")
+            response = await self.http_client.get(f"{self.ollama_base_url}/api/tags")
 
             if response.status_code == 200:
                 models = response.json().get("models", [])
@@ -93,7 +95,7 @@ class PlaylistGeneratorService:
         """Pull the required model"""
 
         try:
-            response = requests.post(
+            response = await self.http_client.post(
                 f"{self.ollama_base_url}/api/pull",
                 json={"name": self.model_name},
                 timeout=settings.OLLAMA_MODEL_PULL_TIMEOUT
@@ -195,37 +197,66 @@ class PlaylistGeneratorService:
             available_moods = list(mood_patterns.keys())
 
             ai_prompt = f"""
-                Analyze this music request and generate search keywords:
+                You are a music playlist assistant. Your job is to deeply understand a user's music request and extract highly relevant search parameters to help find songs that match the user's intent — musically, emotionally, and stylistically.
+
+                Request to analyze:
                 {context}
 
-                Available genres: {', '.join(available_genres)}
-                Available activities: {', '.join(available_activities)}
-                Activity energy mappings: {activity_energies}
-                Available moods: {', '.join(available_moods)}
+                You have access to the following predefined options:
 
-                Based on this request and the available data above, provide:
-                1. 3-5 mood keywords for searching songs
-                2. 2-3 relevant music genres (use the available genres list above)
-                3. Energy level (low/medium/high) - consider activity energy mappings
-                4. Brief explanation of the mood
+                - Available genres: {', '.join(available_genres)}
+                - Available activities: {', '.join(available_activities)}
+                - Activity-to-energy mappings: {activity_energies}
+                - Available moods: {', '.join(available_moods)}
 
-                Format your response as JSON:
+                Instructions:
+
+                Analyze the user's text and determine their musical intention, mood, genre preferences, and energy needs. Avoid literal interpretations and use common sense: if someone asks for "gangsta rap", you should suggest actual genres related to 90s or hardcore hip hop, not unrelated pop.
+
+                Return the following:
+
+                1. **mood_keywords**: 3 to 5 strong emotional or stylistic keywords that capture the feeling of the request (e.g., "dark", "motivational", "nostalgic", "gritty").
+                2. **genres**: 2 to 3 genres strictly from the provided genre list that most closely match the request. **Never make up genres.**
+                3. **energy_level**: Pick one of "low", "medium", or "high", based on the request and the activity-to-energy mapping.
+                4. **explanation**: A short but clear explanation (1-2 sentences) of how you interpreted the request in terms of mood and style.
+
+                Format your response in valid JSON:
                 {{
                     "mood_keywords": ["keyword1", "keyword2", "keyword3"],
                     "genres": ["genre1", "genre2"],
                     "energy_level": "medium",
-                    "explanation": "Brief description of the mood"
+                    "explanation": "Brief explanation here"
                 }}
 
                 Examples:
-                - "I'm feeling sad and nostalgic" → {{"mood_keywords": ["sad", "melancholy", "nostalgic"], "genres": ["ballad", "alternative"], "energy_level": "low"}}
-                - "Need pump up music for gym" → {{"mood_keywords": ["energetic", "pump up", "workout"], "genres": ["hip hop", "rock"], "energy_level": "high"}}
-                - "Chill study music" → {{"mood_keywords": ["chill", "calm", "focus"], "genres": ["ambient", "lo-fi"], "energy_level": "low"}}
-                - "I need something close to 90s rap for my deep coding session" → {{"mood_keywords": ["focus", "coding", "90s", "nostalgic"], "genres": ["90s rap", "hip hop"], "energy_level": "low"}}
-                - "Play some classic rock from the 70s for my workout" → {{"mood_keywords": ["workout", "classic", "energetic"], "genres": ["70s", "classic rock"], "energy_level": "high"}}
-                - "I want lo-fi hip hop for concentration" → {{"mood_keywords": ["concentration", "chill", "focus"], "genres": ["lo-fi", "hip hop"], "energy_level": "low"}}
+
+                - "I'm feeling sad and nostalgic" →
+                {{
+                    "mood_keywords": ["sad", "melancholy", "nostalgic"],
+                    "genres": ["ballad", "alternative"],
+                    "energy_level": "low",
+                    "explanation": "The request expresses sadness and a longing for the past, indicating a slow tempo and melancholic tone."
+                }}
+
+                - "Need pump up music for gym" →
+                {{
+                    "mood_keywords": ["energetic", "intense", "motivational"],
+                    "genres": ["hip hop", "rock"],
+                    "energy_level": "high",
+                    "explanation": "The user wants high-energy music for physical exertion, suggesting loud and fast-paced tracks."
+                }}
+
+                - "I need something retro, something that could be called gangsta rap" →
+                {{
+                    "mood_keywords": ["gritty", "retro", "urban", "confident"],
+                    "genres": ["gangsta rap", "90s hip hop"],
+                    "energy_level": "medium",
+                    "explanation": "Gangsta rap implies aggressive lyrical themes and urban sound. 'Retro' and genre point to 90s hip hop subgenres."
+                }}
+
+                Only use genres from the provided list. If none match exactly, choose the most semantically related genre available. Stay true to the cultural context of the request.
             """
-            
+
             response = await asyncio.to_thread(
                 ollama.generate,
                 model=self.model_name,

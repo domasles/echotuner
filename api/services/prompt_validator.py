@@ -1,6 +1,6 @@
 import numpy as np
-import requests
 import logging
+import httpx
 
 from services.data_loader import data_loader
 from config.settings import settings
@@ -20,11 +20,14 @@ class PromptValidatorService:
 
         self.music_reference_embeddings = None
         self.initialized = False
+        self.http_client = None
         
     async def initialize(self):
         """Initialize the model asynchronously"""
 
         try:
+            self.http_client = httpx.AsyncClient(timeout=settings.OLLAMA_TIMEOUT)
+            
             if not self.use_ollama:
                 logger.error("Ollama is required for this application")
                 raise RuntimeError("Ollama must be enabled. Set USE_OLLAMA=true in environment variables.")
@@ -55,7 +58,7 @@ class PromptValidatorService:
         """Check if Ollama is running and accessible"""
 
         try:
-            response = requests.get(f"{self.ollama_base_url}/api/tags", timeout=settings.OLLAMA_TIMEOUT)
+            response = await self.http_client.get(f"{self.ollama_base_url}/api/tags")
             return response.status_code == 200
         
         except:
@@ -65,7 +68,7 @@ class PromptValidatorService:
         """Ensure the model is available in Ollama"""
 
         try:
-            response = requests.get(f"{self.ollama_base_url}/api/tags")
+            response = await self.http_client.get(f"{self.ollama_base_url}/api/tags")
 
             if response.status_code == 200:
                 models = response.json().get('models', [])
@@ -74,7 +77,7 @@ class PromptValidatorService:
                 if self.model_name not in model_names:
                     logger.info(f"Pulling model {self.model_name}...")
 
-                    pull_response = requests.post(
+                    pull_response = await self.http_client.post(
                         f"{self.ollama_base_url}/api/pull",
                         json={"name": self.model_name}
                     )
@@ -106,7 +109,7 @@ class PromptValidatorService:
         """Pre-compute embeddings for music-related reference texts"""
 
         try:
-            music_references = data_loader.get_prompt_references()        
+            music_references = data_loader.get_prompt_references()
             embeddings = []
 
             for text in music_references:
@@ -135,7 +138,7 @@ class PromptValidatorService:
         """Get embedding for text using Ollama"""
 
         try:
-            response = requests.post(
+            response = await self.http_client.post(
                 f"{self.ollama_base_url}/api/embeddings",
                 json={
                     "model": self.model_name,
@@ -200,4 +203,34 @@ class PromptValidatorService:
         else:
             logger.error("Reference embeddings not available")
             raise RuntimeError("Reference embeddings not available for validation")
+    
+    async def __aenter__(self):
+        if not self.http_client:
+            self.http_client = httpx.AsyncClient(timeout=settings.OLLAMA_TIMEOUT)
+
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.http_client:
+            await self.http_client.aclose()
+    
+    def __del__(self):
+        """Cleanup HTTP client on destruction"""
+        try:
+            if self.http_client and not self.http_client.is_closed:
+                import asyncio
+
+                try:
+                    loop = asyncio.get_event_loop()
+
+                    if loop.is_running():
+                        loop.create_task(self.http_client.aclose())
+
+                    else:
+                        loop.run_until_complete(self.http_client.aclose())
+                except:
+                    pass
+
+        except:
+            pass
 
