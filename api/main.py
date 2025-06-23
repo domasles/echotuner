@@ -194,7 +194,7 @@ async def generate_playlist(request: PlaylistRequest):
         songs = await playlist_generator.generate_playlist(
             prompt=request.prompt,
             user_context=request.user_context,
-            count=settings.MAX_SONGS_PER_PLAYLIST if settings.DEBUG else request.count
+            count=request.count if settings.DEBUG else settings.MAX_SONGS_PER_PLAYLIST
         )
 
         if settings.DAILY_LIMIT_ENABLED:
