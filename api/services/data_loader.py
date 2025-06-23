@@ -59,7 +59,6 @@ class DataLoader:
         
         data = self._load_json_file('prompt_references.json')
         return data.get('music_references', [])
-    
     def get_mood_patterns(self) -> Dict[str, List[str]]:
         """Get mood keyword patterns for AI parsing"""
         
@@ -71,6 +70,12 @@ class DataLoader:
         
         data = self._load_json_file('ai_patterns.json')
         return data.get('genre_patterns', {})
+    
+    def get_genre_artists(self) -> Dict[str, List[str]]:
+        """Get artists associated with each genre"""
+        
+        data = self._load_json_file('ai_patterns.json')
+        return data.get('genre_artists', {})
     
     def get_broader_keywords(self) -> List[str]:
         """Get broader search keywords for additional song searches"""
@@ -137,7 +142,7 @@ class DataLoader:
 
         try:
             self._executor.shutdown(wait=False)
-            
+
         except:
             pass
 

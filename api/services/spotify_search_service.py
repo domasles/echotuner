@@ -114,11 +114,23 @@ class SpotifySearchService:
             queries.append(keyword)
 
         if genres:
+            genre_artists = data_loader.get_genre_artists()
+            
             for genre in genres[:2]:
                 queries.append(f"genre:{genre}")
+
                 if mood_keywords:
                     queries.append(f"{mood_keywords[0]} genre:{genre}")
- 
+
+                if genre.lower() in genre_artists:
+                    artists = genre_artists[genre.lower()][:3]
+
+                    for artist in artists:
+                        queries.append(f'artist:"{artist}"')
+
+                        if mood_keywords:
+                            queries.append(f'{mood_keywords[0]} artist:"{artist}"')
+
         if energy_level:
             energy_terms = data_loader.get_energy_terms()
             
@@ -141,7 +153,7 @@ class SpotifySearchService:
             if energy_level in energy_map:
                 queries.append(f"{mood_keywords[0]} {energy_map[energy_level]}")
         
-        return queries[:8]
+        return queries[:12]
     
     async def _search_spotify(self, query: str, limit: int = 10) -> List[Song]:
         """Perform actual Spotify search"""

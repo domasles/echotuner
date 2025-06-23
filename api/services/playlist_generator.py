@@ -187,14 +187,27 @@ class PlaylistGeneratorService:
                     context += f"Energy preference: {user_context.energy_preference}\n"   
 
             genre_patterns = data_loader.get_genre_patterns()
+            genre_artists = data_loader.get_genre_artists()
+
             activity_patterns = data_loader.get_activity_patterns()
             activity_energy_mapping = data_loader.get_activity_energy_mapping()
+            
             mood_patterns = data_loader.get_mood_patterns()
 
             available_genres = list(genre_patterns.keys())
             available_activities = list(activity_patterns.keys())
             activity_energies = {k: v for k, v in activity_energy_mapping.items() if k in available_activities}
             available_moods = list(mood_patterns.keys())
+
+            genre_examples = {}
+
+            for genre in available_genres:
+                if genre in genre_artists:
+                    artists = genre_artists[genre][:3]
+                    genre_examples[genre] = f"{genre} (e.g., {', '.join(artists)})"
+
+                else:
+                    genre_examples[genre] = genre
 
             ai_prompt = f"""
                 You are a music playlist assistant. Your job is to deeply understand a user's music request and extract highly relevant search parameters to help find songs that match the user's intent — musically, emotionally, and stylistically.
@@ -204,19 +217,25 @@ class PlaylistGeneratorService:
 
                 You have access to the following predefined options:
 
-                - Available genres: {', '.join(available_genres)}
+                - Available genres with representative artists: {', '.join(genre_examples.values())}
                 - Available activities: {', '.join(available_activities)}
                 - Activity-to-energy mappings: {activity_energies}
                 - Available moods: {', '.join(available_moods)}
 
                 Instructions:
 
-                Analyze the user's text and determine their musical intention, mood, genre preferences, and energy needs. Avoid literal interpretations and use common sense: if someone asks for "gangsta rap", you should suggest actual genres related to 90s or hardcore hip hop, not unrelated pop.
+                Analyze the user's text and determine their musical intention, mood, genre preferences, and energy needs. Pay close attention to genre accuracy - use the artist examples to understand what each genre truly represents. For example:
+                - If someone asks for "rap songs" or "hip hop", choose "hip hop" (Eminem, Jay-Z, Kendrick Lamar)
+                - If someone asks for "90s rap", choose "90s rap" (Tupac, Nas, Wu-Tang Clan)
+                - If someone asks for "trap music", choose "trap" (Future, Travis Scott, Migos)
+                - If someone asks for "rock music", choose "rock" (The Beatles, Led Zeppelin, Queen)
+
+                **CRITICAL**: Never suggest pop artists (like Demi Lovato, Taylor Swift, Ariana Grande) for rap/hip-hop requests, or rap artists for pop requests. Use the genre-artist mappings to ensure accuracy.
 
                 Return the following:
 
                 1. **mood_keywords**: 3 to 5 strong emotional or stylistic keywords that capture the feeling of the request (e.g., "dark", "motivational", "nostalgic", "gritty").
-                2. **genres**: 2 to 3 genres strictly from the provided genre list that most closely match the request. **Never make up genres.**
+                2. **genres**: 2 to 3 genres strictly from the provided genre list that most closely match the request. **Use the artist examples to guide your choice.**
                 3. **energy_level**: Pick one of "low", "medium", or "high", based on the request and the activity-to-energy mapping.
                 4. **explanation**: A short but clear explanation (1-2 sentences) of how you interpreted the request in terms of mood and style.
 
@@ -233,7 +252,7 @@ class PlaylistGeneratorService:
                 - "I'm feeling sad and nostalgic" →
                 {{
                     "mood_keywords": ["sad", "melancholy", "nostalgic"],
-                    "genres": ["ballad", "alternative"],
+                    "genres": ["indie", "folk"],
                     "energy_level": "low",
                     "explanation": "The request expresses sadness and a longing for the past, indicating a slow tempo and melancholic tone."
                 }}
@@ -246,15 +265,23 @@ class PlaylistGeneratorService:
                     "explanation": "The user wants high-energy music for physical exertion, suggesting loud and fast-paced tracks."
                 }}
 
-                - "I need something retro, something that could be called gangsta rap" →
+                - "I need some rap songs to get pumped up" →
                 {{
-                    "mood_keywords": ["gritty", "retro", "urban", "confident"],
-                    "genres": ["gangsta rap", "90s hip hop"],
-                    "energy_level": "medium",
-                    "explanation": "Gangsta rap implies aggressive lyrical themes and urban sound. 'Retro' and genre point to 90s hip hop subgenres."
+                    "mood_keywords": ["energetic", "confident", "intense", "motivational"],
+                    "genres": ["hip hop", "trap"],
+                    "energy_level": "high",
+                    "explanation": "User specifically requested rap music for motivation, which aligns with hip hop and trap genres featuring artists like Eminem, Travis Scott, and Future."
                 }}
 
-                Only use genres from the provided list. If none match exactly, choose the most semantically related genre available. Stay true to the cultural context of the request.
+                - "Play some 90s gangsta rap classics" →
+                {{
+                    "mood_keywords": ["gritty", "retro", "urban", "confident", "hardcore"],
+                    "genres": ["90s rap", "hip hop"],
+                    "energy_level": "medium",
+                    "explanation": "Request specifically mentions 90s gangsta rap, which corresponds to classic hip hop artists like Tupac, Nas, and N.W.A from that era."
+                }}
+
+                Only use genres from the provided list. Use the artist examples to ensure you're choosing the right genre for the musical style requested. Stay true to the cultural context and actual musical characteristics of each genre.
             """
 
             response = await asyncio.to_thread(

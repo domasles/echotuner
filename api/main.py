@@ -99,7 +99,7 @@ async def preload_data_cache():
 app = FastAPI(
     title="EchoTuner API",
     description="AI-powered playlist generation with real-time song search",
-    version="1.1.0",
+    version="1.2.0",
     lifespan=lifespan
 )
 
@@ -130,7 +130,7 @@ async def health_check():
 
     return {
         "status": "healthy",
-        "version": "1.1.0", 
+        "version": "1.2.0", 
         "services": {
             "prompt_validator": prompt_validator.is_ready(),
             "playlist_generator": playlist_generator.is_ready(),
