@@ -1,10 +1,12 @@
-import os
-
 import hashlib
+import logging
 import sqlite3
 
 from datetime import datetime, timedelta
 from core.models import RateLimitStatus
+from config.settings import settings
+
+logger = logging.getLogger(__name__)
 
 class RateLimiterService:
     """
@@ -16,25 +18,26 @@ class RateLimiterService:
         self.db_path = "echotuner.db"
         self.max_refinements = 3
 
-        self.is_rate_limiting_enabled = os.getenv("DAILY_LIMIT_ENABLED").lower() == "true"
-        self.max_requests_per_day = int(os.getenv("MAX_PLAYLISTS_PER_DAY"))
+        self.is_rate_limiting_enabled = settings.DAILY_LIMIT_ENABLED
+        self.max_requests_per_day = settings.MAX_PLAYLISTS_PER_DAY
 
-        self.is_initialized = False
+        self.initialized = False
     
     def initialize(self):
         """Initialize the database and create tables if needed"""
-
         try:
             self._create_tables()
-            self.is_initialized = True
-            print("Rate limiter initialized successfully")
+            self.initialized = True
+            logger.info("Rate limiter initialized successfully")
 
         except Exception as e:
-            print(f"Error initializing rate limiter: {e}")
-            self.is_initialized = False
+            logger.error(f"Error initializing rate limiter: {e}")
+            self.initialized = False
     
     def is_ready(self) -> bool:
-        return self.is_initialized
+        """Check if the service is ready"""
+        
+        return self.initialized
     
     def _create_tables(self):
         """Create database tables for rate limiting"""
@@ -87,7 +90,7 @@ class RateLimiterService:
         if not self.is_rate_limiting_enabled:
             return True
         
-        if not self.is_initialized:
+        if not self.initialized:
             return True
         
         try:
@@ -110,17 +113,17 @@ class RateLimiterService:
 
             if not self._is_same_day(last_request_date):
                 return True
-
+            
             return request_count < self.max_requests_per_day
             
         except Exception as e:
-            print(f"Error checking rate limit: {e}")
+            logger.error(f"Error checking rate limit: {e}")
             return True
     
     def can_refine_playlist(self, device_id: str) -> bool:
         """Check if a device can refine a playlist (max 3 refinements)"""
 
-        if not self.is_initialized:
+        if not self.initialized:
             return True
         
         try:
@@ -143,17 +146,17 @@ class RateLimiterService:
 
             if not self._is_same_day(last_request_date):
                 return True
-
-            return refinement_count < self.max_refinements
             
+            return refinement_count < self.max_refinements
+        
         except Exception as e:
-            print(f"Error checking refinement limit: {e}")
+            logger.error(f"Error checking refinement limit: {e}")
             return True
     
     def record_request(self, device_id: str, success: bool = True):
         """Record a playlist generation request"""
 
-        if not self.is_initialized:
+        if not self.initialized:
             return
         
         try:
@@ -197,12 +200,12 @@ class RateLimiterService:
             conn.close()
             
         except Exception as e:
-            print(f"Error recording request: {e}")
+            logger.error(f"Error recording request: {e}")
     
     def record_refinement(self, device_id: str, success: bool = True):
         """Record a playlist refinement request"""
 
-        if not self.is_initialized:
+        if not self.initialized:
             return
         
         try:
@@ -246,14 +249,14 @@ class RateLimiterService:
             conn.close()
             
         except Exception as e:
-            print(f"Error recording refinement: {e}")
+            logger.error(f"Error recording refinement: {e}")
     
     def get_status(self, device_id: str) -> RateLimitStatus:
         """Get current rate limit status for a device"""
 
         device_hash = self._get_device_hash(device_id)
         
-        if not self.is_initialized:
+        if not self.initialized:
             return RateLimitStatus(
                 device_id=device_id,
                 requests_made_today=0,
@@ -308,7 +311,7 @@ class RateLimiterService:
             )
             
         except Exception as e:
-            print(f"Error getting rate limit status: {e}")
+            logger.error(f"Error getting rate limit status: {e}")
 
             return RateLimitStatus(
                 device_id=device_id,
@@ -323,7 +326,7 @@ class RateLimiterService:
     def reset_daily_limits(self):
         """Reset all daily limits (for testing purposes)"""
 
-        if not self.is_initialized:
+        if not self.initialized:
             return
         
         try:
@@ -336,19 +339,19 @@ class RateLimiterService:
             conn.commit()
             conn.close()
             
-            print("Daily limits reset successfully")
+            logger.info("Daily limits reset successfully")
             
         except Exception as e:
-            print(f"Error resetting daily limits: {e}")
+            logger.error(f"Error resetting daily limits: {e}")
     
     def disable_rate_limiting(self):
         """Disable rate limiting (for testing)"""
 
         self.is_rate_limiting_enabled = False
-        print("Rate limiting disabled")
+        logger.info("Rate limiting disabled")
     
     def enable_rate_limiting(self):
         """Enable rate limiting"""
         
         self.is_rate_limiting_enabled = True
-        print("Rate limiting enabled")
+        logger.info("Rate limiting enabled")

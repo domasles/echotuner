@@ -1,6 +1,6 @@
 import requests
 import asyncio
-import os
+import logging
 
 import ollama
 import random
@@ -8,8 +8,11 @@ import json
 
 from typing import List, Dict, Any, Optional
 
-from core.models import Song, UserContext
 from services.spotify_search_service import SpotifySearchService
+from core.models import Song, UserContext
+from config.settings import settings
+
+logger = logging.getLogger(__name__)
 
 class PlaylistGeneratorService:
     """
@@ -18,47 +21,51 @@ class PlaylistGeneratorService:
     """
     
     def __init__(self):
-        self.is_initialized = False
         self.spotify_search = SpotifySearchService()
-        self.ollama_base_url = os.getenv("OLLAMA_BASE_URL")
-        self.model_name = os.getenv("OLLAMA_GENERATION_MODEL")
-        self.use_ollama = os.getenv("USE_OLLAMA").lower() == "true"
-        
-    def is_ready(self) -> bool:
-        """Check if the service is ready"""
-        return self.is_initialized
+
+        self.ollama_base_url = settings.OLLAMA_BASE_URL
+        self.model_name = settings.OLLAMA_GENERATION_MODEL
+        self.use_ollama = settings.USE_OLLAMA
+
+        self.initialized = False
 
     async def initialize(self):
         """Initialize the AI model and Spotify search service"""
-
+        
         try:
-            print("Initializing AI-powered playlist generation...")
+            logger.info("Initializing AI-powered playlist generation...")
             await self.spotify_search.initialize()
             
             if not self.use_ollama:
-                print("ERROR: Ollama is required for this application")
-                raise SystemExit("Ollama must be enabled. Set USE_OLLAMA=true in environment variables.")
+                logger.error("Ollama is required for this application")
+                raise RuntimeError("Ollama must be enabled. Set USE_OLLAMA=true in environment variables.")
 
             if not await self._check_ollama_connection():
-                print("ERROR: Ollama not running or not accessible")
-                raise SystemExit("Ollama is not running. Please start Ollama and try again.")
+                logger.error("Ollama not running or not accessible")
+                raise RuntimeError("Ollama is not running. Please start Ollama and try again.")
 
             await self._ensure_model_available()
             
-            print("AI Playlist Generation initialized successfully!")
-            self.is_initialized = True
+            logger.info("AI Playlist Generation initialized successfully!")
+            self.initialized = True
             
-        except SystemExit:
+        except RuntimeError:
             raise
+
         except Exception as e:
-            print(f"ERROR: Playlist generation initialization failed: {e}")
-            raise SystemExit(f"Failed to initialize playlist generation: {e}")
+            logger.error(f"Playlist generation initialization failed: {e}")
+            raise RuntimeError(f"Failed to initialize playlist generation: {e}")
+        
+    def is_ready(self) -> bool:
+        """Check if the service is ready"""
+        
+        return self.initialized
     
     async def _check_ollama_connection(self) -> bool:
         """Check if Ollama is running and accessible"""
 
         try:
-            response = requests.get(f"{self.ollama_base_url}/api/tags", timeout=5)
+            response = requests.get(f"{self.ollama_base_url}/api/tags", timeout=settings.OLLAMA_TIMEOUT)
             return response.status_code == 200
 
         except:
@@ -75,15 +82,15 @@ class PlaylistGeneratorService:
                 model_names = [model.get("name", "") for model in models]
                 
                 if self.model_name not in model_names:
-                    print(f"Model {self.model_name} not found, pulling...")
+                    logger.info(f"Model {self.model_name} not found, pulling...")
                     await self._pull_model()
 
                 else:
-                    print(f"Model {self.model_name} is available")
+                    logger.info(f"Model {self.model_name} is available")
 
         except Exception as e:
-            print(f"ERROR: Model check failed: {e}")
-            raise SystemExit(f"Model check failed: {e}")
+            logger.error(f"Model check failed: {e}")
+            raise RuntimeError(f"Model check failed: {e}")
     
     async def _pull_model(self):
         """Pull the required model"""
@@ -92,19 +99,19 @@ class PlaylistGeneratorService:
             response = requests.post(
                 f"{self.ollama_base_url}/api/pull",
                 json={"name": self.model_name},
-                timeout=300
+                timeout=settings.OLLAMA_MODEL_PULL_TIMEOUT
             )
             
             if response.status_code == 200:
-                print(f"Model {self.model_name} pulled successfully")
+                logger.info(f"Model {self.model_name} pulled successfully")
 
             else:
-                print(f"ERROR: Failed to pull model {self.model_name}")
-                raise SystemExit(f"Failed to pull model {self.model_name}")
+                logger.error(f"Failed to pull model {self.model_name}")
+                raise RuntimeError(f"Failed to pull model {self.model_name}")
 
         except Exception as e:
-            print(f"ERROR: Model pull failed: {e}")
-            raise SystemExit(f"Model pull failed: {e}")
+            logger.error(f"Model pull failed: {e}")
+            raise RuntimeError(f"Model pull failed: {e}")
 
     async def generate_playlist(self, prompt: str, user_context: Optional[UserContext] = None, count: int = 30) -> List[Song]:
         """
@@ -119,7 +126,7 @@ class PlaylistGeneratorService:
             List of exactly 'count' songs
         """
 
-        if not self.is_initialized:
+        if not self.initialized:
             await self.initialize()
         
         try:
@@ -144,12 +151,12 @@ class PlaylistGeneratorService:
             songs = songs[:count]
             random.shuffle(songs)
             
-            print(f"Generated {len(songs)} songs using AI + Spotify search")
+            logger.info(f"Generated {len(songs)} songs using AI + Spotify search")
             return songs
             
         except Exception as e:
-            print(f"ERROR: Playlist generation failed: {e}")
-            raise SystemExit(f"Playlist generation failed: {e}")
+            logger.error(f"Playlist generation failed: {e}")
+            raise RuntimeError(f"Playlist generation failed: {e}")
     
     async def _generate_search_strategy(self, prompt: str, user_context: Optional[UserContext] = None) -> Dict[str, Any]:
         """
@@ -160,7 +167,7 @@ class PlaylistGeneratorService:
         """
         
         if not await self._check_ollama_connection():
-            raise SystemExit("Ollama connection lost during playlist generation")
+            raise RuntimeError("Ollama connection lost during playlist generation")
             
         return await self._ai_generate_strategy(prompt, user_context)
     
@@ -220,15 +227,15 @@ class PlaylistGeneratorService:
 
                     if "mood_keywords" in strategy and isinstance(strategy["mood_keywords"], list):
                         return strategy
-            
+                        
             except json.JSONDecodeError:
                 pass
 
             return await self._parse_ai_response(ai_text, prompt, user_context)
             
         except Exception as e:
-            print(f"ERROR: AI strategy generation failed: {e}")
-            raise SystemExit(f"AI strategy generation failed: {e}")
+            logger.error(f"AI strategy generation failed: {e}")
+            raise RuntimeError(f"AI strategy generation failed: {e}")
     
     async def _parse_ai_response(self, ai_text: str, prompt: str, user_context: Optional[UserContext] = None) -> Dict[str, Any]:
         """Parse AI response when JSON extraction fails"""
@@ -334,7 +341,7 @@ class PlaylistGeneratorService:
                 mood_keywords=search_strategy["mood_keywords"],
                 genres=search_strategy.get("genres"),
                 energy_level=search_strategy.get("energy_level"),
-                count=new_count + 10  # Get extra to filter out duplicates
+                count=new_count + 10
             )
 
             filtered_new_songs = [s for s in new_songs if s not in kept_songs]
@@ -352,5 +359,5 @@ class PlaylistGeneratorService:
             return final_songs[:count]
             
         except Exception as e:
-            print(f"ERROR: Playlist refinement failed: {e}")
-            raise SystemExit(f"Playlist refinement failed: {e}")
+            logger.error(f"Playlist refinement failed: {e}")
+            raise RuntimeError(f"Playlist refinement failed: {e}")

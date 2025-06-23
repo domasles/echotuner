@@ -1,4 +1,6 @@
+import logging
 import uvicorn
+import click
 import sys
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,8 +12,44 @@ from core.models import PlaylistRequest, PlaylistResponse, RateLimitStatus
 from config.settings import settings
 
 from services.playlist_generator import PlaylistGeneratorService
+from services.spotify_search_service import SpotifySearchService
 from services.prompt_validator import PromptValidatorService
 from services.rate_limiter import RateLimiterService
+
+COLORS = {
+    'DEBUG': 'cyan',
+    'INFO': 'green',
+    'WARNING': 'yellow',
+    'ERROR': 'red',
+    'CRITICAL': 'bright_red',
+    "EchoTuner": 'magenta'
+}
+
+class CustomFormatter(logging.Formatter):
+    def format(self, record):
+        raw_level = record.levelname
+        color = COLORS.get(raw_level, None)
+
+        colored_level = click.style(raw_level, fg=color) if color else raw_level
+
+        target_width = 10
+        level_label_len = len(raw_level) + 1
+        spaces = " " * max(0, target_width - level_label_len)
+
+        record.levelname = f"{colored_level}:{spaces}"
+
+        return super().format(record)
+
+handler = logging.StreamHandler()
+formatter = CustomFormatter('%(levelname)s%(message)s')
+handler.setFormatter(formatter)
+
+logging.basicConfig(
+    level=settings.LOG_LEVEL.upper(),
+    handlers=[handler]
+)
+
+logger = logging.getLogger(__name__)
 
 api_dir = Path(__file__).parent
 sys.path.insert(0, str(api_dir))
@@ -32,27 +70,28 @@ app.add_middleware(
 
 playlist_generator = PlaylistGeneratorService()
 prompt_validator = PromptValidatorService()
+spotify_search_service = SpotifySearchService()
 rate_limiter = RateLimiterService()
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
-    print("Starting EchoTuner API v1.0...")
+    logger.info("Starting EchoTuner API v1.0...")
 
     await prompt_validator.initialize()
     await playlist_generator.initialize()
 
     rate_limiter.initialize()
     
-    print("EchoTuner API ready!")
-    print(f"- Spotify Search: {'ENABLED' if settings.validate_spotify_credentials() else 'FALLBACK MODE'}")
-    print(f"- AI Generation: {'OLLAMA' if settings.USE_OLLAMA else 'BASIC MODE'}")
-    print(f"- Rate Limiting: {'ENABLED' if settings.DAILY_LIMIT_ENABLED else 'DISABLED'}")
+    logger.info("EchoTuner API ready!")
+    logger.info(f"Spotify Search: {'ENABLED' if spotify_search_service.is_ready() else 'FALLBACK MODE'}")
+    logger.info(f"AI Generation: {'OLLAMA' if settings.USE_OLLAMA else 'BASIC MODE'}")
+    logger.info(f"Rate Limiting: {'ENABLED' if settings.DAILY_LIMIT_ENABLED else 'DISABLED'}")
 
 @app.get("/")
 async def root():
     return {
-        "message": "EchoTuner API v1.0",
+        "message": "EchoTuner API",
         "description": "AI-powered playlist generation with real-time song search",
         "endpoints": {
             "generate": "/generate-playlist",
@@ -68,14 +107,14 @@ async def health_check():
 
     return {
         "status": "healthy",
-        "version": "1.0.0", 
+        "version": "1.0.1", 
         "services": {
             "prompt_validator": prompt_validator.is_ready(),
             "playlist_generator": playlist_generator.is_ready(),
             "rate_limiter": rate_limiter.is_ready()
         },
         "features": {
-            "spotify_search": settings.validate_spotify_credentials(),
+            "spotify_search": spotify_search_service.is_ready(),
             "ai_generation": settings.USE_OLLAMA,
             "rate_limiting": settings.DAILY_LIMIT_ENABLED
         }
@@ -179,8 +218,8 @@ async def get_rate_limit_status(device_id: str):
         raise HTTPException(status_code=500, detail=f"Error checking rate limit: {str(e)}")
 
 if __name__ == "__main__":
-    print("EchoTuner API v1.0 - AI-Powered Playlist Generation")
-    
+    logger.info("EchoTuner API v1.0 - AI-Powered Playlist Generation")
+
     uvicorn.run(
         "main:app",
         host=settings.API_HOST,

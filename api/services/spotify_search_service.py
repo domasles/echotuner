@@ -1,12 +1,14 @@
-import os
-
+import logging
 import spotipy
 import random
 
 from typing import List, Optional
 
 from spotipy.oauth2 import SpotifyClientCredentials
+from config.settings import settings
 from core.models import Song
+
+logger = logging.getLogger(__name__)
 
 class SpotifySearchService:
     """
@@ -15,18 +17,18 @@ class SpotifySearchService:
     """
     
     def __init__(self):
-        self.client_id = os.getenv("SPOTIFY_CLIENT_ID")
-        self.client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
+        self.client_id = settings.SPOTIFY_CLIENT_ID
+        self.client_secret = settings.SPOTIFY_CLIENT_SECRET
+        
         self.spotify = None
-        self.is_initialized = False
+        self.initialized = False
         
     async def initialize(self):
         """Initialize Spotify client"""
-
         try:
             if not self.client_id or not self.client_secret:
-                print("ERROR: Spotify credentials not found")
-                raise SystemExit("Spotify credentials are required. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables.")
+                logger.error("Spotify credentials not found")
+                raise RuntimeError("Spotify credentials are required. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables.")
 
             client_credentials_manager = SpotifyClientCredentials(
                 client_id=self.client_id,
@@ -36,16 +38,22 @@ class SpotifySearchService:
             self.spotify = spotipy.Spotify(
                 client_credentials_manager=client_credentials_manager
             )
-
-            await self._test_connection()
-            print("Spotify Search Service initialized successfully!")
-            self.is_initialized = True
             
-        except SystemExit:
+            await self._test_connection()
+            logger.info("Spotify Search Service initialized successfully!")
+            self.initialized = True
+            
+        except RuntimeError:
             raise
+
         except Exception as e:
-            print(f"ERROR: Spotify initialization failed: {e}")
-            raise SystemExit(f"Spotify initialization failed: {e}")
+            logger.error(f"Spotify initialization failed: {e}")
+            raise RuntimeError(f"Spotify initialization failed: {e}")
+        
+    def is_ready(self) -> bool:
+        """Check if the service is ready"""
+        
+        return self.initialized
     
     async def _test_connection(self):
         """Test Spotify API connection"""
@@ -71,11 +79,11 @@ class SpotifySearchService:
             List of Song objects
         """
         
-        if not self.is_initialized:
+        if not self.initialized:
             await self.initialize()
             
         if not self.spotify:
-            raise SystemExit("Spotify service not properly initialized")
+            raise RuntimeError("Spotify service not properly initialized")
         
         try:
             all_songs = []
@@ -91,8 +99,8 @@ class SpotifySearchService:
             return selected_songs
             
         except Exception as e:
-            print(f"ERROR: Spotify search failed: {e}")
-            raise SystemExit(f"Spotify search failed: {e}")
+            logger.error(f"Spotify search failed: {e}")
+            raise RuntimeError(f"Spotify search failed: {e}")
     
     def _generate_search_queries(self, mood_keywords: List[str], genres: Optional[List[str]] = None, energy_level: Optional[str] = None) -> List[str]:
         """Generate diverse search queries based on mood and preferences"""
@@ -142,7 +150,7 @@ class SpotifySearchService:
                     spotify_id=track["id"],
                     preview_url=track.get("preview_url"),
                     duration_ms=track.get("duration_ms"),
-                    popularity=track.get("popularity", 50),
+                    popularity=track.get("popularity", 50)
                 )
 
                 songs.append(song)
@@ -150,8 +158,8 @@ class SpotifySearchService:
             return songs
             
         except Exception as e:
-            print(f"ERROR: Spotify search error for '{query}': {e}")
-            raise SystemExit(f"Spotify search error for '{query}': {e}")
+            logger.error(f"Spotify search error for '{query}': {e}")
+            raise RuntimeError(f"Spotify search error for '{query}': {e}")
     
     def _remove_duplicates(self, songs: List[Song]) -> List[Song]:
         """Remove duplicate songs based on title and artist"""
