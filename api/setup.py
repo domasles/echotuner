@@ -42,25 +42,12 @@ def main():
         print("Failed to install dependencies")
         sys.exit(1)
 
-    if not Path("config/.env").exists():
-        if Path("config/.env.example").exists():
-            if run_command("copy config/.env.example config/.env" if os.name == 'nt' else "cp config/.env.example config/.env", "Creating .env file"):
-                print("Please edit config/.env file with your Spotify credentials")
-
-            else:
-                print("Failed to create config/.env file")
-
-        else:
-            print("Warning: config/.env.example not found")
-
-    else:
-        print("config/.env file already exists")
-
     print("\nSetup completed!")
     print("\nNext steps:")
     print("1. Install Ollama from https://ollama.ai")
-    print("2. Edit .env file with your Spotify credentials")
-    print("3. Start the API: python main.py")
+    print("2. Copy .env.example to .env if it doesn't exist")
+    print("3. Edit .env file with your Spotify credentials")
+    print("4. Start the API: python main.py")
 
 if __name__ == "__main__":
     main()

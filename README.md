@@ -2,13 +2,11 @@
 
 EchoTuner is a production-ready platform that generates personalized music playlists using artificial intelligence and natural language processing. Built with strict dependency requirements, EchoTuner requires both Ollama AI models and Spotify Web API to deliver intelligent music recommendations with zero fallback mechanisms, ensuring consistent AI-driven results.
 
-The platform consists of a RESTful API service for integration with third-party applications, plus a dedicated user application (coming soon) for direct music discovery and playlist creation.
+The platform consists of a RESTful API service for integration with third-party applications and a dedicated user application for direct music discovery and playlist creation.
 
 ## Project Status
 
-**Current Stage: Production-Ready Platform**
-
-EchoTuner currently consists of a complete, production-ready API backend service designed for integration with music applications, mobile apps, and web platforms. The API provides intelligent playlist generation capabilities while maintaining strict quality standards through required AI and music service dependencies.
+EchoTuner currently consists of a mostly complete, production-ready API backend service designed for integration with music applications, mobile apps, and web platforms. The API provides intelligent playlist generation capabilities while maintaining strict quality standards through required AI and music service dependencies.
 
 **Platform Components:**
 - **API Backend**: Complete and production-ready (current release)
@@ -59,81 +57,13 @@ EchoTuner currently consists of a complete, production-ready API backend service
 
 ## Quick Start Guide
 
-**Note**: This guide covers the API backend setup. A dedicated user application is coming soon for direct music discovery without requiring technical setup.
+EchoTuner consists of two main components, each with dedicated setup instructions:
 
-### Prerequisites
+### API Backend Setup
+For complete API backend installation and configuration, see the **[API Setup Guide](api/README.md)**.
 
-1. **Python 3.8+** installed on your system
-2. **Ollama** installed from [https://ollama.ai](https://ollama.ai)
-3. **Spotify Developer Account** for API credentials
-
-### Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/domasles/echotuner
-   cd echotuner/api
-   ```
-
-2. **Configure a virtual environment (optional but recommended):**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-   ```
-
-3. **Run automated setup:**
-   ```bash
-   python setup.py
-   ```
-   
-   This will:
-   - Install all Python dependencies
-   - Create a `.env` file from the template
-   - Provide clear next steps for completing the setup
-
-4. **Complete the setup by following the printed instructions:**
-   - Install required AI models:
-     ```bash
-     ollama pull nomic-embed-text
-     ollama pull phi3:mini
-     ```
-   - Configure Spotify API credentials in the `.env` file (see below)
-
-5. **Configure Spotify API:**
-   - Visit [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-   - Create a new app and note Client ID and Client Secret
-   - Add credentials to `.env` file:
-     ```
-     SPOTIFY_CLIENT_ID=your_client_id_here
-     SPOTIFY_CLIENT_SECRET=your_client_secret_here
-     ```
-
-6. **Start the API:**
-   ```bash
-   python main.py
-   ```
-
-The API backend will be available at `http://localhost:8000`
-
-**Coming Soon**: A user-friendly application that will handle all technical setup automatically.
-
-### Verification
-
-**Test API Health:**
-```bash
-curl http://localhost:8000/health
-```
-
-**Generate a playlist:**
-```bash
-curl -X POST http://localhost:8000/generate-playlist \
-    -H "Content-Type: application/json" \
-    -d '{
-        "prompt": "I need upbeat songs for working out",
-        "device_id": "my-device",
-        "count": 10
-    }'
-```
+### Mobile Application Setup
+For Flutter app installation and development setup, see the **[App Setup Guide](app/README.md)**.
 
 ## Features
 
@@ -141,7 +71,7 @@ curl -X POST http://localhost:8000/generate-playlist \
 - **Natural Language Processing**: Understands complex mood and preference descriptions
 - **AI-Powered Strategy Generation**: Uses local Ollama models for intelligent music analysis
 - **Real-Time Music Discovery**: Live integration with Spotify's current catalog
-- **Exact Count Control**: Guarantees precise playlist sizes (5-50+ songs)
+- **Exact Count Control**: Guarantees precise playlist sizes (5-50+ songs) (only available in API's debug mode)
 - **Playlist Refinement**: Iterative improvement based on user feedback
 - **Semantic Validation**: Ensures requests are music-related using AI embeddings
 
@@ -252,9 +182,10 @@ Service health and dependency status.
 
 ### Environment Variables
 
+#### API
 ```bash
 # API Configuration
-API_HOST=0.0.0.0
+API_HOST=localhost
 API_PORT=8000
 DEBUG=false
 LOG_LEVEL=INFO
@@ -278,6 +209,19 @@ MAX_REFINEMENTS_PER_PLAYLIST=3
 # Caching
 CACHE_ENABLED=true
 ```
+
+#### App
+```bash
+# API Configuration
+API_HOST=localhost
+API_PORT=8000
+
+# Development flags
+DEBUG_MODE=true
+ENABLE_LOGGING=true
+```
+
+You can set these variables in a `.env` file. Both the API and the application will automatically load their own `.env` file at startup.
 
 ### Rate Limiting Configuration
 
@@ -331,7 +275,7 @@ curl -X POST http://localhost:8000/generate-playlist \
 # Set production values in .env
 DEBUG=false
 DAILY_LIMIT_ENABLED=true
-MAX_PLAYLISTS_PER_DAY=50
+MAX_PLAYLISTS_PER_DAY=3
 LOG_LEVEL=WARNING
 ```
 
@@ -419,13 +363,13 @@ async function generatePlaylist(prompt, deviceId, count = 20) {
 
 EchoTuner is designed to work seamlessly with mobile applications and will soon include its own dedicated app:
 
-**Current Integration (API-based):**
-- **Authentication**: App handles Spotify user authentication
+**EchoTuner API:**
 - **Playlist Generation**: App calls EchoTuner API for intelligent recommendations
 - **Playlist Creation**: App creates actual Spotify playlists using returned song data
 - **User Experience**: Smooth handoff between AI recommendations and music playback
 
-**Upcoming EchoTuner App:**
+**EchoTuner App:**
+- Spotify user authentication handling, yet to include
 - Native user interface for playlist creation and management
 - Direct integration with music streaming services
 - Advanced personalization and discovery features

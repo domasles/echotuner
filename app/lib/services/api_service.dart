@@ -1,127 +1,146 @@
-import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
+
 import '../models/playlist_request.dart';
-import '../models/song.dart';
 import '../config/app_config.dart';
+import '../models/song.dart';
 
 class ApiService {
-  final http.Client _client = http.Client();
-  Future<PlaylistResponse> generatePlaylist(PlaylistRequest request) async {
-    final response = await _client.post(
-      Uri.parse(AppConfig.apiUrl('/generate-playlist')),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(request.toJson()),
-    );
+    final http.Client _client = http.Client();
 
-    if (response.statusCode == 200) {
-      return PlaylistResponse.fromJson(jsonDecode(response.body));
-    } else if (response.statusCode == 429) {
-      throw ApiException('Daily limit reached. Try again tomorrow.');
-    } else if (response.statusCode == 400) {
-      final error = jsonDecode(response.body);
-      throw ApiException(error['detail'] ?? 'Invalid request');
-    } else {
-      throw ApiException('Failed to generate playlist. Please try again.');
+    Future<PlaylistResponse> generatePlaylist(PlaylistRequest request) async {
+        final response = await _client.post(
+            Uri.parse(AppConfig.apiUrl('/generate-playlist')),
+            
+            headers: {
+                'Content-Type': 'application/json',
+            },
+
+            body: jsonEncode(request.toJson()),
+        );
+
+        if (response.statusCode == 200) {
+            return PlaylistResponse.fromJson(jsonDecode(response.body));
+        }
+        
+        else if (response.statusCode == 429) {
+            throw ApiException('Daily limit reached. Try again tomorrow.');
+        }
+        
+        else if (response.statusCode == 400) {
+            final error = jsonDecode(response.body);
+            throw ApiException(error['detail'] ?? 'Invalid request');
+        }
+        
+        else {
+            throw ApiException('Failed to generate playlist. Please try again.');
+        }
     }
-  }
 
-  Future<PlaylistResponse> refinePlaylist(PlaylistRequest request) async {
-    final response = await _client.post(
-      Uri.parse(AppConfig.apiUrl('/refine-playlist')),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(request.toJson()),
-    );
+    Future<PlaylistResponse> refinePlaylist(PlaylistRequest request) async {
+        final response = await _client.post(
+            Uri.parse(AppConfig.apiUrl('/refine-playlist')),
+            
+            headers: {
+                'Content-Type': 'application/json',
+            },
 
-    if (response.statusCode == 200) {
-      return PlaylistResponse.fromJson(jsonDecode(response.body));
-    } else if (response.statusCode == 429) {
-      throw ApiException('Maximum refinements reached for this playlist.');
-    } else if (response.statusCode == 400) {
-      final error = jsonDecode(response.body);
-      throw ApiException(error['detail'] ?? 'Invalid refinement request');
-    } else {
-      throw ApiException('Failed to refine playlist. Please try again.');
+            body: jsonEncode(request.toJson()),
+        );
+
+        if (response.statusCode == 200) {
+            return PlaylistResponse.fromJson(jsonDecode(response.body));
+        }
+        
+        else if (response.statusCode == 429) {
+            throw ApiException('Maximum refinements reached for this playlist.');
+        }
+        
+        else if (response.statusCode == 400) {
+            final error = jsonDecode(response.body);
+            throw ApiException(error['detail'] ?? 'Invalid refinement request');
+        }
+        
+        else {
+            throw ApiException('Failed to refine playlist. Please try again.');
+        }
     }
-  }
 
-  Future<Map<String, dynamic>> getRateLimitStatus(String deviceId) async {
-    final response = await _client.get(
-      Uri.parse(AppConfig.apiUrl('/rate-limit-status/$deviceId')),
-    );
+    Future<Map<String, dynamic>> getRateLimitStatus(String deviceId) async {
+        final response = await _client.get(
+            Uri.parse(AppConfig.apiUrl('/rate-limit-status/$deviceId')),
+        );
 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw ApiException('Failed to get rate limit status');
+        if (response.statusCode == 200) {
+            return jsonDecode(response.body);
+        }
+        
+        else {
+            throw ApiException('Failed to get rate limit status');
+        }
     }
-  }
 
-  Future<String> getSpotifyAuthUrl() async {
-    final response = await _client.get(
-      Uri.parse(AppConfig.apiUrl('/spotify/auth-url')),
-    );
+    Future<String> getSpotifyAuthUrl() async {
+        final response = await _client.get(
+            Uri.parse(AppConfig.apiUrl('/spotify/auth-url')),
+        );
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['auth_url'];
-    } else {
-      throw ApiException('Failed to get Spotify auth URL');
+        if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            return data['auth_url'];
+        }
+        
+        else {
+            throw ApiException('Failed to get Spotify auth URL');
+        }
     }
-  }
 
-  Future<String> createSpotifyPlaylist({
-    required String accessToken,
-    required String playlistName,
-    required List<Song> songs,
-    String? description,
-  }) async {
-    final response = await _client.post(
-      Uri.parse(AppConfig.apiUrl('/spotify/create-playlist')),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $accessToken',
-      },
-      body: jsonEncode({
-        'name': playlistName,
-        'songs': songs.map((song) => song.toJson()).toList(),
-        'description': description ?? 'Generated by EchoTuner AI',
-      }),
-    );
+    Future<String> createSpotifyPlaylist({required String accessToken, required String playlistName, required List<Song> songs, String? description}) async {
+        final response = await _client.post(
+            Uri.parse(AppConfig.apiUrl('/spotify/create-playlist')),
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['playlist_url'];
-    } else {
-      throw ApiException('Failed to create Spotify playlist');
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $accessToken',
+            },
+
+            body: jsonEncode({
+                'name': playlistName,
+                'songs': songs.map((song) => song.toJson()).toList(),
+                'description': description ?? 'Generated by EchoTuner AI',
+            }),
+        );
+
+        if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            return data['playlist_url'];
+        }
+        
+        else {
+            throw ApiException('Failed to create Spotify playlist');
+        }
     }
-  }
 
-  Future<bool> checkApiHealth() async {
-    try {
-      final response = await _client.get(
-        Uri.parse(AppConfig.apiUrl('/health')),
-      ).timeout(const Duration(seconds: 5));
-
-      return response.statusCode == 200;
-    } catch (e) {
-      return false;
+    Future<bool> checkApiHealth() async {
+        try {
+            final response = await _client.get(Uri.parse(AppConfig.apiUrl('/health'))).timeout(const Duration(seconds: 5));
+            return response.statusCode == 200;
+        }
+        
+        catch (e) {
+            return false;
+        }
     }
-  }
 
-  void dispose() {
-    _client.close();
-  }
+    void dispose() {
+        _client.close();
+    }
 }
 
 class ApiException implements Exception {
-  final String message;
-  
-  ApiException(this.message);
-  
-  @override
-  String toString() => message;
+    final String message;
+    ApiException(this.message);
+    
+    @override
+    String toString() => message;
 }

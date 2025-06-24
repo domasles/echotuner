@@ -8,7 +8,7 @@ load_dotenv()
 class Settings:
     """Configuration settings for EchoTuner API."""
 
-    API_HOST: str = os.getenv("API_HOST", "0.0.0.0")
+    API_HOST: str = os.getenv("API_HOST", "localhost")
     API_PORT: int = int(os.getenv("API_PORT", 8000))
 
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
