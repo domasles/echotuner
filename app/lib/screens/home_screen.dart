@@ -10,7 +10,8 @@ class HomeScreen extends StatefulWidget {
     State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {    final TextEditingController _promptController = TextEditingController();
+class _HomeScreenState extends State<HomeScreen> {
+	final TextEditingController _promptController = TextEditingController();
     int _selectedIndex = 0;
 
     final List<String> _quickPrompts = [
@@ -191,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {    final TextEditingControlle
                             ),
 
                             side: BorderSide(
-                                color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                                color: const Color(0xFF8B5CF6).withValues(alpha: 255 * 0.3),
                                 width: 1,
                             ),
 
@@ -200,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {    final TextEditingControlle
                             ),
 							
                             elevation: 2,
-                            shadowColor: const Color(0xFF8B5CF6).withOpacity(0.2),
+                            shadowColor: const Color(0xFF8B5CF6).withValues(alpha: 255 * 0.2),
                         );
                     }).toList(),
                 ),
@@ -214,7 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {    final TextEditingControlle
                 color: const Color(0xFF1A1625),
                 boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
+                        color: Colors.black.withValues(alpha: 255 * 0.3),
                         blurRadius: 10,
                         offset: const Offset(0, -2),
                     ),
@@ -303,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen> {    final TextEditingControlle
                     error,
                     style: const TextStyle(color: Colors.white70),
                 ),
-				
+
                 actions: [
                     TextButton(
                         onPressed: () => Navigator.of(context).pop(),
