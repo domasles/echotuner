@@ -1,19 +1,22 @@
 # Python
 __pycache__/
 
-# Flutter
+# Flutter files
 .flutter-plugins-dependencies
-.metadata
 devtools_options.yaml
 analysis_options.yaml
 app/.gitignore
 pubspec.lock
+.metadata
+
+#Flutter directories
 .dart_tool/
 android/
-ios/
+windows/
 linux/
 macos/
-windows/
+test/
+ios/
 web/
 
 # Build outputs
@@ -21,16 +24,14 @@ build/
 
 # Virtual environments
 venv/
-.venv/
 
 # IDE
 .vscode/
 
 # Application specific
-.cache/
 *.db
 
-# Environment variables (keep .env.example)
+# Environment variables
 .env
 
 # Cache
