@@ -65,17 +65,22 @@ For complete Flutter installation instructions, visit the [official Flutter docu
    cd echotuner/app
    ```
 
-2. **Install Flutter dependencies:**
+2. **Copy over .env.sample to .env:**
+   ```bash
+   cp .env.example .env
+   ```
+
+3. **Install Flutter dependencies:**
    ```bash
    flutter pub get
    ```
 
-3. **Generate model files:**
+4. **Generate model files:**
    ```bash
    flutter packages pub run build_runner build
    ```
 
-4. **Verify device connectivity:**
+5. **Verify device connectivity:**
    ```bash
    flutter devices
    ```
