@@ -177,7 +177,7 @@ async def generate_playlist(request: PlaylistRequest):
     try:
         device_id = request.device_id
 
-        if settings.DAILY_LIMIT_ENABLED and not rate_limiter.can_make_request(device_id):
+        if settings.DAILY_LIMIT_ENABLED and not await rate_limiter.can_make_request(device_id):
             raise HTTPException(
                 status_code=429,
                 detail=f"Daily limit of {settings.MAX_PLAYLISTS_PER_DAY} playlists reached. Try again tomorrow."
@@ -198,7 +198,7 @@ async def generate_playlist(request: PlaylistRequest):
         )
 
         if settings.DAILY_LIMIT_ENABLED:
-            rate_limiter.record_request(device_id)
+            await rate_limiter.record_request(device_id)
         
         return PlaylistResponse(
             songs=songs,
@@ -220,7 +220,7 @@ async def refine_playlist(request: PlaylistRequest):
     try:
         device_id = request.device_id
 
-        if settings.DAILY_LIMIT_ENABLED and not rate_limiter.can_refine_playlist(device_id):
+        if settings.DAILY_LIMIT_ENABLED and not await rate_limiter.can_refine_playlist(device_id):
             raise HTTPException(
                 status_code=429,
                 detail=f"Maximum of {settings.MAX_REFINEMENTS_PER_PLAYLIST} AI refinements reached for this playlist."
@@ -242,7 +242,7 @@ async def refine_playlist(request: PlaylistRequest):
         )
 
         if settings.DAILY_LIMIT_ENABLED:
-            rate_limiter.record_refinement(device_id)
+            await rate_limiter.record_refinement(device_id)
         
         return PlaylistResponse(
             songs=songs,
@@ -262,7 +262,7 @@ async def get_rate_limit_status(device_id: str):
     """Get current rate limit status for a device"""
 
     try:
-        return rate_limiter.get_status(device_id)
+        return await rate_limiter.get_status(device_id)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error checking rate limit: {str(e)}")
@@ -279,5 +279,6 @@ if __name__ == "__main__":
         log_level=settings.LOG_LEVEL.lower(),
 
         reload=settings.DEBUG,
-        reload_excludes=["data", "__pycache__", "venv", ".env", ".git", ".vscode"],
+        reload_dirs=[f"{api_dir}/config", f"{api_dir}/core", f"{api_dir}/services"],
+        reload_excludes=["__pycache__"]
     )

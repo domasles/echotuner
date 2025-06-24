@@ -59,10 +59,8 @@ def main():
     print("\nSetup completed!")
     print("\nNext steps:")
     print("1. Install Ollama from https://ollama.ai")
-    print("2. Run: ollama pull nomic-embed-text")
-    print("3. Run: ollama pull phi3:mini")
-    print("4. Edit .env file with your Spotify credentials (optional)")
-    print("5. Start the API: python main.py")
+    print("2. Edit .env file with your Spotify credentials")
+    print("3. Start the API: python main.py")
 
 if __name__ == "__main__":
     main()

@@ -88,14 +88,14 @@ class RateLimiterService:
         except:
             return False
     
-    def can_make_request(self, device_id: str) -> bool:
+    async def can_make_request(self, device_id: str) -> bool:
         """Check if a device can make a new playlist request"""
 
         if not self.is_rate_limiting_enabled:
             return True
         
         if not self.initialized:
-            return True
+            await self.initialize()
         
         try:
             device_hash = self._get_device_hash(device_id)
@@ -124,11 +124,11 @@ class RateLimiterService:
             logger.error(f"Error checking rate limit: {e}")
             return True
     
-    def can_refine_playlist(self, device_id: str) -> bool:
+    async def can_refine_playlist(self, device_id: str) -> bool:
         """Check if a device can refine a playlist (max 3 refinements)"""
 
         if not self.initialized:
-            return True
+            await self.initialize()
         
         try:
             device_hash = self._get_device_hash(device_id)
@@ -157,11 +157,11 @@ class RateLimiterService:
             logger.error(f"Error checking refinement limit: {e}")
             return True
     
-    def record_request(self, device_id: str, success: bool = True):
+    async def record_request(self, device_id: str, success: bool = True):
         """Record a playlist generation request"""
 
         if not self.initialized:
-            return
+            await self.initialize()
         
         try:
             device_hash = self._get_device_hash(device_id)
@@ -206,11 +206,11 @@ class RateLimiterService:
         except Exception as e:
             logger.error(f"Error recording request: {e}")
     
-    def record_refinement(self, device_id: str, success: bool = True):
+    async def record_refinement(self, device_id: str, success: bool = True):
         """Record a playlist refinement request"""
 
         if not self.initialized:
-            return
+            await self.initialize()
         
         try:
             device_hash = self._get_device_hash(device_id)
@@ -255,21 +255,13 @@ class RateLimiterService:
         except Exception as e:
             logger.error(f"Error recording refinement: {e}")
     
-    def get_status(self, device_id: str) -> RateLimitStatus:
+    async def get_status(self, device_id: str) -> RateLimitStatus:
         """Get current rate limit status for a device"""
 
         device_hash = self._get_device_hash(device_id)
         
         if not self.initialized:
-            return RateLimitStatus(
-                device_id=device_id,
-                requests_made_today=0,
-                max_requests_per_day=self.max_requests_per_day,
-                refinements_used=0,
-                max_refinements=self.max_refinements,
-                can_make_request=True,
-                can_refine=True
-            )
+            await self.initialize()
         
         try:
             conn = sqlite3.connect(self.db_path)
@@ -327,11 +319,11 @@ class RateLimiterService:
                 can_refine=True
             )
     
-    def reset_daily_limits(self):
+    async def reset_daily_limits(self):
         """Reset all daily limits (for testing purposes)"""
 
         if not self.initialized:
-            return
+            await self.initialize()
         
         try:
             conn = sqlite3.connect(self.db_path)
@@ -347,15 +339,3 @@ class RateLimiterService:
             
         except Exception as e:
             logger.error(f"Error resetting daily limits: {e}")
-    
-    def disable_rate_limiting(self):
-        """Disable rate limiting (for testing)"""
-
-        self.is_rate_limiting_enabled = False
-        logger.info("Rate limiting disabled")
-    
-    def enable_rate_limiting(self):
-        """Enable rate limiting"""
-        
-        self.is_rate_limiting_enabled = True
-        logger.info("Rate limiting enabled")
