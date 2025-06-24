@@ -16,7 +16,7 @@ dependencies:
 
     shared_preferences: ^2.5.3
     device_info_plus: ^11.5.0
-	
+    
     url_launcher: ^6.2.1
     json_annotation: ^4.8.1
     flutter_dotenv: ^5.1.0

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/playlist_provider.dart';
 import 'playlist_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
     const HomeScreen({super.key});
@@ -12,7 +13,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
 	final TextEditingController _promptController = TextEditingController();
+	
     int _selectedIndex = 0;
+    bool _hasText = false;
 
     final List<String> _quickPrompts = [
         "I'm feeling happy and energetic",
@@ -24,12 +27,25 @@ class _HomeScreenState extends State<HomeScreen> {
         "Romantic dinner vibes",
         "I'm feeling sad and want to embrace it",
         "Upbeat electronic dance music",
-        "Cozy acoustic coffee shop vibes",
-    ];
+        "Cozy acoustic coffee shop vibes",    ];
+
+    @override
+    void initState() {
+        super.initState();
+        _promptController.addListener(_onTextChanged);
+    }
+
+    void _onTextChanged() {
+        setState(() {
+            _hasText = _promptController.text.trim().isNotEmpty;
+        });
+    }
 
     @override
     void dispose() {
+        _promptController.removeListener(_onTextChanged);
         _promptController.dispose();
+
         super.dispose();
     }
 
@@ -50,17 +66,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
 										_buildPromptInput(playlistProvider),
                                         const SizedBox(height: 32),
-
-                                        _buildQuickPrompts(playlistProvider),
-                                        const SizedBox(height: 100),
+										
+										_buildQuickPrompts(playlistProvider),
+                                        const SizedBox(height: 32),
                                     ],
                                 ),
                             ),
                         );
                     },
                 ),
-            ),
+			),
+
             bottomNavigationBar: _buildBottomNavigationBar(),
+            floatingActionButton: FloatingActionButton(
+                onPressed: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                    );
+                },
+
+                backgroundColor: const Color(0xFF8B5CF6),
+                foregroundColor: Colors.white,
+                child: const Icon(Icons.settings_rounded),
+            ),
         );
     }
 
@@ -116,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 56,
 
                     child: ElevatedButton(
-                        onPressed: provider.isLoading ? null : () => _generatePlaylist(provider),
+                        onPressed: (provider.isLoading || !_hasText) ? null : () => _generatePlaylist(provider),
 						style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF8B5CF6),
                             foregroundColor: Colors.white,
@@ -249,13 +278,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
         );
     }
-
-    void _generatePlaylist(PlaylistProvider provider) async {
+	
+	void _generatePlaylist(PlaylistProvider provider) async {
         final prompt = _promptController.text.trim();
-        if (prompt.isEmpty) {
-            _showSnackBar('Please enter a description for your playlist');
-            return;
-        }
 
         try {
             await provider.generatePlaylist(prompt);
@@ -278,19 +303,8 @@ class _HomeScreenState extends State<HomeScreen> {
             _showErrorDialog(e.toString());
         }
     }
-
-    void _showSnackBar(String message) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(message),
-                backgroundColor: const Color(0xFF8B5CF6),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-        );
-    }
-
-    void _showErrorDialog(String error) {
+	
+	void _showErrorDialog(String error) {
         showDialog(
             context: context,
             builder: (context) => AlertDialog(

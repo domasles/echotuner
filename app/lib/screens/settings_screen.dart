@@ -76,8 +76,8 @@ class SectionHeader extends StatelessWidget {
             padding: const EdgeInsets.only(left: 16, bottom: 8, top: 8),
             child: Text(
                 title,
-                style: const TextStyle(
-                    color: Color(0xFF1DB954),
+				style: const TextStyle(
+                    color: Color(0xFF8B5CF6),
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                 ),
@@ -99,9 +99,9 @@ class SettingsTile extends StatelessWidget {
         return Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: ListTile(
-                leading: Icon(
+				leading: Icon(
                     icon,
-                    color: const Color(0xFF1DB954),
+                    color: const Color(0xFF8B5CF6),
                 ),
 
                 title: Text(
