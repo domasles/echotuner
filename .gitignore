@@ -8,6 +8,7 @@ analysis_options.yaml
 app/.gitignore
 pubspec.lock
 .metadata
+*.g.dart
 
 #Flutter directories
 .dart_tool/
