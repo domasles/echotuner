@@ -12,6 +12,9 @@ class PlaylistRequest {
     @JsonKey(name: 'device_id')
     final String deviceId;
 
+    @JsonKey(name: 'session_id')
+    final String sessionId;
+
     @JsonKey(name: 'user_context')
     final UserContext? userContext;
 
@@ -21,6 +24,8 @@ class PlaylistRequest {
     PlaylistRequest({
         required this.prompt,
         required this.deviceId,
+        required this.sessionId,
+		
         this.userContext,
         this.currentSongs,
     });

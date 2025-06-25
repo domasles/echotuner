@@ -32,6 +32,10 @@ class Settings:
 
     SPOTIFY_CLIENT_ID: Optional[str] = os.getenv("SPOTIFY_CLIENT_ID")
     SPOTIFY_CLIENT_SECRET: Optional[str] = os.getenv("SPOTIFY_CLIENT_SECRET")
+    SPOTIFY_REDIRECT_URI: str = os.getenv("SPOTIFY_REDIRECT_URI", f"http://{API_HOST}:{API_PORT}/auth/callback")
+
+    SESSION_TIMEOUT: int = int(os.getenv("SESSION_TIMEOUT", 24))
+    AUTH_REQUIRED: bool = os.getenv("AUTH_REQUIRED", "true").lower() == "true"
 
     DAILY_LIMIT_ENABLED: bool = os.getenv("DAILY_LIMIT_ENABLED", "false").lower() == "true"
     MAX_PLAYLISTS_PER_DAY: int = int(os.getenv("MAX_PLAYLISTS_PER_DAY", 3))

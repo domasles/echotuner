@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:developer' as developer;
 
 import '../services/device_service.dart';
+import '../services/auth_service.dart';
 import '../models/playlist_request.dart';
 import '../services/api_service.dart';
 import '../models/user_context.dart';
@@ -8,6 +10,7 @@ import '../models/song.dart';
 
 class PlaylistProvider extends ChangeNotifier {
     final ApiService _apiService;
+    final AuthService _authService;
     
     List<Song> _currentPlaylist = [];
     String _currentPrompt = '';
@@ -20,7 +23,7 @@ class PlaylistProvider extends ChangeNotifier {
     String? _deviceId;
     String? _error;
 
-    PlaylistProvider({required ApiService apiService}) : _apiService = apiService {
+    PlaylistProvider({required ApiService apiService, required AuthService authService}) : _apiService = apiService, _authService = authService {
         _initializeDeviceId();
     }
 
@@ -56,9 +59,15 @@ class PlaylistProvider extends ChangeNotifier {
         notifyListeners();
 
         try {
+            final sessionId = _authService.sessionId;
+            if (sessionId == null) {
+                throw Exception('Not authenticated');
+            }
+
             final request = PlaylistRequest(
                 prompt: prompt,
                 deviceId: _deviceId!,
+                sessionId: sessionId,
                 userContext: _userContext,
             );
 
@@ -69,8 +78,21 @@ class PlaylistProvider extends ChangeNotifier {
             _error = null;
         }
         
-        catch (e) {
-            _error = e.toString();
+        catch (e, stackTrace) {
+            debugPrint('Playlist generation error: $e');
+            debugPrint('Stack trace: $stackTrace');
+            
+            // Provide more specific error messages
+            if (e.toString().contains('timeout')) {
+                _error = 'Request timed out. Please try again.';
+            } else if (e.toString().contains('network')) {
+                _error = 'Network error. Please check your connection.';
+            } else if (e.toString().contains('authentication')) {
+                _error = 'Authentication error. Please log in again.';
+            } else {
+                _error = 'Failed to generate playlist. Please try again.';
+            }
+            
             _currentPlaylist = [];
         }
         
@@ -89,9 +111,16 @@ class PlaylistProvider extends ChangeNotifier {
         notifyListeners();
 
         try {
+            final sessionId = _authService.sessionId;
+
+            if (sessionId == null) {
+                throw Exception('Not authenticated');
+            }
+
             final request = PlaylistRequest(
                 prompt: refinementPrompt,
                 deviceId: _deviceId!,
+                sessionId: sessionId,
                 userContext: _userContext,
                 currentSongs: _currentPlaylist,
             );
@@ -103,8 +132,17 @@ class PlaylistProvider extends ChangeNotifier {
             _error = null;
         }
         
-        catch (e) {
-            _error = e.toString();
+        catch (e, stackTrace) {
+            debugPrint('Playlist refinement error: $e');
+            debugPrint('Stack trace: $stackTrace');
+            
+            if (e.toString().contains('timeout')) {
+                _error = 'Refinement timed out. Please try again.';
+            } else if (e.toString().contains('authentication')) {
+                _error = 'Authentication error. Please log in again.';
+            } else {
+                _error = 'Failed to refine playlist. Please try again.';
+            }
         }
         
         finally {
@@ -161,7 +199,28 @@ class PlaylistProvider extends ChangeNotifier {
         if (_deviceId == null) {
             await _initializeDeviceId();
         }
-        
-        return await _apiService.getRateLimitStatus(_deviceId!);
+
+        if (_authService.isAuthenticated && _authService.sessionId != null) {
+            try {
+                return await _apiService.getAuthenticatedRateLimitStatus(
+                    _authService.sessionId!,
+                    _deviceId!
+                );
+            }
+			
+			catch (e, stackTrace) {
+                developer.log(
+                    'Authenticated rate limit check failed, falling back: $e',
+                    name: 'PlaylistProvider.getRateLimitStatus',
+                    error: e,
+                    stackTrace: stackTrace,
+                );
+                return await _apiService.getRateLimitStatus(_deviceId!);
+            }
+        }
+		
+		else {
+            return await _apiService.getRateLimitStatus(_deviceId!);
+        }
     }
 }

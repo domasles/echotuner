@@ -1,10 +1,86 @@
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/playlist_provider.dart';
 
 class PlaylistScreen extends StatelessWidget {
     const PlaylistScreen({super.key});
+
+    Future<void> _openSpotifyTrack(String spotifyId) async {
+        final spotifyUrl = 'https://open.spotify.com/track/$spotifyId';
+        try {
+            if (await canLaunchUrl(Uri.parse(spotifyUrl))) {
+                await launchUrl(
+                    Uri.parse(spotifyUrl),
+                    mode: LaunchMode.externalApplication,
+                );
+            }
+        }
+		
+		catch (e, stackTrace) {
+            debugPrint('Failed to launch Spotify URL: $e');
+            debugPrint('Stack trace: $stackTrace');
+        }
+    }
+
+    Future<void> _showRefineDialog(BuildContext context, PlaylistProvider provider) async {
+        String refinementText = '';
+        
+        return showDialog<void>(
+            context: context,
+            builder: (BuildContext context) {
+                return AlertDialog(
+                    backgroundColor: const Color(0xFF1A1625),
+                    title: const Text(
+                        'Refine Your Playlist',
+                        style: TextStyle(color: Colors.white),
+                    ),
+
+                    content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                            const Text(
+                                'Tell us how you\'d like to adjust your playlist:',
+                                style: TextStyle(color: Colors.white70),
+                            ),
+
+                            const SizedBox(height: 16),
+                            TextField(
+                                autofocus: true,
+                                maxLines: 3,
+
+                                decoration: const InputDecoration(
+                                    hintText: 'e.g., "Add more upbeat songs", "Include more 80s music", "Remove slow songs"',
+                                    border: OutlineInputBorder(),
+                                ),
+
+                                onChanged: (value) => refinementText = value,
+                            ),
+                        ],
+                    ),
+
+                    actions: [
+                        TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('Cancel'),
+                        ),
+
+                        ElevatedButton(
+                            onPressed: () {
+                                if (refinementText.trim().isNotEmpty) {
+                                    Navigator.of(context).pop();
+                                    provider.refinePlaylist(refinementText.trim());
+                                }
+                            },
+
+                            child: const Text('Refine'),
+                        ),
+                    ],
+                );
+            },
+        );
+    }
 
     @override
     Widget build(BuildContext context) {
@@ -131,9 +207,7 @@ class PlaylistScreen extends StatelessWidget {
 
                                                 trailing: song.spotifyId != null ? IconButton(
                                                     icon: const Icon(Icons.open_in_new),
-                                                    onPressed: () {
-                                                        // TODO: Open Spotify URL
-                                                    },
+                                                    onPressed: () => _openSpotifyTrack(song.spotifyId!),
                                                 )
 
                                                 : null,
@@ -146,10 +220,7 @@ class PlaylistScreen extends StatelessWidget {
                             if (provider.canRefine) Padding(
                                 padding: const EdgeInsets.all(16),
                                 child: ElevatedButton(
-                                    onPressed: () {
-                                        // TODO: Show refine dialog
-                                    },
-
+                                    onPressed: () => _showRefineDialog(context, provider),
                                     child: Text(
                                         'Refine Playlist (${3 - provider.refinementsUsed} left)',
                                     ),

@@ -1,4 +1,5 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:developer' as developer;
 
 class AppConfig {
     static String get apiHost => 
@@ -25,13 +26,11 @@ class AppConfig {
 
     static void printConfig() {
         if (isDebugMode) {
-            print('=== App Configuration ===');
-            print('API Base URL: $apiBaseUrl');
-            print('API Host: $apiHost');
-            print('API Port: $apiPort');
-            print('Debug Mode: $isDebugMode');
-            print('Logging: $isLoggingEnabled');
-            print('========================');
+            developer.log('API Base URL: $apiBaseUrl');
+            developer.log('API Host: $apiHost');
+            developer.log('API Port: $apiPort');
+            developer.log('Debug Mode: $isDebugMode');
+            developer.log('Logging: $isLoggingEnabled');
         }
     }
 }

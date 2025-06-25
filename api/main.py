@@ -6,17 +6,20 @@ import sys
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from core.models import PlaylistRequest, PlaylistResponse, RateLimitStatus
+from core.models import PlaylistRequest, PlaylistResponse, RateLimitStatus, AuthInitRequest, AuthInitResponse, SessionValidationRequest, SessionValidationResponse
 from config.settings import settings
 
 from services.playlist_generator import PlaylistGeneratorService
 from services.prompt_validator import PromptValidatorService
 from services.rate_limiter import RateLimiterService
+from services.auth_service import AuthService
 from services.data_loader import data_loader
+from services.template_service import template_service
 
 class CustomFormatter(logging.Formatter):
     def format(self, record):
@@ -50,6 +53,7 @@ sys.path.insert(0, str(api_dir))
 rate_limiter = RateLimiterService()
 prompt_validator = PromptValidatorService()
 playlist_generator = PlaylistGeneratorService()
+auth_service = AuthService()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -61,16 +65,18 @@ async def lifespan(app: FastAPI):
         init_tasks = [
             rate_limiter.initialize(),
             prompt_validator.initialize(),
-            playlist_generator.initialize()
+            playlist_generator.initialize(),
+            auth_service.initialize()
         ]
 
         cache_task = asyncio.create_task(preload_data_cache())
 
         await asyncio.gather(*init_tasks)
 
-        logger.info(f"Spotify Search: {'ENABLED' if playlist_generator.spotify_search.is_ready() else 'FALLBACK MODE'}")
+        logger.info(f"Spotify Search: {'ENABLED' if playlist_generator.spotify_search.is_ready() else 'DISABLED'}")
         logger.info(f"AI Generation: {'OLLAMA' if settings.USE_OLLAMA else 'BASIC MODE'}")
         logger.info(f"Rate Limiting: {'ENABLED' if settings.DAILY_LIMIT_ENABLED else 'DISABLED'}")
+        logger.info(f"Auth Service: {'ENABLED' if auth_service.is_ready() else 'DISABLED'}")
         
     except Exception as e:
         logger.error(f"Failed to initialize EchoTuner API: {e}")
@@ -120,9 +126,112 @@ async def root():
             "generate": "/generate-playlist",
             "refine": "/refine-playlist", 
             "health": "/health",
-            "rate_limit": "/rate-limit-status/{device_id}"
+            "rate_limit": "/rate-limit-status/{device_id}",
+            "auth_init": "/auth/init",
+            "auth_callback": "/auth/callback",
+            "auth_validate": "/auth/validate"
         }
     }
+
+@app.post("/auth/init", response_model=AuthInitResponse)
+async def auth_init(request: AuthInitRequest):
+    """Initialize Spotify OAuth flow"""
+    try:
+        logger.info(f"Auth init request: device_id={request.device_id}, platform={request.platform}")
+        
+        if not auth_service.is_ready():
+            logger.error("Auth service not ready")
+            raise HTTPException(status_code=503, detail="Authentication service not available")
+        
+        auth_url, state = auth_service.generate_auth_url(request.device_id, request.platform)
+        await auth_service.store_auth_state(state, request.device_id, request.platform)
+        
+        logger.info(f"Generated auth URL for device {request.device_id}")
+        return AuthInitResponse(auth_url=auth_url, state=state)
+        
+    except Exception as e:
+        logger.error(f"Auth init failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to initialize authentication")
+
+@app.get("/auth/callback")
+async def auth_callback(code: str = None, state: str = None, error: str = None):
+    """Handle Spotify OAuth callback"""
+    try:
+        if error:
+            logger.warning(f"OAuth error: {error}")
+            html_content = template_service.render_template("auth_error.html", error=error)
+
+            return HTMLResponse(content=html_content)
+        
+        if not code or not state:
+            raise HTTPException(status_code=400, detail="Missing authorization code or state")
+        
+        session_id = await auth_service.handle_spotify_callback(code, state)
+        
+        if not session_id:
+            raise HTTPException(status_code=400, detail="Failed to create session")
+
+        html_content = template_service.render_template("auth_success.html", session_id=session_id)
+        return HTMLResponse(content=html_content)
+        
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(f"Auth callback failed: {e}")
+        html_content = template_service.render_template("auth_failed.html")
+
+        return HTMLResponse(content=html_content)
+
+@app.post("/auth/validate", response_model=SessionValidationResponse)
+async def validate_session(request: SessionValidationRequest):
+    """Validate session"""
+
+    try:
+        logger.info(f"Session validation request: session_id={request.session_id[:8]}..., device_id={request.device_id}")
+        is_valid = await auth_service.validate_session(request.session_id, request.device_id)
+        logger.info(f"Session validation result: {is_valid}")
+
+        return SessionValidationResponse(valid=is_valid)
+        
+    except Exception as e:
+        logger.error(f"Session validation failed: {e}")
+        raise HTTPException(status_code=500, detail="Session validation failed")
+
+@app.get("/auth/check-session/{device_id}")
+async def check_session(device_id: str):
+    """Check if a session exists for the given device ID (for desktop polling)"""
+
+    try:
+        logger.info(f"Checking session for device: {device_id}")
+        session_id = await auth_service.get_session_by_device(device_id)
+        
+        if session_id:
+            logger.info(f"Found session for device {device_id}")
+            return {"session_id": session_id}
+        
+        else:
+            return {"session_id": None}
+            
+    except Exception as e:
+        logger.error(f"Check session failed: {e}")
+        return {"session_id": None}
+
+async def require_auth(request: PlaylistRequest):
+    """Middleware function to check authentication and return user info"""
+
+    if not settings.AUTH_REQUIRED:
+        return None
+        
+    if not hasattr(request, 'session_id') or not request.session_id:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
+
+    if not user_info:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    
+    return user_info
 
 @app.get("/health")
 async def health_check():
@@ -175,9 +284,10 @@ async def generate_playlist(request: PlaylistRequest):
     """Generate a playlist using AI-powered real-time song search"""
 
     try:
-        device_id = request.device_id
+        user_info = await require_auth(request)
+        rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
 
-        if settings.DAILY_LIMIT_ENABLED and not await rate_limiter.can_make_request(device_id):
+        if settings.DAILY_LIMIT_ENABLED and not await rate_limiter.can_make_request(rate_limit_key):
             raise HTTPException(
                 status_code=429,
                 detail=f"Daily limit of {settings.MAX_PLAYLISTS_PER_DAY} playlists reached. Try again tomorrow."
@@ -198,7 +308,7 @@ async def generate_playlist(request: PlaylistRequest):
         )
 
         if settings.DAILY_LIMIT_ENABLED:
-            await rate_limiter.record_request(device_id)
+            await rate_limiter.record_request(rate_limit_key)
         
         return PlaylistResponse(
             songs=songs,
@@ -218,9 +328,10 @@ async def refine_playlist(request: PlaylistRequest):
     """Refine an existing playlist based on user feedback"""
 
     try:
-        device_id = request.device_id
+        user_info = await require_auth(request)
+        rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
 
-        if settings.DAILY_LIMIT_ENABLED and not await rate_limiter.can_refine_playlist(device_id):
+        if settings.DAILY_LIMIT_ENABLED and not await rate_limiter.can_refine_playlist(rate_limit_key):
             raise HTTPException(
                 status_code=429,
                 detail=f"Maximum of {settings.MAX_REFINEMENTS_PER_PLAYLIST} AI refinements reached for this playlist."
@@ -242,7 +353,7 @@ async def refine_playlist(request: PlaylistRequest):
         )
 
         if settings.DAILY_LIMIT_ENABLED:
-            await rate_limiter.record_refinement(device_id)
+            await rate_limiter.record_refinement(rate_limit_key)
         
         return PlaylistResponse(
             songs=songs,
@@ -259,11 +370,32 @@ async def refine_playlist(request: PlaylistRequest):
 
 @app.get("/rate-limit-status/{device_id}", response_model=RateLimitStatus)
 async def get_rate_limit_status(device_id: str):
-    """Get current rate limit status for a device"""
+    """Get current rate limit status for a device (legacy endpoint - insecure)"""
+    logger.warning(f"Using insecure rate limit endpoint for device: {device_id}")
 
     try:
         return await rate_limiter.get_status(device_id)
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error checking rate limit: {str(e)}")
+
+@app.post("/auth/rate-limit-status", response_model=RateLimitStatus)
+async def get_authenticated_rate_limit_status(request: SessionValidationRequest):
+    """Get current rate limit status using authenticated session"""
+
+    try:
+        user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
+        
+        if not user_info:
+            raise HTTPException(status_code=401, detail="Invalid or expired session")
+
+        rate_limit_key = user_info["spotify_user_id"]
+        
+        return await rate_limiter.get_status(rate_limit_key)
+
+    except HTTPException:
+        raise
+    
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error checking rate limit: {str(e)}")
 

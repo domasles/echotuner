@@ -1,7 +1,7 @@
 """Core application models and data structures for EchoTuner."""
 
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 
 class Song(BaseModel):
     title: str
@@ -23,6 +23,7 @@ class UserContext(BaseModel):
 class PlaylistRequest(BaseModel):
     prompt: str
     device_id: str
+    session_id: str
     user_context: Optional[UserContext] = None
     current_songs: Optional[List[Song]] = None
     count: Optional[int] = 30
@@ -42,3 +43,28 @@ class RateLimitStatus(BaseModel):
     can_make_request: bool
     can_refine: bool
     reset_time: Optional[str] = None
+
+class AuthInitRequest(BaseModel):
+    device_id: str
+    platform: str
+
+class AuthInitResponse(BaseModel):
+    auth_url: str
+    state: str
+
+class AuthCallbackRequest(BaseModel):
+    code: str
+    state: str
+
+class AuthCallbackResponse(BaseModel):
+    session_id: str
+    redirect_url: str
+
+class SessionValidationRequest(BaseModel):
+    session_id: str
+    device_id: str
+
+class SessionValidationResponse(BaseModel):
+    valid: bool
+    user_id: Optional[str] = None
+    spotify_user_id: Optional[str] = None
