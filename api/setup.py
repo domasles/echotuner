@@ -43,11 +43,7 @@ def main():
         sys.exit(1)
 
     print("\nSetup completed!")
-    print("\nNext steps:")
-    print("1. Install Ollama from https://ollama.ai")
-    print("2. Copy .env.example to .env if it doesn't exist")
-    print("3. Edit .env file with your Spotify credentials")
-    print("4. Start the API: python main.py")
+    print("\nFollow the instructions in the README for further installation steps.")
 
 if __name__ == "__main__":
     main()

@@ -1,9 +1,14 @@
+import sys
 import os
 
 from dotenv import load_dotenv
 from typing import Optional
+from pathlib import Path
 
-load_dotenv()
+api_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(api_dir))
+
+load_dotenv(f"{api_dir}/.env")
 
 class Settings:
     """Configuration settings for EchoTuner API."""

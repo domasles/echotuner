@@ -35,33 +35,36 @@ For complete installation and setup instructions, please refer to the [master in
 1. **Python 3.8+** installed on your system
 2. **Ollama** installed from [https://ollama.ai](https://ollama.ai)
 3. **Spotify Developer Account** for API credentials
+4. **Spotify API credentials** (Client ID and Client Secret)
 
-### Installation Summary
+### Installaton
 
 1. **Navigate to API directory:**
    ```bash
    cd echotuner/api
    ```
 
-2. **Run automated setup:**
+2. **Copy over .env.sample to .env:**
+    ```bash
+    cp .env.sample .env
+    ```
+    Don't forget to Configure Spotify API credentials in the generated `.env` file
+
+3. **Run automated setup:**
    ```bash
    python setup.py
    ```
 
-3. **Install required AI models:**
+4. **Install required AI models:**
    ```bash
    ollama pull nomic-embed-text
    ollama pull phi3:mini
    ```
 
-4. **Configure Spotify API credentials** in the generated `.env` file
-
 5. **Start the API:**
    ```bash
    python main.py
    ```
-
-For detailed setup instructions and configuration options, see the [complete installation guide](../README.md#installation).
 
 ## API Endpoints
 

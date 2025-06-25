@@ -44,15 +44,18 @@ The EchoTuner app delivers an intuitive app experience for creating personalized
    ```bash
    flutter doctor
    ```
+   After running this command, ensure all checks are resolved.
 
 ### Additional Requirements
 
 - **Android Studio** (for Android development)
+- **VS Code** or **Android Studio** Flutter plugins
 - **Xcode** (for iOS development, macOS only)
-- **VS Code** or **Android Studio** with Flutter plugins
+- **Visual Studio** (for Windows development, Windows only) 
 - **Running EchoTuner API**: The backend service must be operational
 
-For complete Flutter installation instructions, visit the [official Flutter documentation](https://docs.flutter.dev/get-started/install).
+Opening your IDE with the Flutter plugin make sure you locate the Flutter SDK path correctly.
+For complete Flutter installation instructions and required dependencies for building on Linux, visit the [official Flutter documentation](https://docs.flutter.dev/get-started/install).
 
 **Warning:** installing Flutter SDK from VSCode extensions or other package managers may lead to compatibility issues with required packages and features. It's recommended to clone Flutter from its official GitHub repository.
 
@@ -70,20 +73,21 @@ For complete Flutter installation instructions, visit the [official Flutter docu
    cp .env.example .env
    ```
 
-3. **Install Flutter dependencies:**
+3. **Generate flutter project files:**
    ```bash
-   flutter pub get
+   flutter create .
    ```
 
 4. **Generate model files:**
    ```bash
-   flutter packages pub run build_runner build
+   dart run build_runner build
    ```
 
-5. **Verify device connectivity:**
+5. **Run the app:**
    ```bash
-   flutter devices
+   flutter run
    ```
+   You'll be greeted with the device selection screen, where you can choose to run the app on an emulator or a connected device. After selecting a device, the app will start, and you can begin testing its features.
 
 ### Backend Service Setup
 
