@@ -20,7 +20,7 @@ class PlaylistProvider extends ChangeNotifier {
     String? _deviceId;
     String? _error;
 
-    PlaylistProvider({required apiService}) : _apiService = apiService {
+    PlaylistProvider({required ApiService apiService}) : _apiService = apiService {
         _initializeDeviceId();
     }
 
