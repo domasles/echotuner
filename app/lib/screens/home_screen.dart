@@ -30,6 +30,8 @@ class _HomeScreenState extends State<HomeScreen> {
         "I'm feeling sad and want to embrace it",
         "Upbeat electronic dance music",
         "Cozy acoustic coffee shop vibes",
+		"Epic movie soundtrack",
+		"Indie folk for a rainy day"
 	];
 
     @override
@@ -248,13 +250,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: double.infinity,
                     height: 56,
 
-                    child: ElevatedButton(
+                    child: FilledButton(
                         onPressed: (provider.isLoading || !_hasText) ? null : () => _generatePlaylist(provider),
-						style: ElevatedButton.styleFrom(
+						style: FilledButton.styleFrom(
                             backgroundColor: const Color(0xFF8B5CF6),
                             foregroundColor: Colors.white,
-                            elevation: 4,
-                            shadowColor: const Color(0xFF8B5CF6).withValues(alpha: 255 * 0.3)
+                            disabledBackgroundColor: const Color(0xFF1A1625),
+                            disabledForegroundColor: Colors.white54,
 						),
 
                         child: provider.isLoading ? const Row(
@@ -322,7 +324,7 @@ class _HomeScreenState extends State<HomeScreen> {
         
         return Positioned(
             left: 16,
-            right: 88, // Leave space for the floating action button
+            right: 88,
             bottom: 16,
 
             child: Container(
@@ -337,18 +339,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: const Color(0xFF2A2635),
                         width: 1,
                     ),
-
-                    boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withValues(alpha: 255 * 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                        ),
-                    ],
                 ),
+
                 child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
+
                     children: [
                         Text(
                             requestsMade >= maxRequests ? 'Daily limit reached' : 'Daily Playlist limit: $requestsMade/$maxRequests',
@@ -366,7 +362,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: const Color(0xFF2A2635),
                                 borderRadius: BorderRadius.circular(2),
                             ),
-							
+
                             child: ClipRRect(
                                 borderRadius: BorderRadius.circular(2),
                                 child: LinearProgressIndicator(
@@ -409,14 +405,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             },
 
                             backgroundColor: const Color(0xFF1A1625),
+                            disabledColor: const Color(0xFF1A1625),
+
                             labelStyle: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                             ),
 
-                            side: BorderSide(
-                                color: const Color(0xFF8B5CF6).withValues(alpha: 255 * 0.3),
+                            side: const BorderSide(
+                                color: Color(0xFF8B5CF6),
                                 width: 1,
                             ),
 
@@ -424,8 +422,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 borderRadius: BorderRadius.circular(20),
                             ),
 							
-                            elevation: 2,
-                            shadowColor: const Color(0xFF8B5CF6).withValues(alpha: 255 * 0.2),
+                            elevation: 0,
+                            shadowColor: Colors.transparent,
                         );
                     }).toList(),
                 ),
@@ -489,17 +487,25 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 	
 	void _showErrorDialog(String error) {
+        String displayError = error;
+        String title = 'Error';
+        
+        if (error.toLowerCase().contains('rate limit') || error.toLowerCase().contains('limit reached') || error.toLowerCase().contains('daily limit')) {
+            title = 'Daily Limit Reached';
+            displayError = 'You\'ve reached your daily playlist generation limit. Please try again tomorrow or upgrade your plan for more playlists.';
+        }
+        
         showDialog(
             context: context,
             builder: (context) => AlertDialog(
                 backgroundColor: const Color(0xFF1A1625),
-                title: const Text(
-                    'Error',
-                    style: TextStyle(color: Colors.white),
+                title: Text(
+                    title,
+                    style: const TextStyle(color: Colors.white),
                 ),
 
                 content: Text(
-                    error,
+                    displayError,
                     style: const TextStyle(color: Colors.white70),
                 ),
 

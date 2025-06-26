@@ -172,14 +172,15 @@ class _LoginScreenState extends State<LoginScreen> {
             width: double.infinity,
             height: 56,
 
-            child: ElevatedButton(
+            child: FilledButton(
                 onPressed: _isLoading ? null : _handleLogin,
-                style: ElevatedButton.styleFrom(
+                style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF1DB954),
                     foregroundColor: Colors.white,
-                    elevation: 4,
-                    shadowColor: const Color(0xFF1DB954).withValues(alpha: 255 * 0.3),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                    disabledBackgroundColor: const Color(0xFF1A1625),
+                    disabledForegroundColor: Colors.white54,
+                    side: const BorderSide(color: Color(0xFF2A2A2A), width: 0.5),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
 
                 child: _isLoading ? const Row(

@@ -29,7 +29,7 @@ class PlaylistScreen extends StatelessWidget {
         
         return showDialog<void>(
             context: context,
-            builder: (BuildContext context) {
+            builder: (BuildContext dialogContext) {
                 return AlertDialog(
                     backgroundColor: const Color(0xFF1A1625),
                     title: const Text(
@@ -40,7 +40,9 @@ class PlaylistScreen extends StatelessWidget {
                     content: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                            _buildRefinementIndicatorForDialog(provider),
                             const SizedBox(height: 16),
+
                             TextField(
                                 autofocus: true,
                                 maxLines: 3,
@@ -57,14 +59,14 @@ class PlaylistScreen extends StatelessWidget {
 
                     actions: [
                         TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
+                            onPressed: () => Navigator.of(dialogContext).pop(),
                             child: const Text('Cancel'),
                         ),
 
-                        ElevatedButton(
+                        FilledButton(
                             onPressed: () {
                                 if (refinementText.trim().isNotEmpty) {
-                                    Navigator.of(context).pop();
+                                    Navigator.of(dialogContext).pop();
                                     provider.refinePlaylist(refinementText.trim());
                                 }
                             },
@@ -115,7 +117,7 @@ class PlaylistScreen extends StatelessWidget {
                                     ),
 
                                     const SizedBox(height: 16),
-                                    ElevatedButton(
+                                    FilledButton(
                                         onPressed: () => Navigator.pop(context),
                                         child: const Text('Go Back'),
                                     ),
@@ -141,19 +143,13 @@ class PlaylistScreen extends StatelessWidget {
                         );
                     }
 
-                    return Stack(
-                        children: [
-                            Column(
-                                children: [
-                                    Expanded(
-                                        child: _buildPlaylistContent(context, provider),
-                                    ),
-                                ],
-                            ),
+                    return _buildPlaylistContent(context, provider);
+                },
+            ),
 
-                            _buildBottomRefinementIndicator(provider),
-                        ],
-                    );
+            bottomNavigationBar: Consumer<PlaylistProvider>(
+                builder: (context, provider, child) {
+                    return _buildBottomRefineButton(context, provider);
                 },
             ),
         );
@@ -168,8 +164,13 @@ class PlaylistScreen extends StatelessWidget {
                     margin: const EdgeInsets.all(16),
 
                     decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E1E),
+                        color: const Color(0xFF1A1625),
                         borderRadius: BorderRadius.circular(12),
+
+                        border: Border.all(
+                            color: const Color(0xFF2A2A2A),  
+                            width: 1,
+                        ),
                     ),
                     
                     child: Column(
@@ -230,27 +231,45 @@ class PlaylistScreen extends StatelessWidget {
                         },
                     ),
                 ),
-
-                if (provider.canRefine) Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: ElevatedButton(
-                        onPressed: () => _showRefineDialog(context, provider),
-                        child: Text(
-                            provider.showRefinementLimits ? 'Refine Playlist (${(provider.rateLimitStatus?.maxRefinements ?? 3) - provider.refinementsUsed} left)' : 'Refine Playlist',
-                        ),
-                    ),
-                ),
             ],
         );
     }
 
-    Widget _buildBottomRefinementIndicator(PlaylistProvider provider) {
+    Widget _buildBottomRefineButton(BuildContext context, PlaylistProvider provider) {
+        if (!provider.canRefine) {
+            return const SizedBox.shrink();
+        }
+
+        return BottomAppBar(
+            height: 88,
+            color: const Color(0xFF0F0A1A),
+
+            child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: FilledButton(
+                    onPressed: () => _showRefineDialog(context, provider),
+                    style: const ButtonStyle(
+                        side: WidgetStatePropertyAll(BorderSide(color: Color(0xFF2A2A2A), width: 0.5)),
+                        elevation: WidgetStatePropertyAll(0),
+                        shadowColor: WidgetStatePropertyAll(Colors.transparent),
+                        minimumSize: WidgetStatePropertyAll(Size.fromHeight(48)),
+                    ),
+
+                    child: Text(
+                        provider.showRefinementLimits ? 'Refine Playlist (${(provider.rateLimitStatus?.maxRefinements ?? 3) - provider.refinementsUsed} left)' : 'Refine Playlist',
+                    ),
+                ),
+            ),
+        );
+    }
+
+    Widget _buildRefinementIndicatorForDialog(PlaylistProvider provider) {
         if (!provider.showRefinementLimits) {
             return const SizedBox.shrink();
         }
         
         final rateLimitStatus = provider.rateLimitStatus;
-
+		
         if (rateLimitStatus == null) {
             return const SizedBox.shrink();
         }
@@ -273,64 +292,48 @@ class PlaylistScreen extends StatelessWidget {
             progressColor = Colors.red;
         }
         
-        return Positioned(
-            left: 16,
-            right: 16,
-            bottom: 16,
+        return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+                color: const Color(0xFF1A1625),
+                borderRadius: BorderRadius.circular(12),
 
-            child: Container(
-                height: 56, // Same consistent height
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                border: Border.all(
+                    color: const Color(0xFF2A2A2A), 
+                    width: 1,
+                ),
+            ),
 
-                decoration: BoxDecoration(
-                    color: const Color(0xFF1A1625),
-                    borderRadius: BorderRadius.circular(28), // Half of height for pill shape
-                    border: Border.all(
-                        color: const Color(0xFF2A2635),
-                        width: 1,
+            child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                    Text(
+                        refinementsUsed >= maxRefinements ? 'Refinement limit reached' : 'Refinements Used: $refinementsUsed/$maxRefinements',
+                        style: TextStyle(
+                            color: progressColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                        ),
                     ),
 
-                    boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withValues(alpha: 255 * 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                        ),
-                    ],
-                ),
-
-                child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                        Text(
-                            refinementsUsed >= maxRefinements ? 'Refinement limit reached' : 'Refinements Used: $refinementsUsed/$maxRefinements',
-                            style: TextStyle(
-                                color: progressColor,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                            ),
+                    const SizedBox(height: 8),
+                    Container(
+                        height: 4,
+                        decoration: BoxDecoration(
+                            color: const Color(0xFF2A2A2A),
+                            borderRadius: BorderRadius.circular(2),
                         ),
 
-                        const SizedBox(height: 6),
-                        Container(
-                            height: 4,
-                            decoration: BoxDecoration(
-                                color: const Color(0xFF2A2635),
-                                borderRadius: BorderRadius.circular(2),
-                            ),
-							
-                            child: ClipRRect(
-                                borderRadius: BorderRadius.circular(2),
-                                child: LinearProgressIndicator(
-                                    value: progress,
-                                    backgroundColor: Colors.transparent,
-                                    valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-                                ),
+                        child: ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                                value: progress,
+                                backgroundColor: Colors.transparent,
+                                valueColor: AlwaysStoppedAnimation<Color>(progressColor),
                             ),
                         ),
-                    ],
-                ),
+                    ),
+                ],
             ),
         );
     }

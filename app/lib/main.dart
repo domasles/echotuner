@@ -71,6 +71,10 @@ class EchoTunerApp extends StatelessWidget {
                         onSurface: Colors.white,
                         primary: const Color(0xFF8B5CF6),
                         secondary: const Color(0xFFA78BFA),
+                        surfaceContainerHighest: const Color(0xFF1A1625),
+                        onSurfaceVariant: Colors.white70,
+                        outline: const Color(0xFF3A3A3A),
+                        outlineVariant: const Color(0xFF2A2A2A),
                     ),
                     
                     scaffoldBackgroundColor: const Color(0xFF0F0A1A),
@@ -91,12 +95,59 @@ class EchoTunerApp extends StatelessWidget {
                         bodySmall: TextStyle(color: Colors.white54),
                     ),
 
-					cardTheme: const CardThemeData(
-                        color: Color(0xFF1A1625),
-                        elevation: 2,
+					cardTheme: CardThemeData(
+                        color: const Color(0xFF1A1625),
+                        elevation: 0,
+                        surfaceTintColor: const Color(0xFF8B5CF6),
 
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(16)),
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                                color: const Color(0xFF2A2A2A),
+                                width: 0.5,
+                            ),
+                        ),
+                    ),
+
+                    filledButtonTheme: FilledButtonThemeData(
+                        style: ButtonStyle(
+                            backgroundColor: WidgetStateProperty.resolveWith((states) {
+                                if (states.contains(WidgetState.disabled)) {
+                                    return const Color(0xFF1A1625);
+                                }
+
+                                return const Color(0xFF8B5CF6);
+                            }),
+
+                            foregroundColor: WidgetStateProperty.resolveWith((states) {
+                                if (states.contains(WidgetState.disabled)) {
+                                    return Colors.white54;
+                                }
+
+                                return Colors.white;
+                            }),
+
+                            side: WidgetStateProperty.all(
+                                const BorderSide(color: Color(0xFF2A2A2A), width: 0.5),
+                            ),
+
+                            shape: WidgetStateProperty.all(
+                                RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                ),
+                            ),
+
+                            padding: WidgetStateProperty.all(
+                                const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                            ),
+
+                            textStyle: WidgetStateProperty.all(
+                                const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.1,
+                                ),
+                            ),
                         ),
                     ),
 
@@ -104,37 +155,109 @@ class EchoTunerApp extends StatelessWidget {
                         style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF8B5CF6),
                             foregroundColor: Colors.white,
-                            elevation: 3,
-
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                            ),
-
+                            disabledBackgroundColor: const Color(0xFF1A1625),
+                            disabledForegroundColor: Colors.white54,
+                            elevation: 0,
+                            shadowColor: Colors.transparent,
+                            surfaceTintColor: Colors.transparent,
+                            side: const BorderSide(color: Color(0xFF2A2A2A), width: 0.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+
                             textStyle: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
+                                letterSpacing: 0.1,
+                            ),
+                        ),
+                    ),
+
+                    outlinedButtonTheme: OutlinedButtonThemeData(
+                        style: ButtonStyle(
+                            foregroundColor: WidgetStateProperty.resolveWith((states) {
+                                if (states.contains(WidgetState.disabled)) {
+                                    return Colors.white54;
+                                }
+
+                                return const Color(0xFF8B5CF6);
+                            }),
+
+                            side: WidgetStateProperty.resolveWith((states) {
+                                if (states.contains(WidgetState.disabled)) {
+                                    return const BorderSide(color: Color(0xFF2A2A2A), width: 1);
+                                }
+
+                                return const BorderSide(color: Color(0xFF8B5CF6), width: 1);
+                            }),
+
+                            shape: WidgetStateProperty.all(
+                                RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                ),
+                            ),
+
+                            padding: WidgetStateProperty.all(
+                                const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                            ),
+
+                            textStyle: WidgetStateProperty.all(
+                                const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.1,
+                                ),
                             ),
                         ),
                     ),
                     
+                    textButtonTheme: TextButtonThemeData(
+                        style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF8B5CF6),
+                            disabledForegroundColor: Colors.white54,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+
+                            textStyle: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.1,
+                            ),
+                        ),
+                    ),
+
                     inputDecorationTheme: InputDecorationTheme(
                         filled: true,
                         fillColor: const Color(0xFF1A1625),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                         
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(25),
-                            borderSide: BorderSide.none,
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: const BorderSide(color: Color(0xFF2A2A2A), width: 1),
+                        ),
+                        
+                        enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: const BorderSide(color: Color(0xFF2A2A2A), width: 1),
                         ),
                         
                         focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(25),
+                            borderRadius: BorderRadius.circular(16),
                             borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 2),
+                        ),
+
+                        errorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: const BorderSide(color: Colors.red, width: 1),
+                        ),
+
+                        focusedErrorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: const BorderSide(color: Colors.red, width: 2),
                         ),
 
                         hintStyle: const TextStyle(color: Colors.white54),
                         labelStyle: const TextStyle(color: Colors.white70),
+                        errorStyle: const TextStyle(color: Colors.red),
                     ),
                     
                     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
@@ -142,7 +265,126 @@ class EchoTunerApp extends StatelessWidget {
                         selectedItemColor: Color(0xFF8B5CF6),
                         unselectedItemColor: Colors.white54,
                         type: BottomNavigationBarType.fixed,
-                        elevation: 8,
+                        elevation: 0,
+                    ),
+
+                    navigationBarTheme: const NavigationBarThemeData(
+                        backgroundColor: Color(0xFF1A1625),
+                        indicatorColor: Color(0xFF8B5CF6),
+                        surfaceTintColor: Colors.transparent,
+                        elevation: 0,
+                        height: 80,
+                    ),
+
+                    chipTheme: ChipThemeData(
+                        backgroundColor: const Color(0xFF1A1625),
+                        selectedColor: const Color(0xFF8B5CF6),
+                        disabledColor: const Color(0xFF1A1625),
+                        labelStyle: const TextStyle(color: Colors.white),
+                        secondaryLabelStyle: const TextStyle(color: Colors.white54),
+                        brightness: Brightness.dark,
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        side: const BorderSide(color: Color(0xFF8B5CF6), width: 1),
+                    ),
+
+                    listTileTheme: const ListTileThemeData(
+                        tileColor: Color(0xFF1A1625),
+                        selectedTileColor: Color(0xFF8B5CF6),
+                        iconColor: Colors.white70,
+                        textColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                    ),
+
+                    dividerTheme: const DividerThemeData(
+                        color: Color(0xFF2A2A2A),
+                        thickness: 1,
+                        space: 1,
+                    ),
+
+                    floatingActionButtonTheme: const FloatingActionButtonThemeData(
+                        backgroundColor: Color(0xFF8B5CF6),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        focusElevation: 0,
+                        hoverElevation: 0,
+                        highlightElevation: 0,
+                        shape: CircleBorder(),
+                    ),
+
+                    dialogTheme: const DialogThemeData(
+                        backgroundColor: Color(0xFF1A1625),
+                        surfaceTintColor: Colors.transparent,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(20))),
+
+                        titleTextStyle: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                        ),
+
+                        contentTextStyle: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 16,
+                        ),
+                    ),
+
+                    snackBarTheme: SnackBarThemeData(
+                        backgroundColor: const Color(0xFF1A1625),
+                        contentTextStyle: const TextStyle(color: Colors.white),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        behavior: SnackBarBehavior.floating,
+                        elevation: 0,
+                    ),
+
+                    switchTheme: SwitchThemeData(
+                        thumbColor: WidgetStateProperty.resolveWith((states) {
+                            if (states.contains(WidgetState.selected)) {
+                                return Colors.white;
+                            }
+							
+                            return Colors.white54;
+                        }),
+
+                        trackColor: WidgetStateProperty.resolveWith((states) {
+                            if (states.contains(WidgetState.selected)) {
+                                return const Color(0xFF8B5CF6);
+                            }
+
+                            return const Color(0xFF2A2A2A);
+                        }),
+                    ),
+
+                    checkboxTheme: CheckboxThemeData(
+                        fillColor: WidgetStateProperty.resolveWith((states) {
+                            if (states.contains(WidgetState.selected)) {
+                                return const Color(0xFF8B5CF6);
+                            }
+
+                            return Colors.transparent;
+                        }),
+
+                        checkColor: WidgetStateProperty.all(Colors.white),
+                        side: const BorderSide(color: Color(0xFF2A2A2A), width: 2),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    ),
+
+                    radioTheme: RadioThemeData(
+                        fillColor: WidgetStateProperty.resolveWith((states) {
+                            if (states.contains(WidgetState.selected)) {
+                                return const Color(0xFF8B5CF6);
+                            }
+
+                            return const Color(0xFF2A2A2A);
+                        }),
+                    ),
+
+                    progressIndicatorTheme: const ProgressIndicatorThemeData(
+                        color: Color(0xFF8B5CF6),
+                        linearTrackColor: Color(0xFF2A2A2A),
+                        circularTrackColor: Color(0xFF2A2A2A),
                     ),
                 ),
                 

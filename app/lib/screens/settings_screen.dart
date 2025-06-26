@@ -87,8 +87,8 @@ class SettingsScreen extends StatelessWidget {
                                     style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.red,
                                         foregroundColor: Colors.white,
+                                        side: const BorderSide(color: Color(0xFF2A2A2A), width: 0.5),
                                         padding: const EdgeInsets.symmetric(vertical: 16),
-
                                         shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(12),
                                         ),
