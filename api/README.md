@@ -12,6 +12,7 @@ The API provides intelligent playlist generation capabilities while maintaining 
 - **Zero-Fallback Architecture**: Requires both Ollama and Spotify API to be operational
 - **Production Hardened**: Comprehensive error handling with graceful failures
 - **Integration Ready**: RESTful API designed for both internal app and external integration
+- **Configurable Rate Limiting**: Independent playlist and refinement limits with backend control
 
 ## Core Dependencies
 
@@ -103,22 +104,53 @@ For complete API documentation and examples, refer to the [API Reference](../REA
 The API uses environment variables for configuration. Key settings include:
 
 ```bash
-# API Configuration
+# API Settings
 API_HOST=0.0.0.0
 API_PORT=8000
 
-# Ollama AI Models
+DEBUG=true
+LOG_LEVEL=INFO
+
+DATABASE_FILENAME=echotuner.db
+
+# Ollama Configuration (for AI models)
+USE_OLLAMA=true
+OLLAMA_TIMEOUT=30
+OLLAMA_MODEL_PULL_TIMEOUT=300
+
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_VALIDATION_MODEL=nomic-embed-text
+OLLAMA_VALIDATION_MODEL=nomic-embed-text:latest
 OLLAMA_GENERATION_MODEL=phi3:mini
 
-# Spotify Integration
-SPOTIFY_CLIENT_ID=your_client_id
-SPOTIFY_CLIENT_SECRET=your_client_secret
+PROMPT_VALIDATION_THRESHOLD=0.6 # Threshold for prompt validation (0.0 to 1.0)
+PROMPT_VALIDATION_TIMEOUT=30    # Prompt validation timeout in seconds
 
-# Rate Limiting
-DAILY_LIMIT_ENABLED=true
-MAX_PLAYLISTS_PER_DAY=10
+# Spotify Configuration (for real-time song search)
+# Get these from: https://developer.spotify.com/dashboard
+SPOTIFY_CLIENT_ID=your_spotify_client_id_here
+SPOTIFY_CLIENT_SECRET=your_spotify_client_secret_here
+SPOTIFY_REDIRECT_URI=your_spotify_redirect_uri_here
+
+# Authentication Settings
+AUTH_REQUIRED=true
+
+# Rate Limiting Settings
+PLAYLIST_LIMIT_ENABLED=false
+REFINEMENT_LIMIT_ENABLED=false
+
+MAX_PLAYLISTS_PER_DAY=3
+MAX_SONGS_PER_PLAYLIST=30
+MAX_REFINEMENTS_PER_PLAYLIST=3
+
+SESSION_TIMEOUT=24 # Session expiration in hours
+
+# Cache Settings
+CACHE_ENABLED=true
+
+# Security Configuration
+MAX_AUTH_ATTEMPTS_PER_IP=10
+AUTH_ATTEMPT_WINDOW_MINUTES=60
+SECURE_HEADERS=true
 ```
 
 For complete configuration options, see the [Configuration](../README.md#configuration) section in the master documentation.

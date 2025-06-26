@@ -1,6 +1,6 @@
+import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/playlist_provider.dart';
 
@@ -40,18 +40,13 @@ class PlaylistScreen extends StatelessWidget {
                     content: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                            const Text(
-                                'Tell us how you\'d like to adjust your playlist:',
-                                style: TextStyle(color: Colors.white70),
-                            ),
-
                             const SizedBox(height: 16),
                             TextField(
                                 autofocus: true,
                                 maxLines: 3,
 
                                 decoration: const InputDecoration(
-                                    hintText: 'e.g., "Add more upbeat songs", "Include more 80s music", "Remove slow songs"',
+                                    hintText: 'Tell us how you\'d like to adjust your playlist',
                                     border: OutlineInputBorder(),
                                 ),
 
@@ -146,89 +141,196 @@ class PlaylistScreen extends StatelessWidget {
                         );
                     }
 
-                    return Column(
+                    return Stack(
                         children: [
-                            if (provider.currentPrompt.isNotEmpty) Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(16),
-                                margin: const EdgeInsets.all(16),
-
-                                decoration: BoxDecoration(
-                                    color: const Color(0xFF1E1E1E),
-                                    borderRadius: BorderRadius.circular(12),
-                                ),
-                                
-                                child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                        const Text(
-                                            'Generated for:',
-                                            style: TextStyle(
-                                                color: Colors.white70,
-                                                fontSize: 12,
-                                            ),
-                                        ),
-
-                                        const SizedBox(height: 4),
-                                        Text(
-                                            provider.currentPrompt,
-                                            style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                            ),
-                                        ),
-                                    ],
-                                ),
-                            ),
-                            
-                            Expanded(
-                                child: ListView.builder(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                                    itemCount: provider.currentPlaylist.length,
-                                    
-                                    itemBuilder: (context, index) {
-                                        final song = provider.currentPlaylist[index];
-                                        return Card(
-                                            margin: const EdgeInsets.only(bottom: 8),
-                                            child: ListTile(
-                                                leading: const Icon(Icons.music_note),
-                                                title: Text(
-                                                    song.title,
-                                                    style: const TextStyle(
-                                                        color: Colors.white,
-                                                        fontWeight: FontWeight.bold,
-                                                    ),
-                                                ),
-
-                                                subtitle: Text(
-                                                    song.artist,
-                                                    style: const TextStyle(color: Colors.white70),
-                                                ),
-
-                                                trailing: song.spotifyId != null ? IconButton(
-                                                    icon: const Icon(Icons.open_in_new),
-                                                    onPressed: () => _openSpotifyTrack(song.spotifyId!),
-                                                )
-
-                                                : null,
-                                            ),
-                                        );
-                                    },
-                                ),
-                            ),
-
-                            if (provider.canRefine) Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: ElevatedButton(
-                                    onPressed: () => _showRefineDialog(context, provider),
-                                    child: Text(
-                                        'Refine Playlist (${3 - provider.refinementsUsed} left)',
+                            Column(
+                                children: [
+                                    Expanded(
+                                        child: _buildPlaylistContent(context, provider),
                                     ),
-                                ),
+                                ],
                             ),
+
+                            _buildBottomRefinementIndicator(provider),
                         ],
                     );
                 },
+            ),
+        );
+    }
+
+    Widget _buildPlaylistContent(BuildContext context, PlaylistProvider provider) {
+        return Column(
+            children: [
+                if (provider.currentPrompt.isNotEmpty) Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.all(16),
+
+                    decoration: BoxDecoration(
+                        color: const Color(0xFF1E1E1E),
+                        borderRadius: BorderRadius.circular(12),
+                    ),
+                    
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                            const Text(
+                                'Generated for:',
+                                style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                ),
+                            ),
+
+                            const SizedBox(height: 4),
+                            Text(
+                                provider.currentPrompt,
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+                
+                Expanded(
+                    child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: provider.currentPlaylist.length,
+                        
+                        itemBuilder: (context, index) {
+                            final song = provider.currentPlaylist[index];
+                            return Card(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                child: ListTile(
+                                    leading: const Icon(Icons.music_note),
+                                    title: Text(
+                                        song.title,
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                        ),
+                                    ),
+
+                                    subtitle: Text(
+                                        song.artist,
+                                        style: const TextStyle(color: Colors.white70),
+                                    ),
+
+                                    trailing: song.spotifyId != null ? IconButton(
+                                        icon: const Icon(Icons.open_in_new),
+                                        onPressed: () => _openSpotifyTrack(song.spotifyId!),
+                                    )
+
+                                    : null,
+                                ),
+                            );
+                        },
+                    ),
+                ),
+
+                if (provider.canRefine) Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: ElevatedButton(
+                        onPressed: () => _showRefineDialog(context, provider),
+                        child: Text(
+                            provider.showRefinementLimits ? 'Refine Playlist (${(provider.rateLimitStatus?.maxRefinements ?? 3) - provider.refinementsUsed} left)' : 'Refine Playlist',
+                        ),
+                    ),
+                ),
+            ],
+        );
+    }
+
+    Widget _buildBottomRefinementIndicator(PlaylistProvider provider) {
+        if (!provider.showRefinementLimits) {
+            return const SizedBox.shrink();
+        }
+        
+        final rateLimitStatus = provider.rateLimitStatus;
+
+        if (rateLimitStatus == null) {
+            return const SizedBox.shrink();
+        }
+        
+        final refinementsUsed = provider.refinementsUsed;
+        final maxRefinements = rateLimitStatus.maxRefinements;
+        final progress = maxRefinements > 0 ? refinementsUsed / maxRefinements : 0.0;
+        
+        Color progressColor;
+
+        if (progress <= 0.5) {
+            progressColor = Colors.blue;
+        }
+		
+		else if (progress <= 0.8) {
+            progressColor = Colors.orange;
+        }
+		
+		else {
+            progressColor = Colors.red;
+        }
+        
+        return Positioned(
+            left: 16,
+            right: 16,
+            bottom: 16,
+
+            child: Container(
+                height: 56, // Same consistent height
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+
+                decoration: BoxDecoration(
+                    color: const Color(0xFF1A1625),
+                    borderRadius: BorderRadius.circular(28), // Half of height for pill shape
+                    border: Border.all(
+                        color: const Color(0xFF2A2635),
+                        width: 1,
+                    ),
+
+                    boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withValues(alpha: 255 * 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                        ),
+                    ],
+                ),
+
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                        Text(
+                            refinementsUsed >= maxRefinements ? 'Refinement limit reached' : 'Refinements Used: $refinementsUsed/$maxRefinements',
+                            style: TextStyle(
+                                color: progressColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                            ),
+                        ),
+
+                        const SizedBox(height: 6),
+                        Container(
+                            height: 4,
+                            decoration: BoxDecoration(
+                                color: const Color(0xFF2A2635),
+                                borderRadius: BorderRadius.circular(2),
+                            ),
+							
+                            child: ClipRRect(
+                                borderRadius: BorderRadius.circular(2),
+                                child: LinearProgressIndicator(
+                                    value: progress,
+                                    backgroundColor: Colors.transparent,
+                                    valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
             ),
         );
     }

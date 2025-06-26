@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 
@@ -39,6 +39,7 @@ class SettingsScreen extends StatelessWidget {
 
                     const SizedBox(height: 24),
                     const SectionHeader(title: 'Preferences'),
+
                     SettingsTile(
                         icon: Icons.tune,
                         title: 'Music Preferences',
@@ -52,6 +53,7 @@ class SettingsScreen extends StatelessWidget {
                     ),
 
                     SizedBox(height: 24),
+
                     SectionHeader(title: 'About'),
                     SettingsTile(
                         icon: Icons.info,
@@ -86,10 +88,12 @@ class SettingsScreen extends StatelessWidget {
                                         backgroundColor: Colors.red,
                                         foregroundColor: Colors.white,
                                         padding: const EdgeInsets.symmetric(vertical: 16),
+
                                         shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(12),
                                         ),
                                     ),
+
                                     child: const Text(
                                         'Logout',
                                         style: TextStyle(
@@ -101,6 +105,7 @@ class SettingsScreen extends StatelessWidget {
                             );
                         },
                     ),
+
                     const SizedBox(height: 32),
                 ],
             ),
@@ -116,10 +121,12 @@ class SettingsScreen extends StatelessWidget {
                     'Logout',
                     style: TextStyle(color: Colors.white),
                 ),
+
                 content: const Text(
                     'Are you sure you want to logout? You\'ll need to reconnect your Spotify account to use the app.',
                     style: TextStyle(color: Colors.white70),
                 ),
+
                 actions: [
                     TextButton(
                         onPressed: () => Navigator.of(context).pop(),
@@ -128,24 +135,23 @@ class SettingsScreen extends StatelessWidget {
                             style: TextStyle(color: Colors.white54),
                         ),
                     ),
+
                     TextButton(
                         onPressed: () async {
                             final navigator = Navigator.of(context);
                             final messenger = ScaffoldMessenger.of(context);
                             
-                            navigator.pop(); // Close dialog first
+                            navigator.pop();
                             
                             try {
                                 await authService.logout();
                                 
-                                // Force navigation to root and clear all routes
                                 navigator.pushNamedAndRemoveUntil(
                                     '/', 
                                     (route) => false,
                                 );
                                 
                             } catch (e) {
-                                // Handle logout error
                                 messenger.showSnackBar(
                                     SnackBar(
                                         content: Text('Logout failed: ${e.toString()}'),
@@ -154,6 +160,7 @@ class SettingsScreen extends StatelessWidget {
                                 );
                             }
                         },
+						
                         child: const Text(
                             'Logout',
                             style: TextStyle(color: Colors.red),

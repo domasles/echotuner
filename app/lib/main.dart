@@ -1,14 +1,6 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-
-// WebView platform imports
-import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
-import 'package:webview_flutter_android/webview_flutter_android.dart';
-import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
-import 'package:webview_flutter/webview_flutter.dart';
-import 'dart:io' show Platform;
 
 import 'providers/playlist_provider.dart';
 import 'services/api_service.dart';
@@ -28,17 +20,6 @@ class _NoGlowScrollBehavior extends ScrollBehavior {
 
 Future<void> main() async {
     WidgetsFlutterBinding.ensureInitialized();
-    
-    if (!kIsWeb) {
-        if (Platform.isAndroid) {
-            AndroidWebViewController.enableDebugging(true);
-            WebViewPlatform.instance = AndroidWebViewPlatform();
-        }
-		
-		else if (Platform.isIOS) {
-            WebViewPlatform.instance = WebKitWebViewPlatform();
-        }
-    }
     
     await dotenv.load(fileName: ".env");
     AppConfig.printConfig();
@@ -182,7 +163,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     @override
     void initState() {
         super.initState();
-        // Initialize auth service when app starts
+
         WidgetsBinding.instance.addPostFrameCallback((_) {
             context.read<AuthService>().initialize();
         });
@@ -205,7 +186,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
                 if (authService.isAuthenticated) {
                     return const HomeScreen();
-                } else {
+                }
+				
+				else {
                     return const LoginScreen();
                 }
             },

@@ -87,28 +87,37 @@ class _HomeScreenState extends State<HomeScreen> {
             default:
                 return _buildHomeScreen();
         }
-    }
-	
-	Widget _buildHomeScreen() {
+    }    Widget _buildHomeScreen() {
         return Consumer<PlaylistProvider>(
             builder: (context, playlistProvider, child) {
-                return SingleChildScrollView(
-                    child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                return Stack(
+                    children: [
+                        Column(
                             children: [
-                                _buildHeader(),
-                                const SizedBox(height: 40),
+                                Expanded(
+                                    child: SingleChildScrollView(
+                                        child: Padding(
+                                            padding: const EdgeInsets.all(24.0),
+                                            child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                    _buildHeader(),
+                                                    const SizedBox(height: 40),
 
-                                _buildPromptInput(playlistProvider),
-                                const SizedBox(height: 32),
-                                
-                                _buildQuickPrompts(playlistProvider),
-                                const SizedBox(height: 100), // Extra padding for bottom nav
+                                                    _buildPromptInput(playlistProvider),
+                                                    const SizedBox(height: 32),
+                                                    
+                                                    _buildQuickPrompts(playlistProvider),
+                                                    const SizedBox(height: 100),
+                                                ],
+                                            ),
+                                        ),
+                                    ),
+                                ),
                             ],
                         ),
-                    ),
+                        _buildBottomLimitIndicator(playlistProvider),
+                    ],
                 );
             },
         );
@@ -225,7 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: const TextStyle(color: Colors.white, fontSize: 16),
 					
                     decoration: InputDecoration(
-                        hintText: 'Describe your ideal playlist...\n\nFor example: "energetic indie rock from the 2000s" or "chill lofi beats for studying"',
+                        hintText: 'Describe your ideal playlist...',
                         hintStyle: TextStyle(
                             color: Colors.white.withValues(alpha: 255 * 0.6),
                             fontSize: 16,
@@ -281,8 +290,99 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
         );
     }
+
+    Widget _buildBottomLimitIndicator(PlaylistProvider provider) {
+        if (!provider.showPlaylistLimits) {
+            return const SizedBox.shrink();
+        }
+        
+        final rateLimitStatus = provider.rateLimitStatus;
+
+        if (rateLimitStatus == null) {
+            return const SizedBox.shrink();
+        }
+        
+        final requestsMade = rateLimitStatus.requestsMadeToday;
+        final maxRequests = rateLimitStatus.maxRequestsPerDay;
+        final progress = maxRequests > 0 ? requestsMade / maxRequests : 0.0;
+        
+        Color progressColor;
+
+        if (progress <= 0.5) {
+            progressColor = Colors.green;
+        }
+		
+		else if (progress <= 0.8) {
+            progressColor = Colors.orange;
+        }
+		
+		else {
+            progressColor = Colors.red;
+        }
+        
+        return Positioned(
+            left: 16,
+            right: 88, // Leave space for the floating action button
+            bottom: 16,
+
+            child: Container(
+                height: 56,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+
+                decoration: BoxDecoration(
+                    color: const Color(0xFF1A1625),
+                    borderRadius: BorderRadius.circular(28),
+
+                    border: Border.all(
+                        color: const Color(0xFF2A2635),
+                        width: 1,
+                    ),
+
+                    boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withValues(alpha: 255 * 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                        ),
+                    ],
+                ),
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                        Text(
+                            requestsMade >= maxRequests ? 'Daily limit reached' : 'Daily Playlist limit: $requestsMade/$maxRequests',
+                            style: TextStyle(
+                                color: progressColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                            ),
+                        ),
+
+                        const SizedBox(height: 6),
+                        Container(
+                            height: 4,
+                            decoration: BoxDecoration(
+                                color: const Color(0xFF2A2635),
+                                borderRadius: BorderRadius.circular(2),
+                            ),
+							
+                            child: ClipRRect(
+                                borderRadius: BorderRadius.circular(2),
+                                child: LinearProgressIndicator(
+                                    value: progress,
+                                    backgroundColor: Colors.transparent,
+                                    valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        );
+    }
 	
-	Widget _buildQuickPrompts(PlaylistProvider provider) {
+    Widget _buildQuickPrompts(PlaylistProvider provider) {
         return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -331,7 +431,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
             ],
         );
-    }    Widget _buildBottomNavigationBar() {
+    }
+	
+	Widget _buildBottomNavigationBar() {
         return BottomNavigationBar(
             currentIndex: _selectedIndex,
             onTap: (index) {
@@ -368,7 +470,9 @@ class _HomeScreenState extends State<HomeScreen> {
             
             if (provider.error != null) {
                 _showErrorDialog(provider.error!);
-            } else {
+            }
+			
+			else {
                 Navigator.push(
                     context,
                     MaterialPageRoute(

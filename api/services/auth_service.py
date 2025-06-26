@@ -23,6 +23,7 @@ class AuthService:
 
     def _initialize_spotify_oauth(self):
         """Initialize Spotify OAuth configuration"""
+        
         try:
             if not all([settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET, settings.SPOTIFY_REDIRECT_URI]):
                 logger.warning("Spotify OAuth credentials not configured")
@@ -46,6 +47,18 @@ class AuthService:
 
         try:
             async with aiosqlite.connect(self.db_path) as db:
+                await db.execute("""
+                    CREATE TABLE IF NOT EXISTS device_registry (
+                        device_id TEXT PRIMARY KEY,
+                        platform TEXT NOT NULL,
+                        app_version TEXT,
+                        device_fingerprint TEXT,
+                        registration_timestamp INTEGER NOT NULL,
+                        last_seen_timestamp INTEGER NOT NULL,
+                        is_active BOOLEAN DEFAULT 1
+                    )
+                """)
+
                 await db.execute("""
                     CREATE TABLE IF NOT EXISTS auth_sessions (
                         session_id TEXT PRIMARY KEY,
@@ -267,8 +280,60 @@ class AuthService:
             logger.error(f"Failed to cleanup expired sessions: {e}")
 
     def is_ready(self) -> bool:
-        """Check if auth service is ready"""
-        return self.spotify_oauth is not None
+        """Check if auth service is ready for use"""
+        
+        return self.spotify_oauth is not None and all([settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET, settings.SPOTIFY_REDIRECT_URI])
+
+    async def register_device(self, platform: str, app_version: Optional[str] = None, device_fingerprint: Optional[str] = None) -> tuple[str, int]:
+        """Register a new device and return server-generated UUID"""
+
+        try:
+            device_id = str(uuid.uuid4())
+            registration_timestamp = int(datetime.now().timestamp())
+            
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute("""
+                    INSERT INTO device_registry 
+                    (device_id, platform, app_version, device_fingerprint, registration_timestamp, last_seen_timestamp, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, 1)
+                """, (device_id, platform, app_version, device_fingerprint, registration_timestamp, registration_timestamp))
+                
+                await db.commit()
+                
+                logger.info(f"Registered new device: {device_id} on {platform}")
+                return device_id, registration_timestamp
+                
+        except Exception as e:
+            logger.error(f"Failed to register device: {e}")
+            raise Exception("Device registration failed")
+
+    async def validate_device(self, device_id: str, update_last_seen: bool = True) -> bool:
+        """Validate that device_id was issued by server and is active"""
+
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                async with db.execute("SELECT is_active, platform FROM device_registry WHERE device_id = ?", (device_id,)) as cursor:
+                    row = await cursor.fetchone()
+                    
+                    if not row:
+                        logger.warning(f"Unknown device ID: {device_id}")
+                        return False
+                    
+                    is_active, platform = row
+                    
+                    if not is_active:
+                        logger.warning(f"Inactive device ID: {device_id}")
+                        return False
+
+                    if update_last_seen:
+                        await db.execute("UPDATE device_registry SET last_seen_timestamp = ? WHERE device_id = ?", (int(datetime.now().timestamp()), device_id))
+                        await db.commit()
+                    
+                    return True
+                    
+        except Exception as e:
+            logger.error(f"Device validation failed: {e}")
+            return False
 
     async def validate_session_and_get_user(self, session_id: str, device_id: str) -> Optional[Dict[str, str]]:
         """Validate session and return user info if valid"""

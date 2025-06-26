@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from core.models import PlaylistRequest, PlaylistResponse, RateLimitStatus, AuthInitRequest, AuthInitResponse, SessionValidationRequest, SessionValidationResponse
+from core.models import PlaylistRequest, PlaylistResponse, RateLimitStatus, AuthInitRequest, AuthInitResponse, SessionValidationRequest, SessionValidationResponse, DeviceRegistrationRequest, DeviceRegistrationResponse
 from config.settings import settings
 
 from services.playlist_generator import PlaylistGeneratorService
@@ -75,7 +75,7 @@ async def lifespan(app: FastAPI):
 
         logger.info(f"Spotify Search: {'ENABLED' if playlist_generator.spotify_search.is_ready() else 'DISABLED'}")
         logger.info(f"AI Generation: {'OLLAMA' if settings.USE_OLLAMA else 'BASIC MODE'}")
-        logger.info(f"Rate Limiting: {'ENABLED' if settings.DAILY_LIMIT_ENABLED else 'DISABLED'}")
+        logger.info(f"Rate Limiting: {'ENABLED' if settings.PLAYLIST_LIMIT_ENABLED else 'DISABLED'}")
         logger.info(f"Auth Service: {'ENABLED' if auth_service.is_ready() else 'DISABLED'}")
         
     except Exception as e:
@@ -113,9 +113,23 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
+    max_age=600,
 )
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    
+    if settings.SECURE_HEADERS:
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+    
+    return response
 
 @app.get("/")
 async def root():
@@ -136,12 +150,17 @@ async def root():
 @app.post("/auth/init", response_model=AuthInitResponse)
 async def auth_init(request: AuthInitRequest):
     """Initialize Spotify OAuth flow"""
+
     try:
         logger.info(f"Auth init request: device_id={request.device_id}, platform={request.platform}")
         
         if not auth_service.is_ready():
             logger.error("Auth service not ready")
             raise HTTPException(status_code=503, detail="Authentication service not available")
+
+        if not await auth_service.validate_device(request.device_id):
+            logger.warning(f"Invalid device ID: {request.device_id}")
+            raise HTTPException(status_code=403, detail="Invalid device ID. Please register device first.")
         
         auth_url, state = auth_service.generate_auth_url(request.device_id, request.platform)
         await auth_service.store_auth_state(state, request.device_id, request.platform)
@@ -156,6 +175,7 @@ async def auth_init(request: AuthInitRequest):
 @app.get("/auth/callback")
 async def auth_callback(code: str = None, state: str = None, error: str = None):
     """Handle Spotify OAuth callback"""
+
     try:
         if error:
             logger.warning(f"OAuth error: {error}")
@@ -222,6 +242,9 @@ async def require_auth(request: PlaylistRequest):
 
     if not settings.AUTH_REQUIRED:
         return None
+
+    if not await auth_service.validate_device(request.device_id):
+        raise HTTPException(status_code=403, detail="Invalid device ID. Please register device first.")
         
     if not hasattr(request, 'session_id') or not request.session_id:
         raise HTTPException(status_code=401, detail="Authentication required")
@@ -240,7 +263,7 @@ async def health_check():
     if settings.DEBUG:
         return {
             "status": "healthy",
-            "version": "1.2.1", 
+            "version": "1.3.0", 
             "services": {
                 "prompt_validator": prompt_validator.is_ready(),
                 "playlist_generator": playlist_generator.is_ready(),
@@ -249,7 +272,7 @@ async def health_check():
             "features": {
                 "spotify_search": playlist_generator.spotify_search.is_ready(),
                 "ai_generation": settings.USE_OLLAMA,
-                "rate_limiting": settings.DAILY_LIMIT_ENABLED
+                "rate_limiting": settings.PLAYLIST_LIMIT_ENABLED
             }
         }
     
@@ -287,7 +310,7 @@ async def generate_playlist(request: PlaylistRequest):
         user_info = await require_auth(request)
         rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
 
-        if settings.DAILY_LIMIT_ENABLED and not await rate_limiter.can_make_request(rate_limit_key):
+        if settings.PLAYLIST_LIMIT_ENABLED and not await rate_limiter.can_make_request(rate_limit_key):
             raise HTTPException(
                 status_code=429,
                 detail=f"Daily limit of {settings.MAX_PLAYLISTS_PER_DAY} playlists reached. Try again tomorrow."
@@ -307,7 +330,7 @@ async def generate_playlist(request: PlaylistRequest):
             count=request.count if settings.DEBUG else settings.MAX_SONGS_PER_PLAYLIST
         )
 
-        if settings.DAILY_LIMIT_ENABLED:
+        if settings.PLAYLIST_LIMIT_ENABLED:
             await rate_limiter.record_request(rate_limit_key)
         
         return PlaylistResponse(
@@ -331,7 +354,7 @@ async def refine_playlist(request: PlaylistRequest):
         user_info = await require_auth(request)
         rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
 
-        if settings.DAILY_LIMIT_ENABLED and not await rate_limiter.can_refine_playlist(rate_limit_key):
+        if settings.REFINEMENT_LIMIT_ENABLED and not await rate_limiter.can_refine_playlist(rate_limit_key):
             raise HTTPException(
                 status_code=429,
                 detail=f"Maximum of {settings.MAX_REFINEMENTS_PER_PLAYLIST} AI refinements reached for this playlist."
@@ -352,7 +375,7 @@ async def refine_playlist(request: PlaylistRequest):
             count=request.count or 30
         )
 
-        if settings.DAILY_LIMIT_ENABLED:
+        if settings.REFINEMENT_LIMIT_ENABLED:
             await rate_limiter.record_refinement(rate_limit_key)
         
         return PlaylistResponse(
@@ -371,6 +394,7 @@ async def refine_playlist(request: PlaylistRequest):
 @app.get("/rate-limit-status/{device_id}", response_model=RateLimitStatus)
 async def get_rate_limit_status(device_id: str):
     """Get current rate limit status for a device (legacy endpoint - insecure)"""
+
     logger.warning(f"Using insecure rate limit endpoint for device: {device_id}")
 
     try:
@@ -398,6 +422,33 @@ async def get_authenticated_rate_limit_status(request: SessionValidationRequest)
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error checking rate limit: {str(e)}")
+
+@app.post("/auth/register-device", response_model=DeviceRegistrationResponse)
+async def register_device(request: DeviceRegistrationRequest):
+    """Register a new device and get server-generated UUID"""
+
+    try:
+        logger.info(f"Device registration request: platform={request.platform}")
+        
+        if not auth_service.is_ready():
+            logger.error("Auth service not ready")
+            raise HTTPException(status_code=503, detail="Authentication service not available")
+        
+        device_id, registration_timestamp = await auth_service.register_device(
+            platform=request.platform,
+            app_version=request.app_version,
+            device_fingerprint=request.device_fingerprint
+        )
+        
+        logger.info(f"Device registered successfully: {device_id}")
+        return DeviceRegistrationResponse(
+            device_id=device_id,
+            registration_timestamp=registration_timestamp
+        )
+        
+    except Exception as e:
+        logger.error(f"Device registration failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to register device")
 
 if __name__ == "__main__":
     logger.info("EchoTuner API - AI-Powered Playlist Generation")

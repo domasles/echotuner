@@ -74,6 +74,7 @@ For Flutter app installation and development setup, see the **[App Setup Guide](
 - **Exact Count Control**: Guarantees precise playlist sizes (5-50+ songs) (only available in API's debug mode)
 - **Playlist Refinement**: Iterative improvement based on user feedback
 - **Semantic Validation**: Ensures requests are music-related using AI embeddings
+- **Smart Rate Limiting**: Configurable limits with visual indicators and conditional enforcement
 
 ### Production Architecture
 - **Zero-Fallback Design**: Requires all dependencies to be operational for consistent quality
@@ -153,7 +154,9 @@ Check current rate limiting status for a device.
     "refinements_used": 1,
     "max_refinements": 3,
     "can_make_request": true,
-    "can_refine": true
+    "can_refine": true,
+    "playlist_limit_enabled": true,
+    "refinement_limit_enabled": true
 }
 ```
 
@@ -164,7 +167,7 @@ Service health and dependency status.
 ```json
 {
     "status": "healthy",
-    "version": "1.2.1",
+    "version": "1.3.0",
     "services": {
         "prompt_validator": true,
         "playlist_generator": true,
@@ -184,30 +187,53 @@ Service health and dependency status.
 
 #### API
 ```bash
-# API Configuration
-API_HOST=localhost
+# API Settings
+API_HOST=0.0.0.0
 API_PORT=8000
-DEBUG=false
+
+DEBUG=true
 LOG_LEVEL=INFO
 
-# Ollama AI Models
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_VALIDATION_MODEL=nomic-embed-text
-OLLAMA_GENERATION_MODEL=phi3:mini
+DATABASE_FILENAME=echotuner.db
+
+# Ollama Configuration (for AI models)
 USE_OLLAMA=true
 OLLAMA_TIMEOUT=30
+OLLAMA_MODEL_PULL_TIMEOUT=300
 
-# Spotify Integration
-SPOTIFY_CLIENT_ID=your_client_id
-SPOTIFY_CLIENT_SECRET=your_client_secret
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_VALIDATION_MODEL=nomic-embed-text:latest
+OLLAMA_GENERATION_MODEL=phi3:mini
 
-# Rate Limiting
-DAILY_LIMIT_ENABLED=true
-MAX_PLAYLISTS_PER_DAY=10
+PROMPT_VALIDATION_THRESHOLD=0.6 # Threshold for prompt validation (0.0 to 1.0)
+PROMPT_VALIDATION_TIMEOUT=30    # Prompt validation timeout in seconds
+
+# Spotify Configuration (for real-time song search)
+# Get these from: https://developer.spotify.com/dashboard
+SPOTIFY_CLIENT_ID=your_spotify_client_id_here
+SPOTIFY_CLIENT_SECRET=your_spotify_client_secret_here
+SPOTIFY_REDIRECT_URI=your_spotify_redirect_uri_here
+
+# Authentication Settings
+AUTH_REQUIRED=true
+
+# Rate Limiting Settings
+PLAYLIST_LIMIT_ENABLED=false
+REFINEMENT_LIMIT_ENABLED=false
+
+MAX_PLAYLISTS_PER_DAY=3
+MAX_SONGS_PER_PLAYLIST=30
 MAX_REFINEMENTS_PER_PLAYLIST=3
 
-# Caching
+SESSION_TIMEOUT=24 # Session expiration in hours
+
+# Cache Settings
 CACHE_ENABLED=true
+
+# Security Configuration
+MAX_AUTH_ATTEMPTS_PER_IP=10
+AUTH_ATTEMPT_WINDOW_MINUTES=60
+SECURE_HEADERS=true
 ```
 
 #### App
@@ -225,8 +251,9 @@ You can set these variables in a `.env` file. Both the API and the application w
 
 ### Rate Limiting Configuration
 
-- **Development**: Set `DAILY_LIMIT_ENABLED=false` for unlimited testing
-- **Production**: Enable rate limiting with appropriate daily quotas
+- **Development**: Set `PLAYLIST_LIMIT_ENABLED=false` and `REFINEMENT_LIMIT_ENABLED=false` for unlimited testing
+- **Production**: Enable individual limits with appropriate daily quotas
+- **Selective Control**: Enable/disable playlist and refinement limits independently
 
 ## Development and Testing
 
@@ -274,7 +301,8 @@ curl -X POST http://localhost:8000/generate-playlist \
 ```bash
 # Set production values in .env
 DEBUG=false
-DAILY_LIMIT_ENABLED=true
+PLAYLIST_LIMIT_ENABLED=true
+REFINEMENT_LIMIT_ENABLED=true
 MAX_PLAYLISTS_PER_DAY=3
 LOG_LEVEL=WARNING
 ```
@@ -400,7 +428,7 @@ ollama pull phi3:mini
 **Rate Limiting**
 - Check current limits via `/rate-limit-status` endpoint
 - Adjust `MAX_PLAYLISTS_PER_DAY` in configuration
-- Disable rate limiting for development: `DAILY_LIMIT_ENABLED=false`
+- Disable rate limiting for development: `PLAYLIST_LIMIT_ENABLED=false` and `REFINEMENT_LIMIT_ENABLED=false`
 
 ### Performance Optimization
 

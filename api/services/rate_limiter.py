@@ -15,10 +15,10 @@ class RateLimiterService:
     """
     
     def __init__(self):
-        self.db_path = "echotuner.db"
-        self.max_refinements = 3
+        self.db_path = settings.DATABASE_FILENAME
+        self.max_refinements = settings.MAX_REFINEMENTS_PER_PLAYLIST
 
-        self.is_rate_limiting_enabled = settings.DAILY_LIMIT_ENABLED
+        self.is_rate_limiting_enabled = settings.PLAYLIST_LIMIT_ENABLED
         self.max_requests_per_day = settings.MAX_PLAYLISTS_PER_DAY
 
         self.initialized = False
@@ -126,6 +126,9 @@ class RateLimiterService:
     
     async def can_refine_playlist(self, device_id: str) -> bool:
         """Check if a device can refine a playlist (max 3 refinements)"""
+
+        if not settings.REFINEMENT_LIMIT_ENABLED:
+            return True
 
         if not self.initialized:
             await self.initialize()
@@ -283,7 +286,9 @@ class RateLimiterService:
                     refinements_used=0,
                     max_refinements=self.max_refinements,
                     can_make_request=True,
-                    can_refine=True
+                    can_refine=True,
+                    playlist_limit_enabled=settings.PLAYLIST_LIMIT_ENABLED,
+                    refinement_limit_enabled=settings.REFINEMENT_LIMIT_ENABLED
                 )
             
             request_count, refinement_count, last_request_date = result
@@ -303,7 +308,9 @@ class RateLimiterService:
                 max_refinements=self.max_refinements,
                 can_make_request=request_count < self.max_requests_per_day if self.is_rate_limiting_enabled else True,
                 can_refine=refinement_count < self.max_refinements,
-                reset_time=reset_time
+                reset_time=reset_time,
+                playlist_limit_enabled=settings.PLAYLIST_LIMIT_ENABLED,
+                refinement_limit_enabled=settings.REFINEMENT_LIMIT_ENABLED
             )
             
         except Exception as e:
@@ -316,7 +323,9 @@ class RateLimiterService:
                 refinements_used=0,
                 max_refinements=self.max_refinements,
                 can_make_request=True,
-                can_refine=True
+                can_refine=True,
+                playlist_limit_enabled=settings.PLAYLIST_LIMIT_ENABLED,
+                refinement_limit_enabled=settings.REFINEMENT_LIMIT_ENABLED
             )
     
     async def reset_daily_limits(self):

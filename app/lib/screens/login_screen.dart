@@ -1,13 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io' show Platform;
+import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import '../models/auth_models.dart';
-import '../config/app_config.dart';
 
 class LoginScreen extends StatefulWidget {
     const LoginScreen({super.key});
@@ -64,22 +60,25 @@ class _LoginScreenState extends State<LoginScreen> {
                                     const Color(0xFF8B5CF6),
                                     const Color(0xFFA78BFA),
                                 ],
+
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                             ),
+
                             borderRadius: BorderRadius.circular(25),
-                            // Explicitly disable any shadows/elevation effects
                             boxShadow: null,
                         ),
+
                         child: Icon(
                             Icons.music_note_rounded,
                             size: 50,
                             color: Colors.white,
-                            shadows: const [], // Explicitly no shadows
-                            textDirection: TextDirection.ltr, // Ensure no RTL effects
+                            shadows: const [],
+                            textDirection: TextDirection.ltr,
                         ),
                     ),
                 ),
+
                 const SizedBox(height: 24),
                 Text(
                     'EchoTuner',
@@ -87,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         fontSize: 36,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
-                        shadows: const [], // Ensure no text shadows either
+                        shadows: const [],
                     ),
                 ),
             ],
@@ -242,29 +241,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
         try {
             final authService = context.read<AuthService>();
-            AuthInitResponse authResponse;
-
-            if (kIsWeb || Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-                authResponse = await authService.initiateDesktopAuth();
-                await _handleDesktopAuth(authResponse);
-            }
+            final authResponse = await authService.initiateAuth();
 			
-			else {
-                authResponse = await authService.initiateAuth();
-                await _handleMobileAuth(authResponse);
-            }
+            await _handleBrowserAuth(authResponse);
         }
 		
 		catch (e, stackTrace) {
-            // Log the detailed error for debugging
             debugPrint('Login error: $e');
             debugPrint('Stack trace: $stackTrace');
-            
-            // Show user-friendly error message
+
             String errorMessage = 'Failed to connect to Spotify. Please try again.';
+
             if (e.toString().contains('timeout')) {
                 errorMessage = 'Connection timeout. Please check your internet connection and try again.';
-            } else if (e.toString().contains('network')) {
+            }
+			
+			else if (e.toString().contains('network')) {
                 errorMessage = 'Network error. Please check your internet connection.';
             }
             
@@ -278,7 +270,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
     }
 
-    Future<void> _handleDesktopAuth(AuthInitResponse authResponse) async {
+    Future<void> _handleBrowserAuth(AuthInitResponse authResponse) async {
         if (await canLaunchUrl(Uri.parse(authResponse.authUrl))) {
             if (!mounted) return;
             final authService = context.read<AuthService>();
@@ -287,48 +279,29 @@ class _LoginScreenState extends State<LoginScreen> {
                 Uri.parse(authResponse.authUrl),
                 mode: LaunchMode.externalApplication,
             );
-
-            _showInfoDialog(
-                'Complete the Spotify authentication in your browser. '
-                'This app will automatically detect when you\'re done.'
-            );
             
             try {
-                await authService.completeDesktopAuth();
+                await authService.completeAuth();
             }
 			
 			catch (e, stackTrace) {
                 if (mounted) {
-                    debugPrint('Desktop auth error: $e');
+                    debugPrint('Browser auth error: $e');
                     debugPrint('Stack trace: $stackTrace');
                     
                     String errorMessage = 'Authentication failed or timed out.';
+
                     if (e.toString().contains('timeout')) {
                         errorMessage = 'Authentication timed out. Please try again.';
-                    } else if (e.toString().contains('cancelled')) {
+                    }
+					
+					else if (e.toString().contains('cancelled')) {
                         errorMessage = 'Authentication was cancelled.';
                     }
                     
                     _showErrorDialog(errorMessage);
                 }
             }
-        }
-    }
-
-    Future<void> _handleMobileAuth(AuthInitResponse authResponse) async {
-        if (!mounted) return;
-        
-        final result = await Navigator.of(context).push<String>(
-            MaterialPageRoute(
-                builder: (context) => SpotifyAuthWebView(
-                    authUrl: authResponse.authUrl,
-                ),
-            ),
-        );
-
-        if (result != null && mounted) {
-            final authService = context.read<AuthService>();
-            await authService.setSession(result);
         }
     }
 
@@ -360,109 +333,4 @@ class _LoginScreenState extends State<LoginScreen> {
         );
     }
 
-    void _showInfoDialog(String message) {
-        showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-                backgroundColor: const Color(0xFF1A1625),
-                title: const Text(
-                    'Information',
-                    style: TextStyle(color: Colors.white),
-                ),
-
-                content: Text(
-                    message,
-                    style: const TextStyle(color: Colors.white70),
-                ),
-
-                actions: [
-                    TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text(
-                            'OK',
-                            style: TextStyle(color: Color(0xFF8B5CF6)),
-                        ),
-                    ),
-                ],
-            ),
-        );
-    }
-}
-
-class SpotifyAuthWebView extends StatefulWidget {
-    final String authUrl;
-
-    const SpotifyAuthWebView({
-        super.key,
-        required this.authUrl,
-    });
-
-    @override
-    State<SpotifyAuthWebView> createState() => _SpotifyAuthWebViewState();
-}
-
-class _SpotifyAuthWebViewState extends State<SpotifyAuthWebView> {
-    WebViewController? _controller;
-
-    @override
-    void initState() {
-        super.initState();
-        
-        if (Platform.isAndroid || Platform.isIOS) {
-            _controller = WebViewController()
-                ..setJavaScriptMode(JavaScriptMode.unrestricted)
-                ..setNavigationDelegate(
-                    NavigationDelegate(
-                        onPageFinished: (String url) {
-                            if (url.contains('${AppConfig.apiHost}:${AppConfig.apiPort}/auth/callback')) {
-                                _controller!.runJavaScript('''
-                                    if (document.body.innerHTML.includes('SPOTIFY_AUTH_SUCCESS')) {
-                                        // Extract session ID from the page
-                                        var scripts = document.getElementsByTagName('script');
-                                        for (var i = 0; i < scripts.length; i++) {
-                                            var scriptContent = scripts[i].innerHTML;
-                                            var sessionMatch = scriptContent.match(/sessionId: '([^']+)'/);
-                                            if (sessionMatch) {
-                                                window.flutter_inappwebview.callHandler('sessionId', sessionMatch[1]);
-                                            }
-                                        }
-                                    }
-                                ''');
-                            }
-                        },
-                    ),
-                )
-                ..addJavaScriptChannel(
-                    'sessionId',
-                    onMessageReceived: (JavaScriptMessage message) {
-                        Navigator.of(context).pop(message.message);
-                    },
-                )
-                ..loadRequest(Uri.parse(widget.authUrl));
-        }
-    }
-
-    @override
-    Widget build(BuildContext context) {
-        return Scaffold(
-            backgroundColor: const Color(0xFF0F0A1A),
-            appBar: AppBar(
-                backgroundColor: const Color(0xFF0F0A1A),
-                foregroundColor: Colors.white,
-                title: const Text('Connect Spotify'),
-
-                leading: IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                ),
-            ),
-
-            body: _controller != null ? WebViewWidget(controller: _controller!) : const Center(
-				child: Text(
-					'WebView not available on this platform',
-					style: TextStyle(color: Colors.white),
-				),
-			),
-        );
-    }
 }

@@ -1,4 +1,4 @@
-# EchoTuner App - AI-Powered Music Discovery Application
+# EchoTuner app - AI-Powered Music Discovery Application
 
 The EchoTuner application provides a user-friendly interface for AI-powered playlist generation and music discovery. Built with Flutter, it offers cross-platform compatibility and seamless integration with the EchoTuner API backend for intelligent music recommendations.
 
@@ -12,8 +12,8 @@ The EchoTuner app delivers an intuitive app experience for creating personalized
 - **Cross-Platform Compatibility**: Built with Flutter for Android, iOS, Desktop and Web
 - **Real-Time Music Discovery**: Live integration with music streaming services
 - **Personalized Experience**: Adaptive recommendations based on user preferences
-
-**Current Status**: In active development - coming soon for direct music discovery
+- **Smart Limit Indicators**: Visual rate limiting with floating progress bars
+- **Conditional UI**: Limit indicators appear only when backend limits are enabled
 
 ## Prerequisites
 
@@ -159,31 +159,16 @@ class ApiConfig {
 **Android**: Configuration in `android/app/src/main/AndroidManifest.xml`
 **iOS**: Configuration in `ios/Runner/Info.plist`
 
-## Project Structure
-
-```
-app/
-├── lib/
-│   ├── main.dart              # Application entry point
-│   ├── config/                # Configuration files
-│   ├── models/                # Data models
-│   ├── providers/             # State management
-│   ├── screens/               # UI screens
-│   └── services/              # API services
-├── android/                   # Android-specific configuration
-├── ios/                       # iOS-specific configuration
-├── web/                       # Web platform files
-└── pubspec.yaml               # Dependencies and metadata
-```
-
 ## Dependencies
 
 Key Flutter packages used in the project:
 
 - **HTTP Client**: For API communication
-- **State Management**: Provider or Bloc for state management
+- **State Management**: Provider for state management
 - **Navigation**: Flutter's built-in navigation system
-- **JSON Serialization**: For API data handling
+- **JSON Serialization**: For API data handling with json_annotation
+- **URL Launcher**: For opening Spotify links
+- **Build Runner**: For code generation
 
 For complete dependency list, see `pubspec.yaml`.
 
@@ -270,3 +255,18 @@ For comprehensive support and additional resources:
 - **Flutter Documentation**: [Official Flutter docs](https://docs.flutter.dev/)
 
 For development guidelines and contribution information, refer to the project root documentation.
+
+## Features
+
+### Rate Limiting Interface
+
+The app includes smart rate limiting visualization:
+
+- **Floating Indicators**: Pill-shaped progress bars show current usage
+- **Conditional Visibility**: Indicators only appear when backend limits are enabled
+- **Real-Time Updates**: Usage statistics update after each playlist/refinement action
+- **Visual Feedback**: Color-coded progress (green → orange → red) based on usage
+- **Smart Positioning**: Indicators float next to UI elements without overlap
+
+**Home Screen**: Shows daily playlist limit status
+**Playlist Screen**: Shows refinement usage for current playlist

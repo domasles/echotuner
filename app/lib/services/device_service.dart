@@ -1,6 +1,7 @@
+import 'dart:io';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'dart:io';
 
 class DeviceService {
     static const String _deviceIdKey = 'device_id';

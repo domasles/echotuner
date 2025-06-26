@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:developer' as developer;
 
+import '../models/rate_limit_models.dart';
 import '../services/device_service.dart';
-import '../services/auth_service.dart';
 import '../models/playlist_request.dart';
+import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../models/user_context.dart';
 import '../models/song.dart';
@@ -19,20 +20,33 @@ class PlaylistProvider extends ChangeNotifier {
     bool _isLoading = false;
 
     UserContext? _userContext;
+    RateLimitStatus? _rateLimitStatus;
 
     String? _deviceId;
     String? _error;
 
     PlaylistProvider({required ApiService apiService, required AuthService authService}) : _apiService = apiService, _authService = authService {
         _initializeDeviceId();
+        _loadRateLimitStatus();
     }
 
     List<Song> get currentPlaylist => _currentPlaylist;
 
     String get currentPrompt => _currentPrompt;
     int get refinementsUsed => _refinementsUsed;
+    RateLimitStatus? get rateLimitStatus => _rateLimitStatus;
 
-    bool get canRefine => _refinementsUsed < 3;
+    bool get canRefine {
+        if (_rateLimitStatus?.refinementLimitEnabled == true) {
+            return _refinementsUsed < (_rateLimitStatus?.maxRefinements ?? 3);
+        }
+
+        return true;
+    }
+    
+    bool get showRefinementLimits => _rateLimitStatus?.refinementLimitEnabled ?? false;
+    bool get showPlaylistLimits => _rateLimitStatus?.playlistLimitEnabled ?? false;
+    
     bool get isLoading => _isLoading;
 
     UserContext? get userContext => _userContext;
@@ -76,20 +90,27 @@ class PlaylistProvider extends ChangeNotifier {
             _currentPlaylist = response.songs;
             _currentPrompt = prompt;
             _error = null;
+            
+            _loadRateLimitStatus();
         }
         
         catch (e, stackTrace) {
             debugPrint('Playlist generation error: $e');
             debugPrint('Stack trace: $stackTrace');
-            
-            // Provide more specific error messages
+
             if (e.toString().contains('timeout')) {
                 _error = 'Request timed out. Please try again.';
-            } else if (e.toString().contains('network')) {
+            }
+			
+			else if (e.toString().contains('network')) {
                 _error = 'Network error. Please check your connection.';
-            } else if (e.toString().contains('authentication')) {
+            }
+			
+			else if (e.toString().contains('authentication')) {
                 _error = 'Authentication error. Please log in again.';
-            } else {
+            }
+			
+			else {
                 _error = 'Failed to generate playlist. Please try again.';
             }
             
@@ -130,6 +151,8 @@ class PlaylistProvider extends ChangeNotifier {
             _currentPlaylist = response.songs;
             _refinementsUsed++;
             _error = null;
+
+            _loadRateLimitStatus();
         }
         
         catch (e, stackTrace) {
@@ -138,9 +161,13 @@ class PlaylistProvider extends ChangeNotifier {
             
             if (e.toString().contains('timeout')) {
                 _error = 'Refinement timed out. Please try again.';
-            } else if (e.toString().contains('authentication')) {
+            }
+			
+			else if (e.toString().contains('authentication')) {
                 _error = 'Authentication error. Please log in again.';
-            } else {
+            }
+			
+			else {
                 _error = 'Failed to refine playlist. Please try again.';
             }
         }
@@ -182,6 +209,21 @@ class PlaylistProvider extends ChangeNotifier {
         notifyListeners();
     }
 
+    Future<void> _loadRateLimitStatus() async {
+        try {
+            _rateLimitStatus = await getRateLimitStatus();
+            notifyListeners();
+        }
+		
+		catch (e) {
+            developer.log(
+                'Failed to load rate limit status: $e',
+                name: 'PlaylistProvider._loadRateLimitStatus',
+                error: e,
+            );
+        }
+    }
+
     Future<String> createSpotifyPlaylist({required String accessToken, required String playlistName, String? description}) async {
         if (_currentPlaylist.isEmpty) {
             throw Exception('No playlist to create');
@@ -195,7 +237,7 @@ class PlaylistProvider extends ChangeNotifier {
         );
     }
 
-    Future<Map<String, dynamic>> getRateLimitStatus() async {
+    Future<RateLimitStatus> getRateLimitStatus() async {
         if (_deviceId == null) {
             await _initializeDeviceId();
         }
@@ -215,6 +257,7 @@ class PlaylistProvider extends ChangeNotifier {
                     error: e,
                     stackTrace: stackTrace,
                 );
+				
                 return await _apiService.getRateLimitStatus(_deviceId!);
             }
         }

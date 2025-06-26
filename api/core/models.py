@@ -3,6 +3,15 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
+class DeviceRegistrationRequest(BaseModel):
+    platform: str
+    app_version: Optional[str] = None
+    device_fingerprint: Optional[str] = None
+
+class DeviceRegistrationResponse(BaseModel):
+    device_id: str
+    registration_timestamp: int
+
 class Song(BaseModel):
     title: str
     artist: str
@@ -43,6 +52,8 @@ class RateLimitStatus(BaseModel):
     can_make_request: bool
     can_refine: bool
     reset_time: Optional[str] = None
+    playlist_limit_enabled: bool = False
+    refinement_limit_enabled: bool = False
 
 class AuthInitRequest(BaseModel):
     device_id: str

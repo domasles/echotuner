@@ -1,7 +1,9 @@
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
+
 import '../models/playlist_request.dart';
+import '../models/rate_limit_models.dart';
 import '../config/app_config.dart';
 import '../models/song.dart';
 
@@ -66,13 +68,13 @@ class ApiService {
         }
     }
 
-    Future<Map<String, dynamic>> getRateLimitStatus(String deviceId) async {
+    Future<RateLimitStatus> getRateLimitStatus(String deviceId) async {
         final response = await _client.get(
             Uri.parse(AppConfig.apiUrl('/rate-limit-status/$deviceId')),
         );
 
         if (response.statusCode == 200) {
-            return jsonDecode(response.body);
+            return RateLimitStatus.fromJson(jsonDecode(response.body));
         }
         
         else {
@@ -80,7 +82,7 @@ class ApiService {
         }
     }
 
-    Future<Map<String, dynamic>> getAuthenticatedRateLimitStatus(String sessionId, String deviceId) async {
+    Future<RateLimitStatus> getAuthenticatedRateLimitStatus(String sessionId, String deviceId) async {
         final response = await _client.post(
             Uri.parse(AppConfig.apiUrl('/auth/rate-limit-status')),
             headers: {'Content-Type': 'application/json'},
@@ -91,7 +93,7 @@ class ApiService {
         );
 
         if (response.statusCode == 200) {
-            return jsonDecode(response.body);
+            return RateLimitStatus.fromJson(jsonDecode(response.body));
         }
         
         else if (response.statusCode == 401) {

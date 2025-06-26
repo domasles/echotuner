@@ -71,3 +71,41 @@ class SessionValidationResponse {
     factory SessionValidationResponse.fromJson(Map<String, dynamic> json) => _$SessionValidationResponseFromJson(json);
     Map<String, dynamic> toJson() => _$SessionValidationResponseToJson(this);
 }
+
+@JsonSerializable()
+class DeviceRegistrationRequest {
+    final String platform;
+
+    @JsonKey(name: 'app_version')
+    final String? appVersion;
+
+    @JsonKey(name: 'device_fingerprint')
+    final String? deviceFingerprint;
+
+    DeviceRegistrationRequest({
+        required this.platform,
+
+        this.appVersion,
+        this.deviceFingerprint,
+    });
+
+    factory DeviceRegistrationRequest.fromJson(Map<String, dynamic> json) => _$DeviceRegistrationRequestFromJson(json);
+    Map<String, dynamic> toJson() => _$DeviceRegistrationRequestToJson(this);
+}
+
+@JsonSerializable()
+class DeviceRegistrationResponse {
+    @JsonKey(name: 'device_id')
+    final String deviceId;
+	
+    @JsonKey(name: 'registration_timestamp')
+    final int registrationTimestamp;
+
+    DeviceRegistrationResponse({
+        required this.deviceId,
+        required this.registrationTimestamp,
+    });
+
+    factory DeviceRegistrationResponse.fromJson(Map<String, dynamic> json) => _$DeviceRegistrationResponseFromJson(json);
+    Map<String, dynamic> toJson() => _$DeviceRegistrationResponseToJson(this);
+}
