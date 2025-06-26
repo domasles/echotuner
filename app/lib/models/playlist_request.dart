@@ -21,6 +21,9 @@ class PlaylistRequest {
     @JsonKey(name: 'current_songs')
     final List<Song>? currentSongs;
 
+    @JsonKey(name: 'playlist_id')
+    final String? playlistId;
+
     PlaylistRequest({
         required this.prompt,
         required this.deviceId,
@@ -28,6 +31,7 @@ class PlaylistRequest {
 		
         this.userContext,
         this.currentSongs,
+        this.playlistId,
     });
 
     factory PlaylistRequest.fromJson(Map<String, dynamic> json) => _$PlaylistRequestFromJson(json);
@@ -50,12 +54,16 @@ class PlaylistResponse {
     @JsonKey(name: 'confidence_score')
     final double? confidenceScore;
 
+    @JsonKey(name: 'playlist_id')
+    final String? playlistId;
+
     PlaylistResponse({
         required this.songs,
         required this.generatedFrom,
         required this.totalCount,
         this.isRefinement,
         this.confidenceScore,
+        this.playlistId,
     });
 
     factory PlaylistResponse.fromJson(Map<String, dynamic> json) => _$PlaylistResponseFromJson(json);

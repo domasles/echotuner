@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel
 from typing import List, Optional
+from datetime import datetime
 
 class DeviceRegistrationRequest(BaseModel):
     platform: str
@@ -36,12 +37,14 @@ class PlaylistRequest(BaseModel):
     user_context: Optional[UserContext] = None
     current_songs: Optional[List[Song]] = None
     count: Optional[int] = 30
+    playlist_id: Optional[str] = None  # For refinements of existing drafts
 
 class PlaylistResponse(BaseModel):
     songs: List[Song]
     generated_from: str
     total_count: int
     is_refinement: Optional[bool] = False
+    playlist_id: Optional[str] = None  # New field for draft playlist ID
 
 class RateLimitStatus(BaseModel):
     device_id: str
@@ -79,3 +82,38 @@ class SessionValidationResponse(BaseModel):
     valid: bool
     user_id: Optional[str] = None
     spotify_user_id: Optional[str] = None
+
+class PlaylistDraft(BaseModel):
+    id: str
+    device_id: str
+    session_id: Optional[str] = None
+    prompt: str
+    songs: List[Song]
+    created_at: datetime
+    updated_at: datetime
+    refinements_used: int = 0
+    status: str = "draft"  # draft, added_to_spotify
+    spotify_playlist_id: Optional[str] = None
+
+class SpotifyPlaylistRequest(BaseModel):
+    playlist_id: str  # Draft playlist ID
+    device_id: str
+    session_id: str
+    name: str
+    description: Optional[str] = None
+    public: Optional[bool] = False
+
+class SpotifyPlaylistResponse(BaseModel):
+    success: bool
+    spotify_playlist_id: str
+    playlist_url: str
+    message: str
+
+class LibraryPlaylistsRequest(BaseModel):
+    device_id: str
+    session_id: str
+    include_drafts: Optional[bool] = True
+
+class LibraryPlaylistsResponse(BaseModel):
+    drafts: List[PlaylistDraft]
+    spotify_playlists: List[dict]  # Spotify playlists from user's library

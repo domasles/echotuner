@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:developer' as developer;
 
 import '../models/rate_limit_models.dart';
+import '../models/playlist_draft_models.dart';
 import '../services/device_service.dart';
 import '../models/playlist_request.dart';
 import '../services/auth_service.dart';
@@ -15,9 +16,11 @@ class PlaylistProvider extends ChangeNotifier {
     
     List<Song> _currentPlaylist = [];
     String _currentPrompt = '';
+    String? _currentPlaylistId;
 
     int _refinementsUsed = 0;
     bool _isLoading = false;
+    bool _isAddingToSpotify = false;
 
     UserContext? _userContext;
     RateLimitStatus? _rateLimitStatus;
@@ -33,6 +36,7 @@ class PlaylistProvider extends ChangeNotifier {
     List<Song> get currentPlaylist => _currentPlaylist;
 
     String get currentPrompt => _currentPrompt;
+    String? get currentPlaylistId => _currentPlaylistId;
     int get refinementsUsed => _refinementsUsed;
     RateLimitStatus? get rateLimitStatus => _rateLimitStatus;
 
@@ -48,6 +52,7 @@ class PlaylistProvider extends ChangeNotifier {
     bool get showPlaylistLimits => _rateLimitStatus?.playlistLimitEnabled ?? false;
     
     bool get isLoading => _isLoading;
+    bool get isAddingToSpotify => _isAddingToSpotify;
 
     UserContext? get userContext => _userContext;
     String? get error => _error;
@@ -89,6 +94,7 @@ class PlaylistProvider extends ChangeNotifier {
             
             _currentPlaylist = response.songs;
             _currentPrompt = prompt;
+            _currentPlaylistId = response.playlistId;
             _error = null;
             
             _loadRateLimitStatus();
@@ -144,11 +150,13 @@ class PlaylistProvider extends ChangeNotifier {
                 sessionId: sessionId,
                 userContext: _userContext,
                 currentSongs: _currentPlaylist,
+                playlistId: _currentPlaylistId,
             );
 
             final response = await _apiService.refinePlaylist(request);
             
             _currentPlaylist = response.songs;
+            _currentPlaylistId = response.playlistId;
             _refinementsUsed++;
             _error = null;
 
@@ -203,6 +211,7 @@ class PlaylistProvider extends ChangeNotifier {
     void clearPlaylist() {
         _currentPlaylist = [];
         _currentPrompt = '';
+        _currentPlaylistId = null;
         _refinementsUsed = 0;
         _error = null;
 
@@ -224,17 +233,46 @@ class PlaylistProvider extends ChangeNotifier {
         }
     }
 
-    Future<String> createSpotifyPlaylist({required String accessToken, required String playlistName, String? description}) async {
-        if (_currentPlaylist.isEmpty) {
-            throw Exception('No playlist to create');
+    Future<String> addToSpotify({required String playlistName, String? description}) async {
+        if (_currentPlaylistId == null) {
+            throw Exception('No playlist to add to Spotify');
         }
 
-        return await _apiService.createSpotifyPlaylist(
-            accessToken: accessToken,
-            playlistName: playlistName,
-            songs: _currentPlaylist,
-            description: description,
-        );
+        if (_deviceId == null) {
+            await _initializeDeviceId();
+        }
+
+        final sessionId = _authService.sessionId;
+        if (sessionId == null) {
+            throw Exception('Not authenticated');
+        }
+
+        _isAddingToSpotify = true;
+        notifyListeners();
+
+        try {
+            final request = SpotifyPlaylistRequest(
+                playlistId: _currentPlaylistId!,
+                deviceId: _deviceId!,
+                sessionId: sessionId,
+                name: playlistName,
+                description: description,
+                public: false,
+            );
+
+            final response = await _apiService.createSpotifyPlaylist(request);
+            
+            if (response.success) {
+                // Playlist was successfully added to Spotify
+                // The draft is now marked as added to Spotify on the server
+                return response.playlistUrl;
+            } else {
+                throw Exception(response.message);
+            }
+        } finally {
+            _isAddingToSpotify = false;
+            notifyListeners();
+        }
     }
 
     Future<RateLimitStatus> getRateLimitStatus() async {
@@ -264,6 +302,93 @@ class PlaylistProvider extends ChangeNotifier {
 		
 		else {
             return await _apiService.getRateLimitStatus(_deviceId!);
+        }
+    }
+
+    Future<LibraryPlaylistsResponse> getLibraryPlaylists() async {
+        if (_deviceId == null) {
+            await _initializeDeviceId();
+        }
+
+        final sessionId = _authService.sessionId;
+        if (sessionId == null) {
+            throw Exception('Not authenticated');
+        }
+
+        final request = LibraryPlaylistsRequest(
+            deviceId: _deviceId!,
+            sessionId: sessionId,
+            includeDrafts: true,
+        );
+
+        return await _apiService.getLibraryPlaylists(request);
+    }
+
+    Future<void> loadDraft(PlaylistDraft draft) async {
+        _currentPlaylist = draft.songs;
+        _currentPrompt = draft.prompt;
+        _currentPlaylistId = draft.id;
+        _refinementsUsed = draft.refinementsUsed;
+        _error = null;
+
+        notifyListeners();
+    }
+
+    Future<void> deleteDraft(String playlistId) async {
+        if (_deviceId == null) {
+            await _initializeDeviceId();
+        }
+
+        await _apiService.deleteDraftPlaylist(playlistId, _deviceId!);
+    }
+
+    Future<void> loadSpotifyPlaylist(Map<String, dynamic> spotifyPlaylist) async {
+        _isLoading = true;
+        _error = null;
+        notifyListeners();
+
+        try {
+            if (_deviceId == null) {
+                await _initializeDeviceId();
+            }
+
+            final sessionId = _authService.sessionId;
+            if (sessionId == null) {
+                throw Exception('Not authenticated');
+            }
+
+            // Get tracks from Spotify
+            final spotifyTracks = await _apiService.getSpotifyPlaylistTracks(
+                spotifyPlaylist['id'], 
+                sessionId, 
+                _deviceId!
+            );
+
+            // Convert Spotify tracks to Song objects
+            final songs = spotifyTracks.map((track) {
+                final trackData = track['track'];
+                return Song(
+                    title: trackData['name'] ?? 'Unknown',
+                    artist: trackData['artists'] != null && trackData['artists'].length > 0
+                        ? trackData['artists'][0]['name'] ?? 'Unknown'
+                        : 'Unknown',
+                    album: trackData['album']?['name'] ?? 'Unknown',
+                    spotifyId: trackData['id'],
+                );
+            }).toList();
+
+            // Set the playlist data
+            _currentPlaylist = songs;
+            _currentPrompt = 'Refining Spotify playlist: ${spotifyPlaylist['name']}';
+            _currentPlaylistId = null; // This is a new draft from Spotify
+            _refinementsUsed = 0;
+            _error = null;
+
+        } catch (e) {
+            _error = e.toString();
+        } finally {
+            _isLoading = false;
+            notifyListeners();
         }
     }
 }

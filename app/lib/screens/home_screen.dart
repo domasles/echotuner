@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/playlist_provider.dart';
 
 import 'playlist_screen.dart';
+import 'library_screen.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -30,7 +31,6 @@ class _HomeScreenState extends State<HomeScreen> {
         "I'm feeling sad and want to embrace it",
         "Upbeat electronic dance music",
         "Cozy acoustic coffee shop vibes",
-		"Epic movie soundtrack",
 		"Indie folk for a rainy day"
 	];
 
@@ -163,40 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     Widget _buildLibraryScreen() {
-        return const Center(
-            child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                        Icon(
-                            Icons.library_music_rounded,
-                            size: 64,
-                            color: Color(0xFF8B5CF6),
-                        ),
-
-                        SizedBox(height: 16),
-                        Text(
-                            'Library',
-                            style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                            ),
-                        ),
-
-                        SizedBox(height: 8),
-                        Text(
-                            'Feature coming soon!',
-                            style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.white70,
-                            ),
-                        ),
-                    ],
-                ),
-            ),
-        );
+        return const LibraryScreen();
     }
 
     Widget _buildHeader() {

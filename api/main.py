@@ -11,7 +11,11 @@ from fastapi.responses import HTMLResponse
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from core.models import PlaylistRequest, PlaylistResponse, RateLimitStatus, AuthInitRequest, AuthInitResponse, SessionValidationRequest, SessionValidationResponse, DeviceRegistrationRequest, DeviceRegistrationResponse
+from core.models import (
+    PlaylistRequest, PlaylistResponse, RateLimitStatus, AuthInitRequest, AuthInitResponse, 
+    SessionValidationRequest, SessionValidationResponse, DeviceRegistrationRequest, DeviceRegistrationResponse,
+    SpotifyPlaylistRequest, SpotifyPlaylistResponse, LibraryPlaylistsRequest, LibraryPlaylistsResponse
+)
 from config.settings import settings
 
 from services.playlist_generator import PlaylistGeneratorService
@@ -20,6 +24,8 @@ from services.rate_limiter import RateLimiterService
 from services.auth_service import AuthService
 from services.data_loader import data_loader
 from services.template_service import template_service
+from services.playlist_draft_service import PlaylistDraftService
+from services.spotify_playlist_service import SpotifyPlaylistService
 
 class CustomFormatter(logging.Formatter):
     def format(self, record):
@@ -54,6 +60,8 @@ rate_limiter = RateLimiterService()
 prompt_validator = PromptValidatorService()
 playlist_generator = PlaylistGeneratorService()
 auth_service = AuthService()
+playlist_draft_service = PlaylistDraftService()
+spotify_playlist_service = SpotifyPlaylistService()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -66,7 +74,9 @@ async def lifespan(app: FastAPI):
             rate_limiter.initialize(),
             prompt_validator.initialize(),
             playlist_generator.initialize(),
-            auth_service.initialize()
+            auth_service.initialize(),
+            playlist_draft_service.initialize(),
+            spotify_playlist_service.initialize()
         ]
 
         cache_task = asyncio.create_task(preload_data_cache())
@@ -77,6 +87,8 @@ async def lifespan(app: FastAPI):
         logger.info(f"AI Generation: {'OLLAMA' if settings.USE_OLLAMA else 'BASIC MODE'}")
         logger.info(f"Rate Limiting: {'ENABLED' if settings.PLAYLIST_LIMIT_ENABLED else 'DISABLED'}")
         logger.info(f"Auth Service: {'ENABLED' if auth_service.is_ready() else 'DISABLED'}")
+        logger.info(f"Playlist Drafts: {'ENABLED' if playlist_draft_service.is_ready() else 'DISABLED'}")
+        logger.info(f"Spotify Playlists: {'ENABLED' if spotify_playlist_service.is_ready() else 'DISABLED'}")
         
     except Exception as e:
         logger.error(f"Failed to initialize EchoTuner API: {e}")
@@ -143,7 +155,10 @@ async def root():
             "rate_limit": "/rate-limit-status/{device_id}",
             "auth_init": "/auth/init",
             "auth_callback": "/auth/callback",
-            "auth_validate": "/auth/validate"
+            "auth_validate": "/auth/validate",
+            "library": "/library/playlists",
+            "add_to_spotify": "/spotify/create-playlist",
+            "get_draft": "/drafts/{playlist_id}"
         }
     }
 
@@ -341,6 +356,15 @@ async def generate_playlist(request: PlaylistRequest):
             count=request.count if settings.DEBUG else settings.MAX_SONGS_PER_PLAYLIST
         )
 
+        # Save as draft
+        playlist_id = await playlist_draft_service.save_draft(
+            device_id=request.device_id,
+            session_id=request.session_id,
+            prompt=request.prompt,
+            songs=songs,
+            refinements_used=0
+        )
+
         if settings.PLAYLIST_LIMIT_ENABLED:
             await rate_limiter.record_request(rate_limit_key)
         
@@ -348,7 +372,8 @@ async def generate_playlist(request: PlaylistRequest):
             songs=songs,
             generated_from=request.prompt,
             total_count=len(songs),
-            is_refinement=False
+            is_refinement=False,
+            playlist_id=playlist_id
         )
         
     except HTTPException:
@@ -379,12 +404,42 @@ async def refine_playlist(request: PlaylistRequest):
                 detail="The refinement request doesn't seem to be music-related. Please try a different description."
             )
 
+        # Get the draft playlist if playlist_id is provided
+        current_songs = request.current_songs or []
+        refinements_used = 0
+        playlist_id = request.playlist_id
+
+        if playlist_id:
+            draft = await playlist_draft_service.get_draft(playlist_id)
+            if draft:
+                current_songs = draft.songs
+                refinements_used = draft.refinements_used
+            else:
+                logger.warning(f"Draft playlist {playlist_id} not found, using provided songs")
+
         songs = await playlist_generator.refine_playlist(
-            original_songs=request.current_songs or [],
+            original_songs=current_songs,
             refinement_prompt=request.prompt,
             user_context=request.user_context,
             count=request.count or 30
         )
+
+        # Update the draft with refined songs
+        if playlist_id:
+            await playlist_draft_service.update_draft(
+                playlist_id=playlist_id,
+                songs=songs,
+                refinements_used=refinements_used + 1
+            )
+        else:
+            # Create new draft if no playlist_id provided
+            playlist_id = await playlist_draft_service.save_draft(
+                device_id=request.device_id,
+                session_id=request.session_id,
+                prompt=f"Refined: {request.prompt}",
+                songs=songs,
+                refinements_used=1
+            )
 
         if settings.REFINEMENT_LIMIT_ENABLED:
             await rate_limiter.record_refinement(rate_limit_key)
@@ -393,7 +448,8 @@ async def refine_playlist(request: PlaylistRequest):
             songs=songs,
             generated_from=request.prompt,
             total_count=len(songs),
-            is_refinement=True
+            is_refinement=True,
+            playlist_id=playlist_id
         )
         
     except HTTPException:
@@ -460,6 +516,205 @@ async def register_device(request: DeviceRegistrationRequest):
     except Exception as e:
         logger.error(f"Device registration failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to register device")
+
+@app.post("/spotify/create-playlist", response_model=SpotifyPlaylistResponse)
+async def create_spotify_playlist(request: SpotifyPlaylistRequest):
+    """Create a Spotify playlist from a draft."""
+    
+    try:
+        user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
+        
+        if not user_info:
+            raise HTTPException(status_code=401, detail="Invalid or expired session")
+        
+        if not spotify_playlist_service.is_ready():
+            raise HTTPException(status_code=503, detail="Spotify playlist service not available")
+        
+        # Get the draft playlist
+        draft = await playlist_draft_service.get_draft(request.playlist_id)
+        if not draft:
+            raise HTTPException(status_code=404, detail="Draft playlist not found")
+        
+        if draft.device_id != request.device_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Get access token from auth service
+        access_token = await auth_service.get_access_token(request.session_id)
+        if not access_token:
+            raise HTTPException(status_code=401, detail="No valid access token")
+        
+        # Create Spotify playlist
+        spotify_playlist_id, playlist_url = await spotify_playlist_service.create_playlist(
+            access_token=access_token,
+            name=request.name,
+            songs=draft.songs,
+            description=request.description,
+            public=request.public or False
+        )
+        
+        # Mark draft as added to Spotify
+        await playlist_draft_service.mark_as_added_to_spotify(
+            playlist_id=request.playlist_id,
+            spotify_playlist_id=spotify_playlist_id,
+            spotify_url=playlist_url,
+            user_id=user_info.get('spotify_user_id'),
+            device_id=request.device_id,
+            session_id=request.session_id,
+            playlist_name=request.name
+        )
+        
+        logger.info(f"Created Spotify playlist {spotify_playlist_id} from draft {request.playlist_id}")
+        
+        return SpotifyPlaylistResponse(
+            success=True,
+            spotify_playlist_id=spotify_playlist_id,
+            playlist_url=playlist_url,
+            message="Playlist created successfully"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to create Spotify playlist: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create Spotify playlist")
+
+@app.post("/library/playlists", response_model=LibraryPlaylistsResponse)
+async def get_library_playlists(request: LibraryPlaylistsRequest):
+    """Get user's playlist library including drafts and Spotify playlists."""
+    
+    try:
+        user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
+        
+        if not user_info:
+            raise HTTPException(status_code=401, detail="Invalid or expired session")
+        
+        # Get drafts (only actual drafts, not ones added to Spotify)
+        drafts = await playlist_draft_service.get_device_drafts(
+            device_id=request.device_id,
+            include_spotify=False  # Only show actual drafts, not ones added to Spotify
+        )
+        
+        # Get Spotify playlists if service is available
+        spotify_playlists = []
+        if spotify_playlist_service.is_ready():
+            try:
+                access_token = await auth_service.get_access_token(request.session_id)
+                if access_token:
+                    # Get EchoTuner playlist IDs for this user
+                    echotuner_playlist_ids = await playlist_draft_service.get_user_echotuner_spotify_playlist_ids(
+                        user_info.get('spotify_user_id')
+                    )
+                    
+                    if echotuner_playlist_ids:
+                        # Get all user playlists from Spotify
+                        all_playlists = await spotify_playlist_service.get_user_playlists(access_token)
+                        
+                        # Filter to only show EchoTuner playlists
+                        spotify_playlists = [
+                            playlist for playlist in all_playlists
+                            if playlist.get('id') in echotuner_playlist_ids
+                        ]
+            except Exception as e:
+                logger.warning(f"Failed to fetch Spotify playlists: {e}")
+        
+        return LibraryPlaylistsResponse(
+            drafts=drafts,
+            spotify_playlists=spotify_playlists
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get library playlists: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get library playlists")
+
+@app.get("/drafts/{playlist_id}")
+async def get_draft_playlist(playlist_id: str, device_id: str = None):
+    """Get a specific draft playlist."""
+    
+    try:
+        if not device_id:
+            raise HTTPException(status_code=400, detail="device_id parameter required")
+        
+        draft = await playlist_draft_service.get_draft(playlist_id)
+        
+        if not draft:
+            raise HTTPException(status_code=404, detail="Draft playlist not found")
+        
+        if draft.device_id != device_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        return draft
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get draft playlist {playlist_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get draft playlist")
+
+@app.delete("/drafts/{playlist_id}")
+async def delete_draft_playlist(playlist_id: str, device_id: str = None):
+    """Delete a draft playlist."""
+    
+    try:
+        if not device_id:
+            raise HTTPException(status_code=400, detail="device_id parameter required")
+        
+        draft = await playlist_draft_service.get_draft(playlist_id)
+        
+        if not draft:
+            raise HTTPException(status_code=404, detail="Draft playlist not found")
+        
+        if draft.device_id != device_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        if draft.status != "draft":
+            raise HTTPException(status_code=400, detail="Can only delete draft playlists")
+        
+        success = await playlist_draft_service.delete_draft(playlist_id)
+        
+        if success:
+            return {"message": "Draft playlist deleted successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete draft playlist")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete draft playlist {playlist_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete draft playlist")
+
+@app.get("/spotify/playlist/{playlist_id}/tracks")
+async def get_spotify_playlist_tracks(playlist_id: str, session_id: str = None, device_id: str = None):
+    """Get tracks from a Spotify playlist."""
+    
+    try:
+        if not session_id or not device_id:
+            raise HTTPException(status_code=400, detail="session_id and device_id parameters required")
+        
+        user_info = await auth_service.validate_session_and_get_user(session_id, device_id)
+        
+        if not user_info:
+            raise HTTPException(status_code=401, detail="Invalid or expired session")
+        
+        if not spotify_playlist_service.is_ready():
+            raise HTTPException(status_code=503, detail="Spotify playlist service not available")
+        
+        # Get access token from auth service
+        access_token = await auth_service.get_access_token(session_id)
+        if not access_token:
+            raise HTTPException(status_code=401, detail="No valid access token")
+        
+        # Get tracks from Spotify
+        tracks = await spotify_playlist_service.get_playlist_tracks(access_token, playlist_id)
+        
+        return {"tracks": tracks}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get Spotify playlist tracks: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get Spotify playlist tracks")
 
 if __name__ == "__main__":
     logger.info("EchoTuner API - AI-Powered Playlist Generation")

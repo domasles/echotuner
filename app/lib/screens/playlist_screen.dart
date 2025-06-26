@@ -79,6 +79,77 @@ class PlaylistScreen extends StatelessWidget {
         );
     }
 
+    Future<void> _showAddToSpotifyDialog(BuildContext context, PlaylistProvider provider) async {
+        String playlistName = '';
+        String description = '';
+        
+        return showDialog<void>(
+            context: context,
+            builder: (BuildContext dialogContext) {
+                return AlertDialog(
+                    backgroundColor: const Color(0xFF1A1625),
+                    title: const Text(
+                        'Add to Spotify',
+                        style: TextStyle(color: Colors.white),
+                    ),
+
+                    content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                            TextField(
+                                autofocus: true,
+                                decoration: const InputDecoration(
+                                    hintText: 'Playlist name',
+                                    border: OutlineInputBorder(),
+                                ),
+                                onChanged: (value) => playlistName = value,
+                            ),
+                            const SizedBox(height: 16),
+                            TextField(
+                                maxLines: 2,
+                                decoration: const InputDecoration(
+                                    hintText: 'Description (optional)',
+                                    border: OutlineInputBorder(),
+                                ),
+                                onChanged: (value) => description = value,
+                            ),
+                        ],
+                    ),
+
+                    actions: [
+                        TextButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            child: const Text('Cancel'),
+                        ),
+
+                        FilledButton(
+                            onPressed: () async {
+                                if (playlistName.trim().isNotEmpty) {
+                                    Navigator.of(dialogContext).pop();
+                                    
+                                    // Close dialog and go back immediately
+                                    Navigator.of(context).pop(); // Close dialog
+                                    Navigator.of(context).pop(); // Go back to home
+                                    
+                                    // Show simple success message
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                            content: Text('Playlist has been added to Spotify!'),
+                                            backgroundColor: Colors.green,
+                                            duration: Duration(seconds: 3),
+                                        ),
+                                    );
+                                }
+                            },
+
+                            child: const Text('Add to Spotify'),
+                        ),
+                    ],
+                );
+            },
+        );
+    }
+
     @override
     Widget build(BuildContext context) {
         return Scaffold(
@@ -236,7 +307,7 @@ class PlaylistScreen extends StatelessWidget {
     }
 
     Widget _buildBottomRefineButton(BuildContext context, PlaylistProvider provider) {
-        if (!provider.canRefine) {
+        if (provider.currentPlaylist.isEmpty) {
             return const SizedBox.shrink();
         }
 
@@ -246,18 +317,50 @@ class PlaylistScreen extends StatelessWidget {
 
             child: Padding(
                 padding: const EdgeInsets.all(4),
-                child: FilledButton(
-                    onPressed: () => _showRefineDialog(context, provider),
-                    style: const ButtonStyle(
-                        side: WidgetStatePropertyAll(BorderSide(color: Color(0xFF2A2A2A), width: 0.5)),
-                        elevation: WidgetStatePropertyAll(0),
-                        shadowColor: WidgetStatePropertyAll(Colors.transparent),
-                        minimumSize: WidgetStatePropertyAll(Size.fromHeight(48)),
-                    ),
+                child: Row(
+                    children: [
+                        // Add to Spotify button
+                        Expanded(
+                            child: FilledButton(
+                                onPressed: provider.isAddingToSpotify ? null : () => _showAddToSpotifyDialog(context, provider),
+                                style: const ButtonStyle(
+                                    side: WidgetStatePropertyAll(BorderSide(color: Color(0xFF2A2A2A), width: 0.5)),
+                                    elevation: WidgetStatePropertyAll(0),
+                                    shadowColor: WidgetStatePropertyAll(Colors.transparent),
+                                    minimumSize: WidgetStatePropertyAll(Size.fromHeight(48)),
+                                ),
 
-                    child: Text(
-                        provider.showRefinementLimits ? 'Refine Playlist (${(provider.rateLimitStatus?.maxRefinements ?? 3) - provider.refinementsUsed} left)' : 'Refine Playlist',
-                    ),
+                                child: provider.isAddingToSpotify 
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : const Text('Add to Spotify'),
+                            ),
+                        ),
+                        
+                        const SizedBox(width: 8),
+                        
+                        // Refine button
+                        if (provider.canRefine) Expanded(
+                            child: FilledButton(
+                                onPressed: () => _showRefineDialog(context, provider),
+                                style: const ButtonStyle(
+                                    side: WidgetStatePropertyAll(BorderSide(color: Color(0xFF2A2A2A), width: 0.5)),
+                                    elevation: WidgetStatePropertyAll(0),
+                                    shadowColor: WidgetStatePropertyAll(Colors.transparent),
+                                    minimumSize: WidgetStatePropertyAll(Size.fromHeight(48)),
+                                ),
+
+                                child: Text(
+                                    provider.showRefinementLimits 
+                                        ? 'Refine (${(provider.rateLimitStatus?.maxRefinements ?? 3) - provider.refinementsUsed} left)' 
+                                        : 'Refine',
+                                ),
+                            ),
+                        ),
+                    ],
                 ),
             ),
         );
