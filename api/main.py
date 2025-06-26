@@ -158,9 +158,20 @@ async def auth_init(request: AuthInitRequest):
             logger.error("Auth service not ready")
             raise HTTPException(status_code=503, detail="Authentication service not available")
 
-        if not await auth_service.validate_device(request.device_id):
-            logger.warning(f"Invalid device ID: {request.device_id}")
-            raise HTTPException(status_code=403, detail="Invalid device ID. Please register device first.")
+        if not await auth_service.validate_device(request.device_id, update_last_seen=False):
+            logger.info(f"Device not registered, auto-registering: {request.device_id}")
+
+            try:
+                await auth_service.register_device_with_id(
+                    device_id=request.device_id,
+                    platform=request.platform
+                )
+
+                logger.info(f"Auto-registered device: {request.device_id}")
+
+            except Exception as e:
+                logger.error(f"Failed to auto-register device: {e}")
+                raise HTTPException(status_code=500, detail="Failed to register device")
         
         auth_url, state = auth_service.generate_auth_url(request.device_id, request.platform)
         await auth_service.store_auth_state(state, request.device_id, request.platform)

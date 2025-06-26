@@ -58,16 +58,6 @@ class RateLimiterService:
             )
         ''')
         
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS request_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                device_id TEXT,
-                request_type TEXT,
-                timestamp TEXT,
-                success BOOLEAN
-            )
-        ''')
-        
         conn.commit()
         conn.close()
     
@@ -160,7 +150,7 @@ class RateLimiterService:
             logger.error(f"Error checking refinement limit: {e}")
             return True
     
-    async def record_request(self, device_id: str, success: bool = True):
+    async def record_request(self, device_id: str):
         """Record a playlist generation request"""
 
         if not self.initialized:
@@ -197,11 +187,6 @@ class RateLimiterService:
                     "INSERT INTO daily_requests (device_id, request_count, last_request_date, refinement_count) VALUES (?, 1, ?, 0)",
                     (device_hash, current_time)
                 )
-
-            cursor.execute(
-                "INSERT INTO request_log (device_id, request_type, timestamp, success) VALUES (?, 'playlist', ?, ?)",
-                (device_hash, current_time, success)
-            )
             
             conn.commit()
             conn.close()
@@ -209,7 +194,7 @@ class RateLimiterService:
         except Exception as e:
             logger.error(f"Error recording request: {e}")
     
-    async def record_refinement(self, device_id: str, success: bool = True):
+    async def record_refinement(self, device_id: str):
         """Record a playlist refinement request"""
 
         if not self.initialized:
@@ -246,11 +231,6 @@ class RateLimiterService:
                     "INSERT INTO daily_requests (device_id, request_count, last_request_date, refinement_count) VALUES (?, 0, ?, 1)",
                     (device_hash, current_time)
                 )
-
-            cursor.execute(
-                "INSERT INTO request_log (device_id, request_type, timestamp, success) VALUES (?, 'refinement', ?, ?)",
-                (device_hash, current_time, success)
-            )
             
             conn.commit()
             conn.close()
@@ -339,7 +319,6 @@ class RateLimiterService:
             cursor = conn.cursor()
             
             cursor.execute("DELETE FROM daily_requests")
-            cursor.execute("DELETE FROM request_log")
             
             conn.commit()
             conn.close()

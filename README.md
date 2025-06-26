@@ -89,6 +89,13 @@ For Flutter app installation and development setup, see the **[App Setup Guide](
 - **Hashed Device IDs**: User anonymity through cryptographic hashing
 - **No Data Persistence**: User prompts and preferences are not stored permanently
 
+### Authentication and Session Management
+- **Spotify OAuth Integration**: Secure OAuth 2.0 flow with authorization code grant
+- **Session-Based Authentication**: UUID4-based session IDs with automatic expiration
+- **Cross-Platform Support**: Consistent authentication across web, mobile, and desktop
+- **Session Security**: Device binding prevents session hijacking and spoofing
+- **Token Management**: Secure refresh token handling with automatic renewal
+
 ## API Reference
 
 ### Core Endpoints
@@ -178,6 +185,46 @@ Service health and dependency status.
         "ai_generation": true,
         "rate_limiting": false
     }
+}
+```
+
+### Authentication Endpoints
+
+#### `GET /auth/init`
+Initialize Spotify OAuth authentication flow.
+
+**Query Parameters:**
+- `device_id`: Unique device identifier
+- `platform`: Platform type (web, android, ios, desktop)
+
+**Response:**
+```json
+{
+    "auth_url": "https://accounts.spotify.com/authorize?...",
+    "state": "uuid4_state_parameter"
+}
+```
+
+#### `GET /auth/callback`
+Handle Spotify OAuth callback (used by Spotify, not directly by app).
+
+#### `POST /auth/validate`
+Validate existing authentication session.
+
+**Request Body:**
+```json
+{
+    "session_id": "uuid4_session_id",
+    "device_id": "device_identifier"
+}
+```
+
+**Response:**
+```json
+{
+    "valid": true,
+    "spotify_user_id": "spotify_user_123",
+    "expires_at": 1703980800
 }
 ```
 

@@ -196,12 +196,13 @@ flutter build ios --release
 
 ## Integration with EchoTuner API
 
-The app integrates with the EchoTuner API for playlist generation:
+The app integrates with the EchoTuner API for authentication and playlist generation:
 
-1. **User Input**: Natural language music preferences
-2. **API Communication**: Secure requests to backend service
-3. **Result Processing**: Display generated playlists
-4. **Music Integration**: Connect with streaming services
+1. **Authentication Flow**: Spotify OAuth via API endpoints
+2. **Session Management**: Secure session validation with device binding
+3. **API Communication**: Authenticated requests with session IDs
+4. **Result Processing**: Display generated playlists with auth context
+5. **Error Handling**: Graceful handling of auth failures and session expiration
 
 For API documentation and integration details, refer to the [API documentation](../api/README.md).
 
@@ -226,6 +227,13 @@ flutter clean
 flutter pub get
 flutter packages pub run build_runner build --delete-conflicting-outputs
 ```
+
+**Authentication Issues:**
+- Verify backend API is running with auth enabled
+- Check Spotify OAuth credentials in API configuration
+- Ensure proper redirect URI setup in Spotify Developer Dashboard
+- Test OAuth flow in different browsers/platforms
+- Clear app storage and retry authentication
 
 **API Connection Issues:**
 - Verify backend service is running
@@ -257,6 +265,24 @@ For comprehensive support and additional resources:
 For development guidelines and contribution information, refer to the project root documentation.
 
 ## Features
+
+### Authentication System
+
+The app includes a comprehensive Spotify OAuth authentication system:
+
+- **Spotify OAuth Integration**: Secure OAuth 2.0 flow with beautiful UI
+- **Cross-Platform Support**: Works on web, mobile, and desktop platforms  
+- **Session Management**: Automatic session persistence and restoration
+- **AuthWrapper**: Seamless transition between login and main app
+- **Platform-Specific Handling**: WebView for mobile, popup for web platforms
+- **Secure Storage**: Device-specific session storage with automatic cleanup
+
+**User Flow:**
+1. **First Visit**: Login screen with Spotify branding
+2. **OAuth Flow**: Platform-appropriate authentication handling
+3. **Session Creation**: Automatic session storage and validation
+4. **Subsequent Visits**: Direct access to main app with session validation
+5. **Logout**: Clean session removal and return to login screen
 
 ### Rate Limiting Interface
 

@@ -307,6 +307,28 @@ class AuthService:
             logger.error(f"Failed to register device: {e}")
             raise Exception("Device registration failed")
 
+    async def register_device_with_id(self, device_id: str, platform: str, app_version: Optional[str] = None, device_fingerprint: Optional[str] = None) -> int:
+        """Register a device with a specific ID (for auto-registration)"""
+
+        try:
+            registration_timestamp = int(datetime.now().timestamp())
+            
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute("""
+                    INSERT INTO device_registry 
+                    (device_id, platform, app_version, device_fingerprint, registration_timestamp, last_seen_timestamp, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, 1)
+                """, (device_id, platform, app_version, device_fingerprint, registration_timestamp, registration_timestamp))
+                
+                await db.commit()
+                
+                logger.info(f"Auto-registered device: {device_id} on {platform}")
+                return registration_timestamp
+                
+        except Exception as e:
+            logger.error(f"Failed to register device with ID: {e}")
+            raise Exception("Device registration failed")
+
     async def validate_device(self, device_id: str, update_last_seen: bool = True) -> bool:
         """Validate that device_id was issued by server and is active"""
 

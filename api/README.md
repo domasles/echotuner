@@ -97,6 +97,29 @@ Check current rate limiting status for a device.
 #### `GET /health`
 Service health and dependency status.
 
+### Authentication Endpoints
+
+#### `GET /auth/init`
+Initialize Spotify OAuth authentication flow.
+
+**Query Parameters:**
+- `device_id`: Unique device identifier  
+- `platform`: Platform type (web, android, ios, desktop)
+
+#### `GET /auth/callback`
+Handle Spotify OAuth callback and create authenticated session.
+
+#### `POST /auth/validate`  
+Validate existing authentication session.
+
+**Request Body:**
+```json
+{
+    "session_id": "uuid4_session_id",
+    "device_id": "device_identifier"
+}
+```
+
 For complete API documentation and examples, refer to the [API Reference](../README.md#api-reference) in the master documentation.
 
 ## Configuration
@@ -157,18 +180,6 @@ For complete configuration options, see the [Configuration](../README.md#configu
 
 ## Development and Testing
 
-### Health Monitoring
-
-```bash
-# Check API health
-curl http://localhost:8000/health
-
-# Test playlist generation
-curl -X POST http://localhost:8000/generate-playlist \
-    -H "Content-Type: application/json" \
-    -d '{"prompt":"relaxing jazz for studying","device_id":"test","count":10}'
-```
-
 ### Deployment
 
 For production deployment instructions, container deployment, and integration examples, refer to the [Deployment](../README.md#deployment) and [Integration](../README.md#integration) sections in the master documentation.
@@ -189,3 +200,19 @@ For detailed troubleshooting, performance optimization, and support information,
 - **Issues**: Use GitHub Issues for bug reports and feature requests
 - **Documentation**: Refer to the master README and inline code documentation
 - **Development**: Follow the contributing guidelines in the project root
+
+## Database Schema
+
+The API uses SQLite with the following key tables:
+
+**auth_sessions**: Session management
+- `session_id` (TEXT PRIMARY KEY) - UUID4 session identifier
+- `device_id` (TEXT NOT NULL) - Unique device identifier
+- `spotify_user_id` (TEXT) - Spotify user ID  
+- `access_token` (TEXT) - Spotify access token
+- `created_at` (INTEGER) - Session creation timestamp
+
+**auth_states**: OAuth state validation
+- `state` (TEXT PRIMARY KEY) - OAuth state parameter
+- `device_id` (TEXT NOT NULL) - Associated device
+- `expires_at` (INTEGER) - State expiration timestamp
