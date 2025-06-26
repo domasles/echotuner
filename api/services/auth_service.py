@@ -210,7 +210,7 @@ class AuthService:
         try:
             async with aiosqlite.connect(self.db_path) as db:
                 async with db.execute(
-                    "SELECT device_id, expires_at FROM auth_sessions WHERE session_id = ?", (session_id)) as cursor:
+                    "SELECT device_id, expires_at FROM auth_sessions WHERE session_id = ?", (session_id,)) as cursor:
                     row = await cursor.fetchone()
                     
                     if not row:
