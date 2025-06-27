@@ -3,6 +3,57 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 
+void _showCustomSnackbarStatic(BuildContext context, String message, {bool isError = false, bool isSuccess = false}) {
+    Color borderColor;
+    if (isSuccess) {
+        borderColor = Color(0xFF4CAF50);
+    }
+	
+	else if (isError) {
+        borderColor = Color(0xFFD32F2F);
+    }
+	
+	else {
+        borderColor = Color(0xFF666666);
+    }
+
+    final overlay = Overlay.of(context);
+    late OverlayEntry overlayEntry;
+    
+    overlayEntry = OverlayEntry(
+        builder: (context) => Positioned(
+            bottom: 16,
+            left: 16,
+            right: 16,
+
+            child: Material(
+                elevation: 0,
+                color: Colors.transparent,
+
+                child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                        color: Color(0xFF1A1625),
+                        borderRadius: BorderRadius.circular(28),
+                        border: Border.all(color: borderColor, width: 1),
+                    ),
+
+                    child: Text(
+                        message,
+                        style: TextStyle(color: Colors.white),
+                    ),
+                ),
+            ),
+        ),
+    );
+    
+    overlay.insert(overlayEntry);
+    
+    Future.delayed(Duration(seconds: 2), () {
+        overlayEntry.remove();
+    });
+}
+
 class SettingsScreen extends StatelessWidget {
     const SettingsScreen({super.key});
 
@@ -19,6 +70,7 @@ class SettingsScreen extends StatelessWidget {
                 children: [
                     const SizedBox(height: 24),
                     const SectionHeader(title: 'Account'),
+
                     SettingsTile(
                         icon: Icons.account_circle,
                         title: 'Profile',
@@ -30,9 +82,7 @@ class SettingsScreen extends StatelessWidget {
                             return SettingsTile(
                                 icon: Icons.music_note,
                                 title: 'Spotify Connection',
-                                subtitle: authService.isAuthenticated 
-                                    ? 'Connected to Spotify' 
-                                    : 'Not connected',
+                                subtitle: authService.isAuthenticated ? 'Connected to Spotify' : 'Not connected',
                             );
                         },
                     ),
@@ -89,9 +139,7 @@ class SettingsScreen extends StatelessWidget {
                                         foregroundColor: Colors.white,
                                         side: const BorderSide(color: Color(0xFF2A2A2A), width: 0.5),
                                         padding: const EdgeInsets.symmetric(vertical: 16),
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(12),
-                                        ),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                     ),
 
                                     child: const Text(
@@ -139,7 +187,6 @@ class SettingsScreen extends StatelessWidget {
                     TextButton(
                         onPressed: () async {
                             final navigator = Navigator.of(context);
-                            final messenger = ScaffoldMessenger.of(context);
                             
                             navigator.pop();
                             
@@ -152,12 +199,7 @@ class SettingsScreen extends StatelessWidget {
                                 );
                                 
                             } catch (e) {
-                                messenger.showSnackBar(
-                                    SnackBar(
-                                        content: Text('Logout failed: ${e.toString()}'),
-                                        backgroundColor: Colors.red,
-                                    ),
-                                );
+                                _showCustomSnackbar(context, 'Logout failed: ${e.toString()}', isError: true);
                             }
                         },
 						
@@ -169,6 +211,56 @@ class SettingsScreen extends StatelessWidget {
                 ],
             ),
         );
+    }
+
+    void _showCustomSnackbar(BuildContext context, String message, {bool isError = false, bool isSuccess = false}) {
+        Color borderColor;
+        if (isSuccess) {
+            borderColor = Color(0xFF4CAF50);
+        }
+		
+		else if (isError) {
+            borderColor = Color(0xFFD32F2F);
+        }
+		
+		else {
+            borderColor = Color(0xFF666666);
+        }
+
+        final overlay = Overlay.of(context);
+        late OverlayEntry overlayEntry;
+        
+        overlayEntry = OverlayEntry(
+            builder: (context) => Positioned(
+                bottom: 16,
+                left: 16,
+                right: 16,
+
+                child: Material(
+                    elevation: 0,
+                    color: Colors.transparent,
+                    child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                            color: Color(0xFF1A1625),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(color: borderColor, width: 1),
+                        ),
+
+                        child: Text(
+                            message,
+                            style: TextStyle(color: Colors.white),
+                        ),
+                    ),
+                ),
+            ),
+        );
+        
+        overlay.insert(overlayEntry);
+        
+        Future.delayed(Duration(seconds: 2), () {
+            overlayEntry.remove();
+        });
     }
 }
 
@@ -229,12 +321,7 @@ class SettingsTile extends StatelessWidget {
                 ),
                     
                 onTap: onTap ?? () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Feature coming soon!'),
-                            duration: Duration(seconds: 2),
-                        ),
-                    );
+                    _showCustomSnackbarStatic(context, 'Feature coming soon!');
                 },
             ),
         );

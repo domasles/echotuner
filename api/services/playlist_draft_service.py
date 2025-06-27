@@ -1,12 +1,13 @@
 """Playlist draft management service for EchoTuner."""
 
-import sqlite3
-import uuid
 import asyncio
 import logging
+import sqlite3
+import uuid
 import json
+
 from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from pathlib import Path
 
 from core.models import PlaylistDraft, Song
@@ -24,22 +25,25 @@ class PlaylistDraftService:
 
     async def initialize(self):
         """Initialize the playlist draft service."""
+
         try:
             await self._init_database()
             await self._start_cleanup_task()
+
             self._initialized = True
             logger.info("Playlist draft service initialized successfully")
+
         except Exception as e:
             logger.error(f"Failed to initialize playlist draft service: {e}")
             raise
 
     async def _init_database(self):
         """Initialize database tables for playlist drafts."""
+
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                
-                # Create playlist drafts table
+
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS playlist_drafts (
                         id TEXT PRIMARY KEY,
@@ -55,8 +59,7 @@ class PlaylistDraftService:
                         spotify_playlist_url TEXT
                     )
                 ''')
-                
-                # Create table to track Spotify playlists created by EchoTuner
+
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS echotuner_spotify_playlists (
                         spotify_playlist_id TEXT PRIMARY KEY,
@@ -65,12 +68,31 @@ class PlaylistDraftService:
                         session_id TEXT,
                         original_draft_id TEXT,
                         playlist_name TEXT NOT NULL,
+                        refinements_used INTEGER DEFAULT 0,
                         created_at TIMESTAMP NOT NULL,
+                        updated_at TIMESTAMP NOT NULL,
                         FOREIGN KEY (original_draft_id) REFERENCES playlist_drafts (id)
                     )
                 ''')
+
+                try:
+                    cursor.execute('''
+                        ALTER TABLE echotuner_spotify_playlists 
+                        ADD COLUMN refinements_used INTEGER DEFAULT 0
+                    ''')
+
+                except sqlite3.OperationalError:
+                    pass
                 
-                # Create index for faster lookups
+                try:
+                    cursor.execute('''
+                        ALTER TABLE echotuner_spotify_playlists 
+                        ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    ''')
+
+                except sqlite3.OperationalError:
+                    pass
+
                 cursor.execute('''
                     CREATE INDEX IF NOT EXISTS idx_playlist_drafts_device_id 
                     ON playlist_drafts(device_id)
@@ -105,29 +127,32 @@ class PlaylistDraftService:
 
     async def _start_cleanup_task(self):
         """Start the background cleanup task for expired drafts."""
+
         if self._cleanup_task is None:
             self._cleanup_task = asyncio.create_task(self._cleanup_expired_drafts_loop())
 
     async def _cleanup_expired_drafts_loop(self):
         """Background task to clean up expired drafts."""
+
         while True:
             try:
-                await asyncio.sleep(settings.DRAFT_CLEANUP_INTERVAL_HOURS * 3600)
+                await asyncio.sleep(settings.DRAFT_CLEANUP_INTERVAL * 3600)
                 await self._cleanup_expired_drafts()
+
             except asyncio.CancelledError:
                 break
+
             except Exception as e:
                 logger.error(f"Error in cleanup task: {e}")
 
     async def _cleanup_expired_drafts(self):
         """Remove expired draft playlists."""
         try:
-            cutoff_date = datetime.now() - timedelta(days=settings.DRAFT_STORAGE_DAYS)
+            cutoff_date = datetime.now() - timedelta(days=settings.DRAFT_STORAGE_TIMEOUT)
             
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                
-                # Only clean up drafts, not playlists added to Spotify
+
                 cursor.execute('''
                     DELETE FROM playlist_drafts 
                     WHERE status = 'draft' AND created_at < ?
@@ -142,14 +167,12 @@ class PlaylistDraftService:
         except Exception as e:
             logger.error(f"Failed to cleanup expired drafts: {e}")
 
-    async def save_draft(self, device_id: str, session_id: Optional[str], prompt: str, 
-                        songs: List[Song], refinements_used: int = 0) -> str:
+    async def save_draft(self, device_id: str, session_id: Optional[str], prompt: str, songs: List[Song], refinements_used: int = 0) -> str:
         """Save a playlist as a draft."""
+
         try:
             playlist_id = str(uuid.uuid4())
             now = datetime.now()
-            
-            # Convert songs to JSON
             songs_json = [song.model_dump() for song in songs]
             
             with sqlite3.connect(self.db_path) as conn:
@@ -171,9 +194,9 @@ class PlaylistDraftService:
             logger.error(f"Failed to save draft playlist: {e}")
             raise
 
-    async def update_draft(self, playlist_id: str, songs: List[Song], 
-                          refinements_used: int, prompt: Optional[str] = None) -> bool:
+    async def update_draft(self, playlist_id: str, songs: List[Song], refinements_used: int, prompt: Optional[str] = None) -> bool:
         """Update an existing draft playlist."""
+
         try:
             songs_json = [song.model_dump() for song in songs]
             now = datetime.now()
@@ -187,6 +210,7 @@ class PlaylistDraftService:
                         SET songs = ?, refinements_used = ?, updated_at = ?, prompt = ?
                         WHERE id = ? AND status = 'draft'
                     ''', (json.dumps(songs_json), refinements_used, now, prompt, playlist_id))
+
                 else:
                     cursor.execute('''
                         UPDATE playlist_drafts 
@@ -199,6 +223,7 @@ class PlaylistDraftService:
                 
             if success:
                 logger.info(f"Updated draft playlist {playlist_id}")
+
             else:
                 logger.warning(f"Failed to update draft playlist {playlist_id} - not found or not draft")
                 
@@ -208,15 +233,13 @@ class PlaylistDraftService:
             logger.error(f"Failed to update draft playlist {playlist_id}: {e}")
             raise
 
-    async def mark_as_added_to_spotify(self, playlist_id: str, spotify_playlist_id: str, 
-                                     spotify_url: str, user_id: str = None, device_id: str = None, 
-                                     session_id: str = None, playlist_name: str = None) -> bool:
+    async def mark_as_added_to_spotify(self, playlist_id: str, spotify_playlist_id: str, spotify_url: str, user_id: str = None, device_id: str = None, session_id: str = None, playlist_name: str = None) -> bool:
         """Mark a draft as added to Spotify and record the Spotify playlist."""
+
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                
-                # Update the draft status
+
                 cursor.execute('''
                     UPDATE playlist_drafts 
                     SET status = 'added_to_spotify', 
@@ -227,21 +250,27 @@ class PlaylistDraftService:
                 ''', (spotify_playlist_id, spotify_url, datetime.now(), playlist_id))
                 
                 success = cursor.rowcount > 0
-                
-                # Record the Spotify playlist in our tracking table
+
                 if success and user_id and device_id and playlist_name:
+                    cursor.execute('''
+                        SELECT refinements_used FROM playlist_drafts WHERE id = ?
+                    ''', (playlist_id,))
+                    
+                    draft_row = cursor.fetchone()
+                    refinements_used = draft_row[0] if draft_row else 0
+                    
                     cursor.execute('''
                         INSERT OR REPLACE INTO echotuner_spotify_playlists 
                         (spotify_playlist_id, user_id, device_id, session_id, original_draft_id, 
-                         playlist_name, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', (spotify_playlist_id, user_id, device_id, session_id, playlist_id, 
-                          playlist_name, datetime.now()))
+                         playlist_name, refinements_used, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (spotify_playlist_id, user_id, device_id, session_id, playlist_id, playlist_name, refinements_used, datetime.now(), datetime.now()))
                 
                 conn.commit()
                 
             if success:
                 logger.info(f"Marked playlist {playlist_id} as added to Spotify ({spotify_playlist_id})")
+
             else:
                 logger.warning(f"Failed to mark playlist {playlist_id} as added to Spotify - not found")
                 
@@ -253,6 +282,7 @@ class PlaylistDraftService:
 
     async def get_user_echotuner_spotify_playlist_ids(self, user_id: str) -> List[str]:
         """Get list of Spotify playlist IDs created by EchoTuner for a user."""
+
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -274,13 +304,14 @@ class PlaylistDraftService:
 
     async def get_draft(self, playlist_id: str) -> Optional[PlaylistDraft]:
         """Get a specific draft playlist."""
+
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 
                 cursor.execute('''
                     SELECT id, device_id, session_id, prompt, songs, created_at, 
-                           updated_at, refinements_used, status, spotify_playlist_id
+                    updated_at, refinements_used, status, spotify_playlist_id
                     FROM playlist_drafts 
                     WHERE id = ?
                 ''', (playlist_id,))
@@ -289,6 +320,7 @@ class PlaylistDraftService:
                 
             if row:
                 return self._row_to_draft(row)
+            
             return None
             
         except Exception as e:
@@ -297,6 +329,7 @@ class PlaylistDraftService:
 
     async def get_device_drafts(self, device_id: str, include_spotify: bool = True) -> List[PlaylistDraft]:
         """Get all drafts for a device."""
+
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -309,6 +342,7 @@ class PlaylistDraftService:
                         WHERE device_id = ?
                         ORDER BY updated_at DESC
                     ''', (device_id,))
+
                 else:
                     cursor.execute('''
                         SELECT id, device_id, session_id, prompt, songs, created_at, 
@@ -326,8 +360,72 @@ class PlaylistDraftService:
             logger.error(f"Failed to get drafts for device {device_id}: {e}")
             raise
 
+    async def get_user_drafts(self, user_id: str, device_id: str = None, session_id: str = None, include_spotify: bool = True) -> List[PlaylistDraft]:
+        """Get all drafts for a user across all their devices and sessions."""
+
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                cursor.execute('''
+                    SELECT DISTINCT device_id, session_id FROM auth_sessions 
+                    WHERE spotify_user_id = ?
+                ''', (user_id,))
+                
+                user_identifiers = cursor.fetchall()
+
+                device_ids = list(set([row[0] for row in user_identifiers if row[0]]))
+                session_ids = list(set([row[1] for row in user_identifiers if row[1]]))
+
+                if device_id and device_id not in device_ids:
+                    device_ids.append(device_id)
+
+                if session_id and session_id not in session_ids:
+                    session_ids.append(session_id)
+                
+                if not device_ids and not session_ids:
+                    return []
+                
+                conditions = []
+                params = []
+                
+                if device_ids:
+                    placeholders = ','.join(['?' for _ in device_ids])
+                    conditions.append(f"device_id IN ({placeholders})")
+                    params.extend(device_ids)
+                
+                if session_ids:
+                    placeholders = ','.join(['?' for _ in session_ids])
+                    conditions.append(f"session_id IN ({placeholders})")
+                    params.extend(session_ids)
+                
+                if not conditions:
+                    return []
+                
+                where_clause = " OR ".join(conditions)
+
+                if not include_spotify:
+                    where_clause = f"({where_clause}) AND status = 'draft'"
+                
+                cursor.execute(f'''
+                    SELECT id, device_id, session_id, prompt, songs, created_at, 
+                    updated_at, refinements_used, status, spotify_playlist_id
+                    FROM playlist_drafts 
+                    WHERE {where_clause}
+                    ORDER BY updated_at DESC
+                ''', params)
+                
+                rows = cursor.fetchall()
+                
+            return [self._row_to_draft(row) for row in rows]
+            
+        except Exception as e:
+            logger.error(f"Failed to get drafts for user {user_id}: {e}")
+            raise
+
     async def delete_draft(self, playlist_id: str) -> bool:
         """Delete a draft playlist."""
+
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -342,6 +440,7 @@ class PlaylistDraftService:
                 
             if success:
                 logger.info(f"Deleted draft playlist {playlist_id}")
+
             else:
                 logger.warning(f"Failed to delete draft playlist {playlist_id} - not found or not draft")
                 
@@ -350,6 +449,74 @@ class PlaylistDraftService:
         except Exception as e:
             logger.error(f"Failed to delete draft playlist {playlist_id}: {e}")
             raise
+
+    async def get_spotify_playlist_refinement_count(self, spotify_playlist_id: str) -> int:
+        """Get the refinement count for a Spotify playlist."""
+
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    SELECT refinements_used FROM echotuner_spotify_playlists 
+                    WHERE spotify_playlist_id = ?
+                ''', (spotify_playlist_id,))
+                
+                row = cursor.fetchone()
+                return row[0] if row else 0
+                
+        except Exception as e:
+            logger.error(f"Failed to get refinement count for Spotify playlist {spotify_playlist_id}: {e}")
+            return 0
+
+    async def update_spotify_playlist_refinement_count(self, spotify_playlist_id: str, refinements_used: int) -> bool:
+        """Update the refinement count for a Spotify playlist."""
+
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    UPDATE echotuner_spotify_playlists 
+                    SET refinements_used = ?, updated_at = ?
+                    WHERE spotify_playlist_id = ?
+                ''', (refinements_used, datetime.now(), spotify_playlist_id))
+                
+                success = cursor.rowcount > 0
+                conn.commit()
+
+                return success
+                
+        except Exception as e:
+            logger.error(f"Failed to update refinement count for Spotify playlist {spotify_playlist_id}: {e}")
+            return False
+
+    async def remove_spotify_playlist_tracking(self, spotify_playlist_id: str) -> bool:
+        """Remove a Spotify playlist from our tracking database."""
+
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    DELETE FROM echotuner_spotify_playlists 
+                    WHERE spotify_playlist_id = ?
+                ''', (spotify_playlist_id,))
+                
+                success = cursor.rowcount > 0
+                conn.commit()
+                
+                if success:
+                    logger.info(f"Removed tracking for Spotify playlist {spotify_playlist_id}")
+
+                else:
+                    logger.warning(f"Spotify playlist {spotify_playlist_id} not found in tracking")
+                
+                return success
+                
+        except Exception as e:
+            logger.error(f"Failed to remove tracking for Spotify playlist {spotify_playlist_id}: {e}")
+            return False
 
     def _row_to_draft(self, row) -> PlaylistDraft:
         """Convert database row to PlaylistDraft object."""
@@ -372,10 +539,12 @@ class PlaylistDraftService:
 
     def is_ready(self) -> bool:
         """Check if the service is ready."""
+
         return self._initialized
 
     async def cleanup(self):
         """Clean up the service."""
+        
         if self._cleanup_task:
             self._cleanup_task.cancel()
             try:

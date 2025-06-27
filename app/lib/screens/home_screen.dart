@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/playlist_provider.dart';
+import '../widgets/info_message_widget.dart';
 
 import 'playlist_screen.dart';
 import 'library_screen.dart';
@@ -52,7 +53,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _promptController.dispose();
 
         super.dispose();
-    }    @override
+    }
+	
+	@override
     Widget build(BuildContext context) {
         return Scaffold(
             body: SafeArea(
@@ -89,7 +92,9 @@ class _HomeScreenState extends State<HomeScreen> {
             default:
                 return _buildHomeScreen();
         }
-    }    Widget _buildHomeScreen() {
+    }
+
+    Widget _buildHomeScreen() {
         return Consumer<PlaylistProvider>(
             builder: (context, playlistProvider, child) {
                 return Stack(
@@ -118,6 +123,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                             ],
                         ),
+						
+                        _buildBottomInfoMessages(playlistProvider),
                         _buildBottomLimitIndicator(playlistProvider),
                     ],
                 );
@@ -242,7 +249,7 @@ class _HomeScreenState extends State<HomeScreen> {
 								SizedBox(width: 16),
 								Text(
 									'Generating...',
-									style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+								 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
 								),
 							],
 						)
@@ -341,6 +348,35 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                     ],
                 ),
+            ),
+        );
+    }
+	
+    Widget _buildBottomInfoMessages(PlaylistProvider provider) {
+        final infoMessages = provider.infoMessages;
+        
+        if (infoMessages.isEmpty) {
+            return const SizedBox.shrink();
+        }
+
+        double bottomPosition = 100;
+        if (provider.showPlaylistLimits && provider.rateLimitStatus != null) {
+            bottomPosition = 76;
+        }
+        
+        return Positioned(
+            left: 16,
+            right: 88,
+            bottom: bottomPosition,
+			
+            child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: infoMessages.map((message) {
+                    return InfoMessageWidget(
+                        message: message,
+                        onDismiss: () => provider.removeInfoMessage(message.id),
+                    );
+                }).toList(),
             ),
         );
     }

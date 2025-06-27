@@ -46,10 +46,9 @@ class Settings:
     MAX_REFINEMENTS_PER_PLAYLIST: int = int(os.getenv("MAX_REFINEMENTS_PER_PLAYLIST", 3))
 
     SESSION_TIMEOUT: int = int(os.getenv("SESSION_TIMEOUT", 24))
-    
-    # Playlist draft storage settings
-    DRAFT_STORAGE_DAYS: int = int(os.getenv("DRAFT_STORAGE_DAYS", 7))
-    DRAFT_CLEANUP_INTERVAL_HOURS: int = int(os.getenv("DRAFT_CLEANUP_INTERVAL_HOURS", 24))
+
+    DRAFT_STORAGE_TIMEOUT: int = int(os.getenv("DRAFT_STORAGE_DAYS", 7))
+    DRAFT_CLEANUP_INTERVAL: int = int(os.getenv("DRAFT_CLEANUP_INTERVAL_HOURS", 24))
 
     CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "true").lower() == "true"
 

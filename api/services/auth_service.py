@@ -371,21 +371,26 @@ class AuthService:
                     
                     stored_device_id, expires_at, spotify_user_id = row
 
-                    if stored_device_id != device_id:
-                        return None
-                    
                     if datetime.now().timestamp() > expires_at:
                         await db.execute("DELETE FROM auth_sessions WHERE session_id = ?", (session_id,))
                         await db.commit()
-
                         return None
+
+                    if stored_device_id != device_id:
+                        async with db.execute(
+                            "SELECT 1 FROM auth_sessions WHERE device_id = ? AND spotify_user_id = ?", 
+                            (device_id, spotify_user_id)) as device_cursor:
+                            device_row = await device_cursor.fetchone()
+                            
+                            if not device_row:
+                                return None
 
                     await db.execute("UPDATE auth_sessions SET last_used_at = ? WHERE session_id = ?", (int(datetime.now().timestamp()), session_id))
                     await db.commit()
                     
                     return {
                         "spotify_user_id": spotify_user_id,
-                        "device_id": stored_device_id
+                        "device_id": device_id
                     }
                     
         except Exception as e:
@@ -397,9 +402,7 @@ class AuthService:
         
         try:
             async with aiosqlite.connect(self.db_path) as db:
-                async with db.execute(
-                    "SELECT access_token, expires_at, refresh_token FROM auth_sessions WHERE session_id = ?", 
-                    (session_id,)) as cursor:
+                async with db.execute("SELECT access_token, expires_at, refresh_token FROM auth_sessions WHERE session_id = ?", (session_id,)) as cursor:
                     row = await cursor.fetchone()
                     
                     if not row:
@@ -407,19 +410,14 @@ class AuthService:
                     
                     access_token, expires_at, refresh_token = row
                     
-                    # Check if token is expired
                     if datetime.now().timestamp() > expires_at:
-                        # Try to refresh token if available
                         if refresh_token and self.spotify_oauth:
                             try:
                                 token_info = self.spotify_oauth.refresh_access_token(refresh_token)
                                 new_access_token = token_info['access_token']
                                 new_expires_at = int((datetime.now() + timedelta(seconds=token_info['expires_in'])).timestamp())
-                                
-                                # Update token in database
-                                await db.execute(
-                                    "UPDATE auth_sessions SET access_token = ?, expires_at = ? WHERE session_id = ?",
-                                    (new_access_token, new_expires_at, session_id))
+
+                                await db.execute("UPDATE auth_sessions SET access_token = ?, expires_at = ? WHERE session_id = ?", (new_access_token, new_expires_at, session_id))
                                 await db.commit()
                                 
                                 return new_access_token
@@ -433,4 +431,26 @@ class AuthService:
                     
         except Exception as e:
             logger.error(f"Failed to get access token: {e}")
+            return None
+
+    async def get_user_from_session(self, session_id: str) -> Optional[Dict]:
+        """Get user information from session ID."""
+
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                async with db.execute("SELECT spotify_user_id, device_id FROM auth_sessions WHERE session_id = ?", (session_id,)) as cursor:
+                    row = await cursor.fetchone()
+                    
+                    if not row:
+                        return None
+                    
+                    spotify_user_id, device_id = row
+                    
+                    return {
+                        'spotify_user_id': spotify_user_id,
+                        'device_id': device_id
+                    }
+                    
+        except Exception as e:
+            logger.error(f"Failed to get user from session: {e}")
             return None

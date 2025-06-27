@@ -9,6 +9,7 @@ class PlaylistScreen extends StatelessWidget {
 
     Future<void> _openSpotifyTrack(String spotifyId) async {
         final spotifyUrl = 'https://open.spotify.com/track/$spotifyId';
+
         try {
             if (await canLaunchUrl(Uri.parse(spotifyUrl))) {
                 await launchUrl(
@@ -80,6 +81,11 @@ class PlaylistScreen extends StatelessWidget {
     }
 
     Future<void> _showAddToSpotifyDialog(BuildContext context, PlaylistProvider provider) async {
+        if (provider.isPlaylistAddedToSpotify && provider.spotifyPlaylistInfo != null) {
+            await _updateSpotifyPlaylist(context, provider);
+            return;
+        }
+        
         String playlistName = '';
         String description = '';
         
@@ -102,15 +108,21 @@ class PlaylistScreen extends StatelessWidget {
                                     hintText: 'Playlist name',
                                     border: OutlineInputBorder(),
                                 ),
+
                                 onChanged: (value) => playlistName = value,
                             ),
+
                             const SizedBox(height: 16),
                             TextField(
                                 maxLines: 2,
+                                textAlignVertical: TextAlignVertical.top,
+
                                 decoration: const InputDecoration(
                                     hintText: 'Description (optional)',
                                     border: OutlineInputBorder(),
+                                    alignLabelWithHint: true,
                                 ),
+
                                 onChanged: (value) => description = value,
                             ),
                         ],
@@ -127,27 +139,108 @@ class PlaylistScreen extends StatelessWidget {
                                 if (playlistName.trim().isNotEmpty) {
                                     Navigator.of(dialogContext).pop();
                                     
-                                    // Close dialog and go back immediately
-                                    Navigator.of(context).pop(); // Close dialog
-                                    Navigator.of(context).pop(); // Go back to home
-                                    
-                                    // Show simple success message
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                            content: Text('Playlist has been added to Spotify!'),
-                                            backgroundColor: Colors.green,
-                                            duration: Duration(seconds: 3),
-                                        ),
-                                    );
+                                    try {
+                                        final isUpdate = provider.isPlaylistAddedToSpotify;
+                                        await provider.addToSpotify(
+                                            playlistName: playlistName.trim(),
+                                            description: description.trim().isEmpty ? null : description.trim(),
+                                        );
+
+                                        if (context.mounted) {
+                                            Navigator.of(context).pop();
+                                            _showCustomSnackbar(context, isUpdate ? 'Playlist updated on Spotify successfully!' : 'Playlist added to Spotify successfully!', isSuccess: true);
+                                        }
+                                    }
+									
+									catch (e) {
+                                        if (context.mounted) {
+                                            Navigator.of(context).pop();
+                                            _showCustomSnackbar(context, provider.isPlaylistAddedToSpotify ? 'Failed to update playlist: $e' : 'Failed to add playlist: $e', isError: true);
+                                        }
+                                    }
                                 }
                             },
 
-                            child: const Text('Add to Spotify'),
+                            child: Text(provider.isPlaylistAddedToSpotify ? 'Update' : 'Add to Spotify'),
                         ),
                     ],
                 );
             },
         );
+    }
+
+    Future<void> _updateSpotifyPlaylist(BuildContext context, PlaylistProvider provider) async {
+        try {
+            final spotifyInfo = provider.spotifyPlaylistInfo!;
+
+            await provider.addToSpotify(
+                playlistName: spotifyInfo.name, 
+                description: spotifyInfo.description,
+            );
+
+            if (context.mounted) {
+                Navigator.of(context).pop();
+                _showCustomSnackbar(context, 'Playlist updated on Spotify successfully!', isSuccess: true);
+            }
+        }
+		
+		catch (e) {
+            if (context.mounted) {
+                Navigator.of(context).pop();
+                _showCustomSnackbar(context, 'Failed to update playlist: $e', isError: true);
+            }
+        }
+    }
+
+    void _showCustomSnackbar(BuildContext context, String message, {bool isError = false, bool isSuccess = false}) {
+        Color borderColor;
+        if (isSuccess) {
+            borderColor = Color(0xFF4CAF50);
+        }
+		
+		else if (isError) {
+            borderColor = Color(0xFFD32F2F);
+        }
+		
+		else {
+            borderColor = Color(0xFF666666);
+        }
+
+        final overlay = Overlay.of(context);
+        late OverlayEntry overlayEntry;
+        
+        overlayEntry = OverlayEntry(
+            builder: (context) => Positioned(
+                bottom: 16,
+                left: 16,
+                right: 16,
+
+                child: Material(
+                    elevation: 0,
+                    color: Colors.transparent,
+
+                    child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                            color: Color(0xFF1A1625),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(color: borderColor, width: 1),
+                        ),
+
+                        child: Text(
+                            message,
+                            style: TextStyle(color: Colors.white),
+                        ),
+                    ),
+                ),
+            ),
+        );
+        
+        overlay.insert(overlayEntry);
+        
+        Future.delayed(Duration(seconds: 2), () {
+            overlayEntry.remove();
+        });
     }
 
     @override
@@ -274,6 +367,7 @@ class PlaylistScreen extends StatelessWidget {
                         
                         itemBuilder: (context, index) {
                             final song = provider.currentPlaylist[index];
+
                             return Card(
                                 margin: const EdgeInsets.only(bottom: 8),
                                 child: ListTile(
@@ -319,7 +413,6 @@ class PlaylistScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(4),
                 child: Row(
                     children: [
-                        // Add to Spotify button
                         Expanded(
                             child: FilledButton(
                                 onPressed: provider.isAddingToSpotify ? null : () => _showAddToSpotifyDialog(context, provider),
@@ -336,13 +429,12 @@ class PlaylistScreen extends StatelessWidget {
                                         height: 16,
                                         child: CircularProgressIndicator(strokeWidth: 2),
                                       )
-                                    : const Text('Add to Spotify'),
+                                    : Text(provider.isPlaylistAddedToSpotify ? 'Update' : 'Add to Spotify'),
                             ),
                         ),
                         
                         const SizedBox(width: 8),
-                        
-                        // Refine button
+
                         if (provider.canRefine) Expanded(
                             child: FilledButton(
                                 onPressed: () => _showRefineDialog(context, provider),
@@ -354,9 +446,7 @@ class PlaylistScreen extends StatelessWidget {
                                 ),
 
                                 child: Text(
-                                    provider.showRefinementLimits 
-                                        ? 'Refine (${(provider.rateLimitStatus?.maxRefinements ?? 3) - provider.refinementsUsed} left)' 
-                                        : 'Refine',
+                                    provider.showRefinementLimits ? 'Refine (${(provider.rateLimitStatus?.maxRefinements ?? 3) - provider.refinementsUsed} left)' : 'Refine',
                                 ),
                             ),
                         ),

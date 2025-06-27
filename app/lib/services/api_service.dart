@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../models/playlist_request.dart';
-import '../models/rate_limit_models.dart';
 import '../models/playlist_draft_models.dart';
+import '../models/rate_limit_models.dart';
+import '../models/playlist_request.dart';
 import '../config/app_config.dart';
 
 class ApiService {
@@ -86,6 +86,7 @@ class ApiService {
         final response = await _client.post(
             Uri.parse(AppConfig.apiUrl('/auth/rate-limit-status')),
             headers: {'Content-Type': 'application/json'},
+
             body: jsonEncode({
                 'session_id': sessionId,
                 'device_id': deviceId,
@@ -125,17 +126,20 @@ class ApiService {
             },
 
             body: jsonEncode(request.toJson()),
-        ).timeout(const Duration(seconds: 30)); // Add reasonable timeout for Spotify API
+        ).timeout(const Duration(seconds: 30));
 
         if (response.statusCode == 200) {
             return SpotifyPlaylistResponse.fromJson(jsonDecode(response.body));
         }
+
         else if (response.statusCode == 401) {
             throw ApiException('Authentication required');
         }
+
         else if (response.statusCode == 404) {
             throw ApiException('Draft playlist not found');
         }
+
         else {
             throw ApiException('Failed to create Spotify playlist');
         }
@@ -155,9 +159,11 @@ class ApiService {
         if (response.statusCode == 200) {
             return LibraryPlaylistsResponse.fromJson(jsonDecode(response.body));
         }
+
         else if (response.statusCode == 401) {
             throw ApiException('Authentication required');
         }
+
         else {
             throw ApiException('Failed to get library playlists');
         }
@@ -171,12 +177,15 @@ class ApiService {
         if (response.statusCode == 200) {
             return PlaylistDraft.fromJson(jsonDecode(response.body));
         }
+
         else if (response.statusCode == 404) {
             throw ApiException('Draft playlist not found');
         }
+
         else if (response.statusCode == 403) {
             throw ApiException('Access denied');
         }
+
         else {
             throw ApiException('Failed to get draft playlist');
         }
@@ -190,11 +199,15 @@ class ApiService {
         return response.statusCode == 200;
     }
 
-    Future<List<Map<String, dynamic>>> getSpotifyPlaylistTracks(
-        String playlistId, 
-        String sessionId, 
-        String deviceId
-    ) async {
+    Future<bool> deleteSpotifyPlaylist(String playlistId, String sessionId, String deviceId) async {
+        final response = await _client.delete(
+            Uri.parse(AppConfig.apiUrl('/spotify/playlist/$playlistId?session_id=$sessionId&device_id=$deviceId')),
+        );
+
+        return response.statusCode == 200;
+    }
+
+    Future<List<Map<String, dynamic>>> getSpotifyPlaylistTracks(String playlistId, String sessionId, String deviceId) async {
         final response = await _client.get(
             Uri.parse(AppConfig.apiUrl('/spotify/playlist/$playlistId/tracks?session_id=$sessionId&device_id=$deviceId')),
         );
@@ -203,8 +216,43 @@ class ApiService {
             final data = json.decode(response.body);
             return List<Map<String, dynamic>>.from(data['tracks']);
         }
+
         else {
             throw ApiException('Failed to get Spotify playlist tracks');
+        }
+    }
+
+    Future<PlaylistResponse> refineSpotifyPlaylist({required String spotifyPlaylistId, required String prompt, required String deviceId, required String sessionId}) async {
+        final response = await _client.post(
+            Uri.parse(AppConfig.apiUrl('/spotify/refine-playlist')),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+
+            body: jsonEncode({
+                'spotify_playlist_id': spotifyPlaylistId,
+                'prompt': prompt,
+                'device_id': deviceId,
+                'session_id': sessionId,
+            }),
+        );
+
+        if (response.statusCode == 200) {
+            return PlaylistResponse.fromJson(jsonDecode(response.body));
+        }
+		
+		else if (response.statusCode == 429) {
+            final error = jsonDecode(response.body);
+            throw ApiException(error['detail'] ?? 'Refinement limit reached for this playlist.');
+        }
+		
+		else if (response.statusCode == 400) {
+            final error = jsonDecode(response.body);
+            throw ApiException(error['detail'] ?? 'Invalid refinement request');
+        }
+		
+		else {
+            throw ApiException('Failed to refine Spotify playlist. Please try again.');
         }
     }
 

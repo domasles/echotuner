@@ -33,13 +33,16 @@ class PlaylistDraft {
     PlaylistDraft({
         required this.id,
         required this.deviceId,
+
         this.sessionId,
+
         required this.prompt,
         required this.songs,
         required this.createdAt,
         required this.updatedAt,
         required this.refinementsUsed,
         required this.status,
+
         this.spotifyPlaylistId,
     });
 
@@ -127,7 +130,7 @@ class LibraryPlaylistsResponse {
     final List<PlaylistDraft> drafts;
 
     @JsonKey(name: 'spotify_playlists')
-    final List<Map<String, dynamic>> spotifyPlaylists;
+    final List<SpotifyPlaylistInfo> spotifyPlaylists;
 
     LibraryPlaylistsResponse({
         required this.drafts,
@@ -136,4 +139,46 @@ class LibraryPlaylistsResponse {
 
     factory LibraryPlaylistsResponse.fromJson(Map<String, dynamic> json) => _$LibraryPlaylistsResponseFromJson(json);
     Map<String, dynamic> toJson() => _$LibraryPlaylistsResponseToJson(this);
+}
+
+@JsonSerializable()
+class SpotifyPlaylistInfo {
+    final String id;
+    final String name;
+    final String? description;
+    
+    @JsonKey(name: 'tracks_count')
+    final int tracksCount;
+    
+    @JsonKey(name: 'refinements_used')
+    final int refinementsUsed;
+    
+    @JsonKey(name: 'max_refinements')
+    final int maxRefinements;
+    
+    @JsonKey(name: 'can_refine')
+    final bool canRefine;
+    
+    @JsonKey(name: 'spotify_url')
+    final String? spotifyUrl;
+    
+    final List<Map<String, dynamic>>? images;
+
+    SpotifyPlaylistInfo({
+        required this.id,
+        required this.name,
+
+        this.description,
+
+        required this.tracksCount,
+        required this.refinementsUsed,
+        required this.maxRefinements,
+        required this.canRefine,
+		
+        this.spotifyUrl,
+        this.images,
+    });
+
+    factory SpotifyPlaylistInfo.fromJson(Map<String, dynamic> json) => _$SpotifyPlaylistInfoFromJson(json);
+    Map<String, dynamic> toJson() => _$SpotifyPlaylistInfoToJson(this);
 }

@@ -335,8 +335,9 @@ class EchoTunerApp extends StatelessWidget {
                         backgroundColor: const Color(0xFF1A1625),
                         contentTextStyle: const TextStyle(color: Colors.white),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        behavior: SnackBarBehavior.floating,
+                        behavior: SnackBarBehavior.fixed,
                         elevation: 0,
+                        actionTextColor: const Color(0xFF8B5CF6),
                     ),
 
                     switchTheme: SwitchThemeData(

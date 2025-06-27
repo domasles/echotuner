@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:developer' as developer;
 
-import '../models/rate_limit_models.dart';
 import '../models/playlist_draft_models.dart';
+import '../models/rate_limit_models.dart';
 import '../services/device_service.dart';
 import '../models/playlist_request.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../models/info_message.dart';
 import '../models/user_context.dart';
 import '../models/song.dart';
 
@@ -17,6 +18,8 @@ class PlaylistProvider extends ChangeNotifier {
     List<Song> _currentPlaylist = [];
     String _currentPrompt = '';
     String? _currentPlaylistId;
+    bool _isPlaylistAddedToSpotify = false;
+    SpotifyPlaylistInfo? _spotifyPlaylistInfo;
 
     int _refinementsUsed = 0;
     bool _isLoading = false;
@@ -28,6 +31,8 @@ class PlaylistProvider extends ChangeNotifier {
     String? _deviceId;
     String? _error;
 
+    final List<InfoMessage> _infoMessages = [];
+
     PlaylistProvider({required ApiService apiService, required AuthService authService}) : _apiService = apiService, _authService = authService {
         _initializeDeviceId();
         _loadRateLimitStatus();
@@ -37,10 +42,21 @@ class PlaylistProvider extends ChangeNotifier {
 
     String get currentPrompt => _currentPrompt;
     String? get currentPlaylistId => _currentPlaylistId;
-    int get refinementsUsed => _refinementsUsed;
+
+    int get refinementsUsed {
+        if (_isPlaylistAddedToSpotify && _spotifyPlaylistInfo != null) {
+            return _spotifyPlaylistInfo!.refinementsUsed;
+        }
+        
+        return _refinementsUsed;
+    }
     RateLimitStatus? get rateLimitStatus => _rateLimitStatus;
 
     bool get canRefine {
+        if (_isPlaylistAddedToSpotify && _spotifyPlaylistInfo != null) {
+            return _spotifyPlaylistInfo!.canRefine;
+        }
+
         if (_rateLimitStatus?.refinementLimitEnabled == true) {
             return _refinementsUsed < (_rateLimitStatus?.maxRefinements ?? 3);
         }
@@ -50,12 +66,49 @@ class PlaylistProvider extends ChangeNotifier {
     
     bool get showRefinementLimits => _rateLimitStatus?.refinementLimitEnabled ?? false;
     bool get showPlaylistLimits => _rateLimitStatus?.playlistLimitEnabled ?? false;
+    bool get isPlaylistAddedToSpotify => _isPlaylistAddedToSpotify;
+
+    SpotifyPlaylistInfo? get spotifyPlaylistInfo => _spotifyPlaylistInfo;
     
     bool get isLoading => _isLoading;
     bool get isAddingToSpotify => _isAddingToSpotify;
 
     UserContext? get userContext => _userContext;
     String? get error => _error;
+
+    List<InfoMessage> get infoMessages => _infoMessages.where((msg) => !msg.isExpired).toList();
+    
+    void addInfoMessage(String message, InfoMessageType type, {String? actionLabel, VoidCallback? onAction, String? actionUrl, Duration? duration}) {
+        final infoMessage = InfoMessage(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            message: message,
+            type: type,
+            actionLabel: actionLabel,
+            onAction: onAction,
+            actionUrl: actionUrl,
+            duration: duration,
+        );
+        
+        _infoMessages.add(infoMessage);
+        notifyListeners();
+
+        if (duration != null) {
+            Future.delayed(duration, () {
+                _infoMessages.removeWhere((msg) => msg.id == infoMessage.id);
+                notifyListeners();
+            });
+        }
+    }
+    
+    void removeInfoMessage(String id) {
+        _infoMessages.removeWhere((msg) => msg.id == id);
+        notifyListeners();
+    }
+    
+    void clearInfoMessages() {
+        _infoMessages.clear();
+        notifyListeners();
+    }
 
     Future<void> _initializeDeviceId() async {
         _deviceId = await DeviceService.getDeviceId();
@@ -74,11 +127,14 @@ class PlaylistProvider extends ChangeNotifier {
         _isLoading = true;
         _error = null;
         _refinementsUsed = 0;
+        _isPlaylistAddedToSpotify = false;
+        _spotifyPlaylistInfo = null;
 
         notifyListeners();
 
         try {
             final sessionId = _authService.sessionId;
+
             if (sessionId == null) {
                 throw Exception('Not authenticated');
             }
@@ -144,22 +200,51 @@ class PlaylistProvider extends ChangeNotifier {
                 throw Exception('Not authenticated');
             }
 
-            final request = PlaylistRequest(
-                prompt: refinementPrompt,
-                deviceId: _deviceId!,
-                sessionId: sessionId,
-                userContext: _userContext,
-                currentSongs: _currentPlaylist,
-                playlistId: _currentPlaylistId,
-            );
+            PlaylistResponse response;
 
-            final response = await _apiService.refinePlaylist(request);
+            if (_isPlaylistAddedToSpotify && _spotifyPlaylistInfo != null) {
+                response = await _apiService.refineSpotifyPlaylist(
+                    spotifyPlaylistId: _spotifyPlaylistInfo!.id,
+                    prompt: refinementPrompt,
+                    deviceId: _deviceId!,
+                    sessionId: sessionId,
+                );
+ 
+                _spotifyPlaylistInfo = SpotifyPlaylistInfo(
+                    id: _spotifyPlaylistInfo!.id,
+                    name: _spotifyPlaylistInfo!.name,
+                    description: _spotifyPlaylistInfo!.description,
+                    tracksCount: response.songs.length,
+                    refinementsUsed: _spotifyPlaylistInfo!.refinementsUsed + 1,
+                    maxRefinements: _spotifyPlaylistInfo!.maxRefinements,
+                    canRefine: (_spotifyPlaylistInfo!.refinementsUsed + 1) < _spotifyPlaylistInfo!.maxRefinements,
+                    spotifyUrl: _spotifyPlaylistInfo!.spotifyUrl,
+                    images: _spotifyPlaylistInfo!.images,
+                );
+
+            }
+			
+			else {
+                final request = PlaylistRequest(
+                    prompt: refinementPrompt,
+                    deviceId: _deviceId!,
+                    sessionId: sessionId,
+                    userContext: _userContext,
+                    currentSongs: _currentPlaylist,
+                    playlistId: _currentPlaylistId,
+                );
+
+                response = await _apiService.refinePlaylist(request);
+            }
             
             _currentPlaylist = response.songs;
-            _currentPlaylistId = response.playlistId;
-            _refinementsUsed++;
-            _error = null;
 
+            if (!_isPlaylistAddedToSpotify || _spotifyPlaylistInfo == null) {
+                _currentPlaylistId = response.playlistId;
+                _refinementsUsed++;
+            }
+            
+            _error = null;
             _loadRateLimitStatus();
         }
         
@@ -213,6 +298,8 @@ class PlaylistProvider extends ChangeNotifier {
         _currentPrompt = '';
         _currentPlaylistId = null;
         _refinementsUsed = 0;
+        _isPlaylistAddedToSpotify = false;
+        _spotifyPlaylistInfo = null;
         _error = null;
 
         notifyListeners();
@@ -235,7 +322,29 @@ class PlaylistProvider extends ChangeNotifier {
 
     Future<String> addToSpotify({required String playlistName, String? description}) async {
         if (_currentPlaylistId == null) {
-            throw Exception('No playlist to add to Spotify');
+            if (_currentPlaylist.isEmpty) {
+                throw Exception('No playlist to add to Spotify');
+            }
+
+            if (_deviceId == null) {
+                await _initializeDeviceId();
+            }
+
+            final sessionId = _authService.sessionId;
+
+            if (sessionId == null) {
+                throw Exception('Not authenticated');
+            }
+
+            final request = PlaylistRequest(
+                prompt: _currentPrompt.isNotEmpty ? _currentPrompt : 'Spotify playlist update',
+                deviceId: _deviceId!,
+                sessionId: sessionId,
+                currentSongs: _currentPlaylist,
+            );
+
+            final response = await _apiService.refinePlaylist(request);
+            _currentPlaylistId = response.playlistId;
         }
 
         if (_deviceId == null) {
@@ -263,13 +372,17 @@ class PlaylistProvider extends ChangeNotifier {
             final response = await _apiService.createSpotifyPlaylist(request);
             
             if (response.success) {
-                // Playlist was successfully added to Spotify
-                // The draft is now marked as added to Spotify on the server
+                _isPlaylistAddedToSpotify = true;
                 return response.playlistUrl;
-            } else {
+            }
+			
+			else {
                 throw Exception(response.message);
             }
-        } finally {
+
+        }
+		
+		finally {
             _isAddingToSpotify = false;
             notifyListeners();
         }
@@ -311,6 +424,7 @@ class PlaylistProvider extends ChangeNotifier {
         }
 
         final sessionId = _authService.sessionId;
+
         if (sessionId == null) {
             throw Exception('Not authenticated');
         }
@@ -329,6 +443,8 @@ class PlaylistProvider extends ChangeNotifier {
         _currentPrompt = draft.prompt;
         _currentPlaylistId = draft.id;
         _refinementsUsed = draft.refinementsUsed;
+        _isPlaylistAddedToSpotify = draft.isAddedToSpotify;
+        _spotifyPlaylistInfo = null;
         _error = null;
 
         notifyListeners();
@@ -342,9 +458,24 @@ class PlaylistProvider extends ChangeNotifier {
         await _apiService.deleteDraftPlaylist(playlistId, _deviceId!);
     }
 
+    Future<void> deleteSpotifyPlaylist(String playlistId) async {
+        if (_deviceId == null) {
+            await _initializeDeviceId();
+        }
+
+        final sessionId = _authService.sessionId;
+
+        if (sessionId == null) {
+            throw Exception('Not authenticated');
+        }
+
+        await _apiService.deleteSpotifyPlaylist(playlistId, sessionId, _deviceId!);
+    }
+
     Future<void> loadSpotifyPlaylist(Map<String, dynamic> spotifyPlaylist) async {
         _isLoading = true;
         _error = null;
+
         notifyListeners();
 
         try {
@@ -353,20 +484,20 @@ class PlaylistProvider extends ChangeNotifier {
             }
 
             final sessionId = _authService.sessionId;
+
             if (sessionId == null) {
                 throw Exception('Not authenticated');
             }
 
-            // Get tracks from Spotify
             final spotifyTracks = await _apiService.getSpotifyPlaylistTracks(
                 spotifyPlaylist['id'], 
                 sessionId, 
                 _deviceId!
             );
 
-            // Convert Spotify tracks to Song objects
             final songs = spotifyTracks.map((track) {
                 final trackData = track['track'];
+
                 return Song(
                     title: trackData['name'] ?? 'Unknown',
                     artist: trackData['artists'] != null && trackData['artists'].length > 0
@@ -375,18 +506,24 @@ class PlaylistProvider extends ChangeNotifier {
                     album: trackData['album']?['name'] ?? 'Unknown',
                     spotifyId: trackData['id'],
                 );
+
             }).toList();
 
-            // Set the playlist data
             _currentPlaylist = songs;
             _currentPrompt = 'Refining Spotify playlist: ${spotifyPlaylist['name']}';
-            _currentPlaylistId = null; // This is a new draft from Spotify
+            _currentPlaylistId = null;
             _refinementsUsed = 0;
+            _isPlaylistAddedToSpotify = false;
+            _spotifyPlaylistInfo = null;
             _error = null;
 
-        } catch (e) {
+        }
+		
+		catch (e) {
             _error = e.toString();
-        } finally {
+        }
+		
+		finally {
             _isLoading = false;
             notifyListeners();
         }

@@ -37,14 +37,14 @@ class PlaylistRequest(BaseModel):
     user_context: Optional[UserContext] = None
     current_songs: Optional[List[Song]] = None
     count: Optional[int] = 30
-    playlist_id: Optional[str] = None  # For refinements of existing drafts
+    playlist_id: Optional[str] = None
 
 class PlaylistResponse(BaseModel):
     songs: List[Song]
     generated_from: str
     total_count: int
     is_refinement: Optional[bool] = False
-    playlist_id: Optional[str] = None  # New field for draft playlist ID
+    playlist_id: Optional[str] = None
 
 class RateLimitStatus(BaseModel):
     device_id: str
@@ -92,11 +92,11 @@ class PlaylistDraft(BaseModel):
     created_at: datetime
     updated_at: datetime
     refinements_used: int = 0
-    status: str = "draft"  # draft, added_to_spotify
+    status: str = "draft" # draft, added_to_spotify
     spotify_playlist_id: Optional[str] = None
 
 class SpotifyPlaylistRequest(BaseModel):
-    playlist_id: str  # Draft playlist ID
+    playlist_id: str
     device_id: str
     session_id: str
     name: str
@@ -109,6 +109,17 @@ class SpotifyPlaylistResponse(BaseModel):
     playlist_url: str
     message: str
 
+class SpotifyPlaylistInfo(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    tracks_count: int
+    refinements_used: int = 0
+    max_refinements: int = 3
+    can_refine: bool = True
+    spotify_url: Optional[str] = None
+    images: Optional[List[dict]] = []
+
 class LibraryPlaylistsRequest(BaseModel):
     device_id: str
     session_id: str
@@ -116,4 +127,4 @@ class LibraryPlaylistsRequest(BaseModel):
 
 class LibraryPlaylistsResponse(BaseModel):
     drafts: List[PlaylistDraft]
-    spotify_playlists: List[dict]  # Spotify playlists from user's library
+    spotify_playlists: List[SpotifyPlaylistInfo]

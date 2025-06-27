@@ -61,6 +61,7 @@ class PlaylistResponse {
         required this.songs,
         required this.generatedFrom,
         required this.totalCount,
+		
         this.isRefinement,
         this.confidenceScore,
         this.playlistId,
