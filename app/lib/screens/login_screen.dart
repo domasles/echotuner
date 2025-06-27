@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import '../models/auth_models.dart';
+import '../utils/app_logger.dart';
+import '../config/app_constants.dart';
 
 class LoginScreen extends StatefulWidget {
     const LoginScreen({super.key});
@@ -81,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 24),
                 Text(
-                    'EchoTuner',
+                    AppConstants.appName,
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
                         fontSize: 36,
                         fontWeight: FontWeight.bold,
@@ -248,8 +250,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 		
 		catch (e, stackTrace) {
-            debugPrint('Login error: $e');
-            debugPrint('Stack trace: $stackTrace');
+            AppLogger.error('Login error', error: e, stackTrace: stackTrace);
 
             String errorMessage = 'Failed to connect to Spotify. Please try again.';
 
@@ -287,8 +288,7 @@ class _LoginScreenState extends State<LoginScreen> {
 			
 			catch (e, stackTrace) {
                 if (mounted) {
-                    debugPrint('Browser auth error: $e');
-                    debugPrint('Stack trace: $stackTrace');
+                    AppLogger.error('Browser auth error', error: e, stackTrace: stackTrace);
                     
                     String errorMessage = 'Authentication failed or timed out.';
 

@@ -1,3 +1,5 @@
+![EchoTuner Logo](./EchoTunerLogo.svg)
+
 # EchoTuner - AI Powered Playlist Generation Platform
 
 EchoTuner is a production-ready platform that generates personalized music playlists using artificial intelligence and natural language processing. Built with strict dependency requirements, EchoTuner requires both Ollama AI models and Spotify Web API to deliver intelligent music recommendations with zero fallback mechanisms, ensuring consistent AI-driven results.
@@ -174,7 +176,7 @@ Service health and dependency status.
 ```json
 {
     "status": "healthy",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "services": {
         "prompt_validator": true,
         "playlist_generator": true,

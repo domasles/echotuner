@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 from pathlib import Path
 
+from config.app_constants import AppConstants
 from core.models import PlaylistDraft, Song
 from config.settings import settings
 
@@ -19,7 +20,7 @@ class PlaylistDraftService:
     """Service for managing playlist drafts and Spotify playlist integration."""
 
     def __init__(self):
-        self.db_path = Path(__file__).parent.parent / settings.DATABASE_FILENAME
+        self.db_path = Path(__file__).parent.parent / AppConstants.DATABASE_FILENAME
         self._initialized = False
         self._cleanup_task = None
 
@@ -60,8 +61,9 @@ class PlaylistDraftService:
                     )
                 ''')
 
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS echotuner_spotify_playlists (
+                # Create Spotify playlists table with proper string formatting
+                spotify_table_sql = f'''
+                    CREATE TABLE IF NOT EXISTS {AppConstants.SPOTIFY_PLAYLISTS_TABLE} (
                         spotify_playlist_id TEXT PRIMARY KEY,
                         user_id TEXT NOT NULL,
                         device_id TEXT NOT NULL,
@@ -73,22 +75,25 @@ class PlaylistDraftService:
                         updated_at TIMESTAMP NOT NULL,
                         FOREIGN KEY (original_draft_id) REFERENCES playlist_drafts (id)
                     )
-                ''')
+                '''
+                cursor.execute(spotify_table_sql)
 
                 try:
-                    cursor.execute('''
-                        ALTER TABLE echotuner_spotify_playlists 
+                    alter_refinements_sql = f'''
+                        ALTER TABLE {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
                         ADD COLUMN refinements_used INTEGER DEFAULT 0
-                    ''')
+                    '''
+                    cursor.execute(alter_refinements_sql)
 
                 except sqlite3.OperationalError:
                     pass
                 
                 try:
-                    cursor.execute('''
-                        ALTER TABLE echotuner_spotify_playlists 
+                    alter_updated_at_sql = f'''
+                        ALTER TABLE {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
                         ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    ''')
+                    '''
+                    cursor.execute(alter_updated_at_sql)
 
                 except sqlite3.OperationalError:
                     pass
@@ -103,15 +108,18 @@ class PlaylistDraftService:
                     ON playlist_drafts(status)
                 ''')
                 
-                cursor.execute('''
-                    CREATE INDEX IF NOT EXISTS idx_echotuner_spotify_playlists_user_id 
-                    ON echotuner_spotify_playlists(user_id)
-                ''')
+                # Create indexes
+                user_index_sql = f'''
+                    CREATE INDEX IF NOT EXISTS {AppConstants.SPOTIFY_PLAYLISTS_USER_INDEX} 
+                    ON {AppConstants.SPOTIFY_PLAYLISTS_TABLE}(user_id)
+                '''
+                cursor.execute(user_index_sql)
                 
-                cursor.execute('''
-                    CREATE INDEX IF NOT EXISTS idx_echotuner_spotify_playlists_device_id 
-                    ON echotuner_spotify_playlists(device_id)
-                ''')
+                device_index_sql = f'''
+                    CREATE INDEX IF NOT EXISTS {AppConstants.SPOTIFY_PLAYLISTS_DEVICE_INDEX} 
+                    ON {AppConstants.SPOTIFY_PLAYLISTS_TABLE}(device_id)
+                '''
+                cursor.execute(device_index_sql)
                 
                 cursor.execute('''
                     CREATE INDEX IF NOT EXISTS idx_playlist_drafts_created_at 
@@ -259,12 +267,13 @@ class PlaylistDraftService:
                     draft_row = cursor.fetchone()
                     refinements_used = draft_row[0] if draft_row else 0
                     
-                    cursor.execute('''
-                        INSERT OR REPLACE INTO echotuner_spotify_playlists 
+                    insert_playlist_sql = f'''
+                        INSERT OR REPLACE INTO {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
                         (spotify_playlist_id, user_id, device_id, session_id, original_draft_id, 
                          playlist_name, refinements_used, created_at, updated_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (spotify_playlist_id, user_id, device_id, session_id, playlist_id, playlist_name, refinements_used, datetime.now(), datetime.now()))
+                    '''
+                    cursor.execute(insert_playlist_sql, (spotify_playlist_id, user_id, device_id, session_id, playlist_id, playlist_name, refinements_used, datetime.now(), datetime.now()))
                 
                 conn.commit()
                 
@@ -287,12 +296,13 @@ class PlaylistDraftService:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 
-                cursor.execute('''
+                select_playlists_sql = f'''
                     SELECT spotify_playlist_id 
-                    FROM echotuner_spotify_playlists 
+                    FROM {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
                     WHERE user_id = ?
                     ORDER BY created_at DESC
-                ''', (user_id,))
+                '''
+                cursor.execute(select_playlists_sql, (user_id,))
                 
                 rows = cursor.fetchall()
                 
@@ -457,10 +467,11 @@ class PlaylistDraftService:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 
-                cursor.execute('''
-                    SELECT refinements_used FROM echotuner_spotify_playlists 
+                select_refinements_sql = f'''
+                    SELECT refinements_used FROM {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
                     WHERE spotify_playlist_id = ?
-                ''', (spotify_playlist_id,))
+                '''
+                cursor.execute(select_refinements_sql, (spotify_playlist_id,))
                 
                 row = cursor.fetchone()
                 return row[0] if row else 0
@@ -476,11 +487,12 @@ class PlaylistDraftService:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 
-                cursor.execute('''
-                    UPDATE echotuner_spotify_playlists 
+                update_refinements_sql = f'''
+                    UPDATE {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
                     SET refinements_used = ?, updated_at = ?
                     WHERE spotify_playlist_id = ?
-                ''', (refinements_used, datetime.now(), spotify_playlist_id))
+                '''
+                cursor.execute(update_refinements_sql, (refinements_used, datetime.now(), spotify_playlist_id))
                 
                 success = cursor.rowcount > 0
                 conn.commit()
@@ -498,10 +510,11 @@ class PlaylistDraftService:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 
-                cursor.execute('''
-                    DELETE FROM echotuner_spotify_playlists 
+                delete_playlist_sql = f'''
+                    DELETE FROM {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
                     WHERE spotify_playlist_id = ?
-                ''', (spotify_playlist_id,))
+                '''
+                cursor.execute(delete_playlist_sql, (spotify_playlist_id,))
                 
                 success = cursor.rowcount > 0
                 conn.commit()
@@ -544,11 +557,14 @@ class PlaylistDraftService:
 
     async def cleanup(self):
         """Clean up the service."""
-        
+
         if self._cleanup_task:
             self._cleanup_task.cancel()
+
             try:
                 await self._cleanup_task
+
             except asyncio.CancelledError:
                 pass
+
         logger.info("Playlist draft service cleaned up")

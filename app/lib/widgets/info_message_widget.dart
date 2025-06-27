@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/material.dart';
+
 import '../models/info_message.dart';
+import '../config/app_colors.dart';
 
 class InfoMessageWidget extends StatelessWidget {
   final InfoMessage message;
@@ -104,48 +106,48 @@ class InfoMessageWidget extends StatelessWidget {
     Color _getBackgroundColor() {
         switch (message.type) {
             case InfoMessageType.success:
-                return const Color(0xFF0D4A1F);
+                return AppColors.successBackground;
 
             case InfoMessageType.info:
-                return const Color(0xFF1A1625);
+                return AppColors.infoBackground;
 
             case InfoMessageType.warning:
-                return const Color(0xFF4A2D0D);
+                return AppColors.warningBackground;
 
             case InfoMessageType.error:
-                return const Color(0xFF4A0D0D);
+                return AppColors.errorBackground;
         }
     }
 
     Color _getBorderColor() {
         switch (message.type) {
             case InfoMessageType.success:
-                return Colors.green;
+                return AppColors.successIcon;
 
             case InfoMessageType.info:
-                return const Color(0xFF8B5CF6);
+                return AppColors.infoIcon;
 
             case InfoMessageType.warning:
-                return Colors.orange;
+                return AppColors.warningIcon;
 
             case InfoMessageType.error:
-                return Colors.red;
+                return AppColors.errorIcon;
         }
     }
 
     Color _getTextColor() {
         switch (message.type) {
             case InfoMessageType.success:
-                return Colors.green.shade100;
+                return AppColors.successTextBackground;
 
             case InfoMessageType.info:
-                return Colors.white;
+                return AppColors.infoTextBackground;
 
             case InfoMessageType.warning:
-                return Colors.orange.shade100;
+                return AppColors.warningTextBackground;
 
             case InfoMessageType.error:
-                return Colors.red.shade100;
+                return AppColors.errorTextBackground;
         }
     }
 
@@ -167,7 +169,7 @@ class InfoMessageWidget extends StatelessWidget {
 
             case InfoMessageType.warning:
                 return Icons.warning_outlined;
-                
+
             case InfoMessageType.error:
                 return Icons.error_outline;
         }

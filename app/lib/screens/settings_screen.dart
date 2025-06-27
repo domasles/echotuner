@@ -2,57 +2,9 @@ import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
-
-void _showCustomSnackbarStatic(BuildContext context, String message, {bool isError = false, bool isSuccess = false}) {
-    Color borderColor;
-    if (isSuccess) {
-        borderColor = Color(0xFF4CAF50);
-    }
-	
-	else if (isError) {
-        borderColor = Color(0xFFD32F2F);
-    }
-	
-	else {
-        borderColor = Color(0xFF666666);
-    }
-
-    final overlay = Overlay.of(context);
-    late OverlayEntry overlayEntry;
-    
-    overlayEntry = OverlayEntry(
-        builder: (context) => Positioned(
-            bottom: 16,
-            left: 16,
-            right: 16,
-
-            child: Material(
-                elevation: 0,
-                color: Colors.transparent,
-
-                child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                        color: Color(0xFF1A1625),
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(color: borderColor, width: 1),
-                    ),
-
-                    child: Text(
-                        message,
-                        style: TextStyle(color: Colors.white),
-                    ),
-                ),
-            ),
-        ),
-    );
-    
-    overlay.insert(overlayEntry);
-    
-    Future.delayed(Duration(seconds: 2), () {
-        overlayEntry.remove();
-    });
-}
+import '../services/message_service.dart';
+import '../config/app_constants.dart';
+import '../utils/app_logger.dart';
 
 class SettingsScreen extends StatelessWidget {
     const SettingsScreen({super.key});
@@ -107,8 +59,8 @@ class SettingsScreen extends StatelessWidget {
                     SectionHeader(title: 'About'),
                     SettingsTile(
                         icon: Icons.info,
-                        title: 'About EchoTuner',
-                        subtitle: 'Version 1.0.0',
+                        title: 'About ${AppConstants.appName}',
+                        subtitle: 'Version ${AppConstants.appVersion}',
                     ),
 
                     SettingsTile(
@@ -199,7 +151,9 @@ class SettingsScreen extends StatelessWidget {
                                 );
                                 
                             } catch (e) {
-                                _showCustomSnackbar(context, 'Logout failed: ${e.toString()}', isError: true);
+                                // Note: We can't use MessageService.showError here because 
+                                // the context might not be valid after navigation
+                                AppLogger.error('Logout failed: ${e.toString()}');
                             }
                         },
 						
@@ -211,56 +165,6 @@ class SettingsScreen extends StatelessWidget {
                 ],
             ),
         );
-    }
-
-    void _showCustomSnackbar(BuildContext context, String message, {bool isError = false, bool isSuccess = false}) {
-        Color borderColor;
-        if (isSuccess) {
-            borderColor = Color(0xFF4CAF50);
-        }
-		
-		else if (isError) {
-            borderColor = Color(0xFFD32F2F);
-        }
-		
-		else {
-            borderColor = Color(0xFF666666);
-        }
-
-        final overlay = Overlay.of(context);
-        late OverlayEntry overlayEntry;
-        
-        overlayEntry = OverlayEntry(
-            builder: (context) => Positioned(
-                bottom: 16,
-                left: 16,
-                right: 16,
-
-                child: Material(
-                    elevation: 0,
-                    color: Colors.transparent,
-                    child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                            color: Color(0xFF1A1625),
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(color: borderColor, width: 1),
-                        ),
-
-                        child: Text(
-                            message,
-                            style: TextStyle(color: Colors.white),
-                        ),
-                    ),
-                ),
-            ),
-        );
-        
-        overlay.insert(overlayEntry);
-        
-        Future.delayed(Duration(seconds: 2), () {
-            overlayEntry.remove();
-        });
     }
 }
 
@@ -321,7 +225,7 @@ class SettingsTile extends StatelessWidget {
                 ),
                     
                 onTap: onTap ?? () {
-                    _showCustomSnackbarStatic(context, 'Feature coming soon!');
+                    MessageService.showInfo(context, 'Feature coming soon!');
                 },
             ),
         );

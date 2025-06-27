@@ -11,13 +11,14 @@ from datetime import datetime, timedelta
 from spotipy.oauth2 import SpotifyOAuth
 from typing import Optional, Dict
 
+from config.app_constants import AppConstants
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 class AuthService:
     def __init__(self):
-        self.db_path = "echotuner.db"
+        self.db_path = AppConstants.DATABASE_FILENAME
         self.spotify_oauth = None
         self._initialize_spotify_oauth()
 

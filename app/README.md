@@ -1,3 +1,5 @@
+![EchoTuner Logo](../EchoTunerLogo.svg)
+
 # EchoTuner app - AI-Powered Music Discovery Application
 
 The EchoTuner application provides a user-friendly interface for AI-powered playlist generation and music discovery. Built with Flutter, it offers cross-platform compatibility and seamless integration with the EchoTuner API backend for intelligent music recommendations.
@@ -72,6 +74,7 @@ For complete Flutter installation instructions and required dependencies for bui
    ```bash
    cp .env.example .env
    ```
+   Don't forget to Configure Spotify API credentials in the generated `.env` file
 
 3. **Generate flutter project files:**
    ```bash
@@ -139,25 +142,6 @@ flutter test
 # Run integration tests
 flutter test integration_test/
 ```
-
-## Configuration
-
-### API Endpoint Configuration
-
-Configure the backend API endpoint in the app's configuration files:
-
-```dart
-// lib/config/api_config.dart
-class ApiConfig {
-  static const String baseUrl = 'http://localhost:8000';
-  static const String apiVersion = 'v1';
-}
-```
-
-### Platform-Specific Configuration
-
-**Android**: Configuration in `android/app/src/main/AndroidManifest.xml`
-**iOS**: Configuration in `ios/Runner/Info.plist`
 
 ## Dependencies
 

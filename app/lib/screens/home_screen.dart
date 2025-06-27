@@ -1,12 +1,13 @@
-import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
 
 import '../providers/playlist_provider.dart';
 import '../widgets/info_message_widget.dart';
+import '../config/app_constants.dart';
 
 import 'playlist_screen.dart';
-import 'library_screen.dart';
 import 'settings_screen.dart';
+import 'library_screen.dart';
 
 class HomeScreen extends StatefulWidget {
     const HomeScreen({super.key});
@@ -178,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
                 Text(
-                    'EchoTuner',
+                    AppConstants.appName,
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -368,7 +369,7 @@ class _HomeScreenState extends State<HomeScreen> {
             left: 16,
             right: 88,
             bottom: bottomPosition,
-			
+
             child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: infoMessages.map((message) {

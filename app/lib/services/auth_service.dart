@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:http/http.dart' as http;
 
+import '../config/app_constants.dart';
 import '../models/auth_models.dart';
 import '../config/app_config.dart';
 
@@ -257,7 +258,6 @@ class AuthService extends ChangeNotifier {
     }
 
     bool _isClientGeneratedId(String deviceId) {
-        // Check if this is an old client-generated device ID
         return deviceId.startsWith('android_') || 
                deviceId.startsWith('ios_') || 
                deviceId.startsWith('web_') || 
@@ -270,7 +270,7 @@ class AuthService extends ChangeNotifier {
             
             final request = DeviceRegistrationRequest(
                 platform: platform,
-                appVersion: '1.2.0',
+                appVersion: AppConstants.appVersion,
             );
 
             final response = await http.post(

@@ -6,9 +6,6 @@ Automated setup for EchoTuner API
 
 import subprocess
 import sys
-import os
-
-from pathlib import Path
 
 def run_command(command, description):
     """Run a command and handle errors"""

@@ -1,8 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../providers/playlist_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
+
 import '../models/playlist_draft_models.dart';
+import '../providers/playlist_provider.dart';
+import '../services/message_service.dart';
+
 import 'playlist_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -50,8 +53,8 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                 _isLoading = false;
             });
         }
-		
-		catch (e) {
+        
+        catch (e) {
             setState(() {
                 _error = e.toString();
                 _isLoading = false;
@@ -73,13 +76,12 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                 _loadLibrary();
             }
         }
-		
-		catch (e) {
+        
+        catch (e) {
             if (mounted) {
-                _showCustomSnackbar(
+                MessageService.showError(
                     context,
                     'Failed to load draft: $e',
-                    isError: true,
                 );
             }
         }
@@ -112,20 +114,21 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
         );
 
         if (confirmed == true) {
+            if (!mounted) return;
+            final provider = Provider.of<PlaylistProvider>(context, listen: false);
+            
             try {
-                final provider = Provider.of<PlaylistProvider>(context, listen: false);
                 await provider.deleteDraft(draft.id);
-
                 _loadLibrary();
-                
+
                 if (mounted) {
-                    _showCustomSnackbar(context, 'Draft deleted successfully');
+                    MessageService.showInfo(context, 'Draft deleted successfully');
                 }
             }
-			
-			catch (e) {
+            
+            catch (e) {
                 if (mounted) {
-                    _showCustomSnackbar(context, 'Failed to delete draft: $e', isError: true);
+                    MessageService.showError(context, 'Failed to delete draft: $e');
                 }
             }
         }
@@ -155,76 +158,24 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
         );
 
         if (confirmed == true) {
+            if (!mounted) return;
+            final provider = Provider.of<PlaylistProvider>(context, listen: false);
+
             try {
-                final provider = Provider.of<PlaylistProvider>(context, listen: false);
                 await provider.deleteSpotifyPlaylist(playlist.id);
-
                 _loadLibrary();
-                
+
                 if (mounted) {
-                    _showCustomSnackbar(context, 'Playlist deleted successfully');
+                    MessageService.showInfo(context, 'Playlist deleted successfully');
                 }
             }
-			
-			catch (e) {
+            
+            catch (e) {
                 if (mounted) {
-                    _showCustomSnackbar(context, 'Failed to delete playlist: $e', isError: true);
+                    MessageService.showError(context, 'Failed to delete playlist: $e');
                 }
             }
         }
-    }
-
-
-
-    void _showCustomSnackbar(BuildContext context, String message, {bool isError = false, bool isSuccess = false}) {
-        Color borderColor;
-        if (isSuccess) {
-            borderColor = Color(0xFF4CAF50);
-        }
-		
-		else if (isError) {
-            borderColor = Color(0xFFD32F2F);
-        }
-		
-		else {
-            borderColor = Color(0xFF666666);
-        }
-
-        final overlay = Overlay.of(context);
-        late OverlayEntry overlayEntry;
-        
-        overlayEntry = OverlayEntry(
-            builder: (context) => Positioned(
-                bottom: 16,
-                left: 16,
-                right: 16,
-
-                child: Material(
-                    elevation: 0,
-                    color: Colors.transparent,
-
-                    child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                            color: Color(0xFF1A1625),
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(color: borderColor, width: 1),
-                        ),
-
-                        child: Text(
-                            message,
-                            style: TextStyle(color: Colors.white),
-                        ),
-                    ),
-                ),
-            ),
-        );
-        
-        overlay.insert(overlayEntry);
-
-        Future.delayed(Duration(seconds: 2), () {
-            overlayEntry.remove();
-        });
     }
 
     @override
@@ -243,28 +194,28 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
             ),
 
             body: _isLoading ? const Center(child: CircularProgressIndicator()) : _error != null ? Center(
-				child: Column(
-					mainAxisAlignment: MainAxisAlignment.center,
-					children: [
-						const Icon(Icons.error, size: 64, color: Colors.red),
-						const SizedBox(height: 16),
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                        const Icon(Icons.error, size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
 
-						Text(
-							'Error: $_error',
-							textAlign: TextAlign.center,
-							style: const TextStyle(color: Colors.red),
-						),
+                        Text(
+                            'Error: $_error',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.red),
+                        ),
 
-						const SizedBox(height: 16),
-						FilledButton(
-							onPressed: _loadLibrary,
-							child: const Text('Retry'),
-						),
-					],
-				),
-			)
+                        const SizedBox(height: 16),
+                        FilledButton(
+                            onPressed: _loadLibrary,
+                            child: const Text('Retry'),
+                        ),
+                    ],
+                ),
+            )
 
-			: _buildLibraryContent(),
+            : _buildLibraryContent(),
         );
     }
 
@@ -368,7 +319,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                         ),
                     ],
                 ),
-				
+                
                 trailing: draft.isDraft 
                     ? PopupMenuButton<String>(
                         onSelected: (value) {
@@ -399,7 +350,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                     : IconButton(
                         icon: const Icon(Icons.open_in_new),
                         onPressed: () {
-                            // Open Spotify playlist if URL is available
+                            _openDraft(draft);
                         },
                     ),
 
@@ -478,7 +429,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                             icon: const Icon(Icons.open_in_new),
                             onPressed: () async {
                                 final url = playlist.spotifyUrl;
-								
+
                                 if (url != null && await canLaunchUrl(Uri.parse(url))) {
                                     await launchUrl(
                                         Uri.parse(url),

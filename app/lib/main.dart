@@ -3,10 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
 import 'providers/playlist_provider.dart';
-import 'services/api_service.dart';
 import 'services/auth_service.dart';
-import 'screens/home_screen.dart';
+import 'config/app_constants.dart';
 import 'screens/login_screen.dart';
+import 'services/api_service.dart';
+import 'screens/home_screen.dart';
 import 'config/app_config.dart';
 
 class _NoGlowScrollBehavior extends ScrollBehavior {
@@ -50,7 +51,7 @@ class EchoTunerApp extends StatelessWidget {
             ],
 
             child: MaterialApp(
-                title: 'EchoTuner',
+                title: AppConstants.appName,
                 debugShowCheckedModeBanner: false,
 
                 builder: (context, child) {

@@ -2,6 +2,7 @@ import hashlib
 import logging
 import sqlite3
 
+from config.app_constants import AppConstants
 from datetime import datetime, timedelta
 from core.models import RateLimitStatus
 from config.settings import settings
@@ -15,7 +16,7 @@ class RateLimiterService:
     """
     
     def __init__(self):
-        self.db_path = settings.DATABASE_FILENAME
+        self.db_path = AppConstants.DATABASE_FILENAME
         self.max_refinements = settings.MAX_REFINEMENTS_PER_PLAYLIST
 
         self.is_rate_limiting_enabled = settings.PLAYLIST_LIMIT_ENABLED

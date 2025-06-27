@@ -10,6 +10,7 @@ import '../services/api_service.dart';
 import '../models/info_message.dart';
 import '../models/user_context.dart';
 import '../models/song.dart';
+import '../utils/app_logger.dart';
 
 class PlaylistProvider extends ChangeNotifier {
     final ApiService _apiService;
@@ -157,8 +158,7 @@ class PlaylistProvider extends ChangeNotifier {
         }
         
         catch (e, stackTrace) {
-            debugPrint('Playlist generation error: $e');
-            debugPrint('Stack trace: $stackTrace');
+            AppLogger.error('Playlist generation error', error: e, stackTrace: stackTrace);
 
             if (e.toString().contains('timeout')) {
                 _error = 'Request timed out. Please try again.';
@@ -249,8 +249,7 @@ class PlaylistProvider extends ChangeNotifier {
         }
         
         catch (e, stackTrace) {
-            debugPrint('Playlist refinement error: $e');
-            debugPrint('Stack trace: $stackTrace');
+            AppLogger.error('Playlist refinement error', error: e, stackTrace: stackTrace);
             
             if (e.toString().contains('timeout')) {
                 _error = 'Refinement timed out. Please try again.';

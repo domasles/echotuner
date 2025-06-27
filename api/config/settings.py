@@ -19,8 +19,6 @@ class Settings:
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
-    DATABASE_FILENAME: str = os.getenv("DATABASE_FILENAME", "echotuner.db")
-
     USE_OLLAMA: bool = os.getenv("USE_OLLAMA", "true").lower() == "true"
     OLLAMA_TIMEOUT: int = int(os.getenv("OLLAMA_TIMEOUT", 30))
     OLLAMA_MODEL_PULL_TIMEOUT: int = int(os.getenv("OLLAMA_MODEL_PULL_TIMEOUT", 300))
@@ -55,14 +53,5 @@ class Settings:
     MAX_AUTH_ATTEMPTS_PER_IP: int = int(os.getenv("MAX_AUTH_ATTEMPTS_PER_IP", 10))
     AUTH_ATTEMPT_WINDOW_MINUTES: int = int(os.getenv("AUTH_ATTEMPT_WINDOW_MINUTES", 60))
     SECURE_HEADERS: bool = os.getenv("SECURE_HEADERS", "true").lower() == "true"
-
-    LOGGER_COLORS = {
-        'DEBUG': 'cyan',
-        'INFO': 'green',
-        'WARNING': 'yellow',
-        'ERROR': 'red',
-        'CRITICAL': 'bright_red',
-        "EchoTuner": 'magenta'
-    }
 
 settings = Settings()

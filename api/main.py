@@ -17,6 +17,7 @@ from core.models import (
     SpotifyPlaylistRequest, SpotifyPlaylistResponse, LibraryPlaylistsRequest, LibraryPlaylistsResponse, SpotifyPlaylistInfo
 )
 
+from config.app_constants import AppConstants
 from config.settings import settings
 
 from services.spotify_playlist_service import SpotifyPlaylistService
@@ -31,7 +32,7 @@ from services.data_loader import data_loader
 class CustomFormatter(logging.Formatter):
     def format(self, record):
         raw_level = record.levelname
-        color = settings.LOGGER_COLORS.get(raw_level, None)
+        color = AppConstants.LOGGER_COLORS.get(raw_level, None)
 
         colored_level = click.style(raw_level, fg=color) if color else raw_level
 
@@ -68,7 +69,7 @@ spotify_playlist_service = SpotifyPlaylistService()
 async def lifespan(app: FastAPI):
     """Handle startup and shutdown events"""
 
-    logger.info("Starting EchoTuner API...")
+    logger.info(f"Starting {AppConstants.APP_NAME} API...")
     
     try:
         init_tasks = [
@@ -92,7 +93,7 @@ async def lifespan(app: FastAPI):
         logger.info(f"Spotify Playlists: {'ENABLED' if spotify_playlist_service.is_ready() else 'DISABLED'}")
         
     except Exception as e:
-        logger.error(f"Failed to initialize EchoTuner API: {e}")
+        logger.error(f"Failed to initialize {AppConstants.APP_NAME} API: {e}")
         raise
     
     yield
@@ -116,9 +117,9 @@ async def preload_data_cache():
         logger.warning(f"Cache preloading failed (non-critical): {e}")
 
 app = FastAPI(
-    title="EchoTuner API",
+    title=AppConstants.API_TITLE,
     description="AI-powered playlist generation with real-time song search",
-    version="1.2.1",
+    version=AppConstants.API_VERSION,
     lifespan=lifespan
 )
 
@@ -147,7 +148,7 @@ async def add_security_headers(request, call_next):
 @app.get("/")
 async def root():
     return {
-        "message": "EchoTuner API",
+        "message": AppConstants.API_WELCOME_MESSAGE,
         "description": "AI-powered playlist generation with real-time song search",
         "endpoints": {
             "generate": "/generate-playlist",
@@ -182,8 +183,6 @@ async def auth_init(request: AuthInitRequest):
                     device_id=request.device_id,
                     platform=request.platform
                 )
-
-                logger.info(f"Auto-registered device: {request.device_id}")
 
             except Exception as e:
                 logger.error(f"Failed to auto-register device: {e}")
@@ -226,7 +225,7 @@ async def auth_callback(code: str = None, state: str = None, error: str = None):
 
     except Exception as e:
         logger.error(f"Auth callback failed: {e}")
-        html_content = template_service.render_template("auth_failed.html")
+        html_content = template_service.render_template("auth_error.html")
 
         return HTMLResponse(content=html_content)
 
@@ -290,7 +289,7 @@ async def health_check():
     if settings.DEBUG:
         return {
             "status": "healthy",
-            "version": "1.3.0", 
+            "version": AppConstants.API_VERSION, 
             "services": {
                 "prompt_validator": prompt_validator.is_ready(),
                 "playlist_generator": playlist_generator.is_ready(),
@@ -803,13 +802,13 @@ async def delete_spotify_playlist(playlist_id: str, session_id: str = None, devi
         
     except HTTPException:
         raise
-    
+
     except Exception as e:
         logger.error(f"Failed to delete Spotify playlist {playlist_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete Spotify playlist")
 
 if __name__ == "__main__":
-    logger.info("EchoTuner API - AI-Powered Playlist Generation")
+    logger.info(AppConstants.STARTUP_MESSAGE)
 
     uvicorn.run(
         "main:app",

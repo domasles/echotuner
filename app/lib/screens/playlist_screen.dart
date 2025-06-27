@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
 import '../providers/playlist_provider.dart';
+import '../services/message_service.dart';
+import '../utils/app_logger.dart';
+import '../config/app_colors.dart';
 
 class PlaylistScreen extends StatelessWidget {
     const PlaylistScreen({super.key});
@@ -19,9 +22,8 @@ class PlaylistScreen extends StatelessWidget {
             }
         }
 		
-		catch (e, stackTrace) {
-            debugPrint('Failed to launch Spotify URL: $e');
-            debugPrint('Stack trace: $stackTrace');
+        catch (e, stackTrace) {
+            AppLogger.error('Failed to launch Spotify URL', error: e, stackTrace: stackTrace);
         }
     }
 
@@ -32,10 +34,10 @@ class PlaylistScreen extends StatelessWidget {
             context: context,
             builder: (BuildContext dialogContext) {
                 return AlertDialog(
-                    backgroundColor: const Color(0xFF1A1625),
+                    backgroundColor: AppColors.surface,
                     title: const Text(
                         'Refine Your Playlist',
-                        style: TextStyle(color: Colors.white),
+                        style: TextStyle(color: AppColors.textPrimary),
                     ),
 
                     content: Column(
@@ -93,10 +95,10 @@ class PlaylistScreen extends StatelessWidget {
             context: context,
             builder: (BuildContext dialogContext) {
                 return AlertDialog(
-                    backgroundColor: const Color(0xFF1A1625),
+                    backgroundColor: AppColors.surface,
                     title: const Text(
                         'Add to Spotify',
-                        style: TextStyle(color: Colors.white),
+                        style: TextStyle(color: AppColors.textPrimary),
                     ),
 
                     content: Column(
@@ -148,14 +150,18 @@ class PlaylistScreen extends StatelessWidget {
 
                                         if (context.mounted) {
                                             Navigator.of(context).pop();
-                                            _showCustomSnackbar(context, isUpdate ? 'Playlist updated on Spotify successfully!' : 'Playlist added to Spotify successfully!', isSuccess: true);
+                                            MessageService.showSuccess(context, isUpdate 
+                                                ? 'Playlist updated on Spotify successfully!' 
+                                                : 'Playlist added to Spotify successfully!');
                                         }
                                     }
 									
 									catch (e) {
                                         if (context.mounted) {
                                             Navigator.of(context).pop();
-                                            _showCustomSnackbar(context, provider.isPlaylistAddedToSpotify ? 'Failed to update playlist: $e' : 'Failed to add playlist: $e', isError: true);
+                                            MessageService.showError(context, provider.isPlaylistAddedToSpotify 
+                                                ? 'Failed to update playlist: $e' 
+                                                : 'Failed to add playlist: $e');
                                         }
                                     }
                                 }
@@ -180,67 +186,16 @@ class PlaylistScreen extends StatelessWidget {
 
             if (context.mounted) {
                 Navigator.of(context).pop();
-                _showCustomSnackbar(context, 'Playlist updated on Spotify successfully!', isSuccess: true);
+                MessageService.showSuccess(context, 'Playlist updated on Spotify successfully!');
             }
         }
 		
 		catch (e) {
             if (context.mounted) {
                 Navigator.of(context).pop();
-                _showCustomSnackbar(context, 'Failed to update playlist: $e', isError: true);
+                MessageService.showError(context, 'Failed to update playlist: $e');
             }
         }
-    }
-
-    void _showCustomSnackbar(BuildContext context, String message, {bool isError = false, bool isSuccess = false}) {
-        Color borderColor;
-        if (isSuccess) {
-            borderColor = Color(0xFF4CAF50);
-        }
-		
-		else if (isError) {
-            borderColor = Color(0xFFD32F2F);
-        }
-		
-		else {
-            borderColor = Color(0xFF666666);
-        }
-
-        final overlay = Overlay.of(context);
-        late OverlayEntry overlayEntry;
-        
-        overlayEntry = OverlayEntry(
-            builder: (context) => Positioned(
-                bottom: 16,
-                left: 16,
-                right: 16,
-
-                child: Material(
-                    elevation: 0,
-                    color: Colors.transparent,
-
-                    child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                            color: Color(0xFF1A1625),
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(color: borderColor, width: 1),
-                        ),
-
-                        child: Text(
-                            message,
-                            style: TextStyle(color: Colors.white),
-                        ),
-                    ),
-                ),
-            ),
-        );
-        
-        overlay.insert(overlayEntry);
-        
-        Future.delayed(Duration(seconds: 2), () {
-            overlayEntry.remove();
-        });
     }
 
     @override
@@ -271,13 +226,13 @@ class PlaylistScreen extends StatelessWidget {
                             child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                    const Icon(Icons.error, size: 64, color: Colors.red),
+                                    const Icon(Icons.error, size: 64, color: AppColors.errorIcon),
                                     const SizedBox(height: 16),
 
                                     Text(
                                         'Error: ${provider.error}',
                                         textAlign: TextAlign.center,
-                                        style: const TextStyle(color: Colors.red),
+                                        style: const TextStyle(color: AppColors.errorIcon),
                                     ),
 
                                     const SizedBox(height: 16),
@@ -295,12 +250,12 @@ class PlaylistScreen extends StatelessWidget {
                             child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                    Icon(Icons.music_note, size: 64, color: Colors.grey),
+                                    Icon(Icons.music_note, size: 64, color: AppColors.grey),
                                     SizedBox(height: 16),
 
                                     Text(
                                         'No playlist generated yet',
-                                        style: TextStyle(color: Colors.grey),
+                                        style: TextStyle(color: AppColors.grey),
                                     ),
                                 ],
                             ),
@@ -328,11 +283,11 @@ class PlaylistScreen extends StatelessWidget {
                     margin: const EdgeInsets.all(16),
 
                     decoration: BoxDecoration(
-                        color: const Color(0xFF1A1625),
+                        color: AppColors.surface,
                         borderRadius: BorderRadius.circular(12),
 
                         border: Border.all(
-                            color: const Color(0xFF2A2A2A),  
+                            color: AppColors.surfaceVariant,  
                             width: 1,
                         ),
                     ),
@@ -343,7 +298,7 @@ class PlaylistScreen extends StatelessWidget {
                             const Text(
                                 'Generated for:',
                                 style: TextStyle(
-                                    color: Colors.white70,
+                                    color: AppColors.textSecondary,
                                     fontSize: 12,
                                 ),
                             ),
@@ -352,7 +307,7 @@ class PlaylistScreen extends StatelessWidget {
                             Text(
                                 provider.currentPrompt,
                                 style: const TextStyle(
-                                    color: Colors.white,
+                                    color: AppColors.textPrimary,
                                     fontWeight: FontWeight.bold,
                                 ),
                             ),
@@ -375,14 +330,14 @@ class PlaylistScreen extends StatelessWidget {
                                     title: Text(
                                         song.title,
                                         style: const TextStyle(
-                                            color: Colors.white,
+                                            color: AppColors.textPrimary,
                                             fontWeight: FontWeight.bold,
                                         ),
                                     ),
 
                                     subtitle: Text(
                                         song.artist,
-                                        style: const TextStyle(color: Colors.white70),
+                                        style: const TextStyle(color: AppColors.textSecondary),
                                     ),
 
                                     trailing: song.spotifyId != null ? IconButton(
@@ -407,7 +362,7 @@ class PlaylistScreen extends StatelessWidget {
 
         return BottomAppBar(
             height: 88,
-            color: const Color(0xFF0F0A1A),
+            color: AppColors.background,
 
             child: Padding(
                 padding: const EdgeInsets.all(4),
@@ -417,9 +372,9 @@ class PlaylistScreen extends StatelessWidget {
                             child: FilledButton(
                                 onPressed: provider.isAddingToSpotify ? null : () => _showAddToSpotifyDialog(context, provider),
                                 style: const ButtonStyle(
-                                    side: WidgetStatePropertyAll(BorderSide(color: Color(0xFF2A2A2A), width: 0.5)),
+                                    side: WidgetStatePropertyAll(BorderSide(color: AppColors.surfaceVariant, width: 0.5)),
                                     elevation: WidgetStatePropertyAll(0),
-                                    shadowColor: WidgetStatePropertyAll(Colors.transparent),
+                                    shadowColor: WidgetStatePropertyAll(AppColors.transparent),
                                     minimumSize: WidgetStatePropertyAll(Size.fromHeight(48)),
                                 ),
 
@@ -439,9 +394,9 @@ class PlaylistScreen extends StatelessWidget {
                             child: FilledButton(
                                 onPressed: () => _showRefineDialog(context, provider),
                                 style: const ButtonStyle(
-                                    side: WidgetStatePropertyAll(BorderSide(color: Color(0xFF2A2A2A), width: 0.5)),
+                                    side: WidgetStatePropertyAll(BorderSide(color: AppColors.surfaceVariant, width: 0.5)),
                                     elevation: WidgetStatePropertyAll(0),
-                                    shadowColor: WidgetStatePropertyAll(Colors.transparent),
+                                    shadowColor: WidgetStatePropertyAll(AppColors.transparent),
                                     minimumSize: WidgetStatePropertyAll(Size.fromHeight(48)),
                                 ),
 
@@ -474,25 +429,25 @@ class PlaylistScreen extends StatelessWidget {
         Color progressColor;
 
         if (progress <= 0.5) {
-            progressColor = Colors.blue;
+            progressColor = AppColors.progressBlue;
         }
 		
 		else if (progress <= 0.8) {
-            progressColor = Colors.orange;
+            progressColor = AppColors.progressOrange;
         }
 		
 		else {
-            progressColor = Colors.red;
+            progressColor = AppColors.progressRed;
         }
         
         return Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-                color: const Color(0xFF1A1625),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(12),
 
                 border: Border.all(
-                    color: const Color(0xFF2A2A2A), 
+                    color: AppColors.surfaceVariant, 
                     width: 1,
                 ),
             ),

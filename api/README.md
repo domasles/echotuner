@@ -1,3 +1,5 @@
+![EchoTuner Logo](../EchoTunerLogo.svg)
+
 # EchoTuner API - AI-Powered Playlist Generation Backend
 
 The EchoTuner API is a production-ready RESTful service that generates personalized music playlists using artificial intelligence and natural language processing. This backend service powers the EchoTuner platform with intelligent music recommendations through strict dependency requirements and zero-fallback architecture.
