@@ -26,9 +26,30 @@ class UserContext(BaseModel):
     age_range: Optional[str] = None
     favorite_genres: Optional[List[str]] = []
     favorite_artists: Optional[List[str]] = []
+    disliked_artists: Optional[List[str]] = []
     recent_listening_history: Optional[List[str]] = []
     music_discovery_preference: Optional[str] = "balanced"
     energy_preference: Optional[str] = "medium"
+    include_spotify_artists: Optional[bool] = True
+    
+    # Personality questions responses
+    happy_music_preference: Optional[str] = None
+    sad_music_preference: Optional[str] = None
+    workout_music_preference: Optional[str] = None
+    focus_music_preference: Optional[str] = None
+    relaxation_music_preference: Optional[str] = None
+    party_music_preference: Optional[str] = None
+    discovery_openness: Optional[str] = None
+    explicit_content_preference: Optional[str] = None
+    instrumental_preference: Optional[str] = None
+    decade_preference: Optional[List[str]] = []
+
+class SpotifyArtist(BaseModel):
+    id: str
+    name: str
+    image_url: Optional[str] = None
+    genres: Optional[List[str]] = []
+    popularity: Optional[int] = None
 
 class PlaylistRequest(BaseModel):
     prompt: str
@@ -116,6 +137,7 @@ class SpotifyPlaylistInfo(BaseModel):
     tracks_count: int
     refinements_used: int = 0
     max_refinements: int = 3
+    can_refine: bool = True
     spotify_url: Optional[str] = None
     images: Optional[List[dict]] = []
 
@@ -127,3 +149,28 @@ class LibraryPlaylistsRequest(BaseModel):
 class LibraryPlaylistsResponse(BaseModel):
     drafts: List[PlaylistDraft]
     spotify_playlists: List[SpotifyPlaylistInfo]
+
+class UserPersonalityRequest(BaseModel):
+    session_id: str
+    device_id: str
+    user_context: UserContext
+
+class UserPersonalityResponse(BaseModel):
+    success: bool
+    message: str
+
+class FollowedArtistsRequest(BaseModel):
+    session_id: str
+    device_id: str
+
+class FollowedArtistsResponse(BaseModel):
+    artists: List[SpotifyArtist]
+
+class ArtistSearchRequest(BaseModel):
+    session_id: str
+    device_id: str
+    query: str
+    limit: Optional[int] = 20
+
+class ArtistSearchResponse(BaseModel):
+    artists: List[SpotifyArtist]

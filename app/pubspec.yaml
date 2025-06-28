@@ -24,6 +24,10 @@ dependencies:
 
     flutter_svg: ^2.0.9
     cupertino_icons: ^1.0.6
+    
+    # Responsive design
+    flutter_screenutil: ^5.9.3
+    responsive_framework: ^1.4.0
 
 dev_dependencies:
     flutter_test:
@@ -62,6 +66,6 @@ flutter_launcher_icons:
         image_path: "assets/logos/EchoTunerLogo.png"
 
     image_path: "assets/logos/EchoTunerLogo.png"
-    
+
     adaptive_icon_background: "#000000"
     adaptive_icon_foreground: "assets/logos/EchoTunerLogo.png"

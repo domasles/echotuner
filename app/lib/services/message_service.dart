@@ -18,37 +18,61 @@ class MessageService {
         late OverlayEntry overlayEntry;
 
         overlayEntry = OverlayEntry(
-            builder: (context) => Positioned(
-                bottom: 102,
-                left: 16,
-                right: 16,
-
-                child: Material(
-                    elevation: 0,
+        builder: (context) => Stack(
+            children: [
+            Positioned(
+                bottom: 90,
+                left: 20,
+                right: 20,
+                child: IgnorePointer(
+                child: Center(
+                    child: Material(
                     color: Colors.transparent,
-
                     child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                            color: const Color(0xFF1A1625),
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(color: type.color, width: 1),
+                        color: const Color(0xFF1A1625),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: type.color, width: 1),
                         ),
-
-                        child: Text(
-                            message,
-                            style: const TextStyle(color: Colors.white),
-                        ),
+                        child: _FixedText(message),
+                    ),
                     ),
                 ),
+                ),
             ),
+            ],
+        ),
         );
 
         overlay.insert(overlayEntry);
 
         Future.delayed(const Duration(seconds: 2), () {
-            overlayEntry.remove();
+        overlayEntry.remove();
         });
+    }
+}
+
+class _FixedText extends StatelessWidget {
+    final String message;
+
+    const _FixedText(this.message);
+
+    @override
+    Widget build(BuildContext context) {
+        return MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.0)),
+        child: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Colors.white,
+            height: 1.2,
+            ),
+        ),
+        );
     }
 }
 

@@ -34,7 +34,7 @@ class AuthService:
                 client_id=settings.SPOTIFY_CLIENT_ID,
                 client_secret=settings.SPOTIFY_CLIENT_SECRET,
                 redirect_uri=settings.SPOTIFY_REDIRECT_URI,
-                scope="user-read-private user-read-email playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private",
+                scope="user-read-private user-read-email user-follow-read playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private",
                 show_dialog=True
             )
 

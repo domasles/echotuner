@@ -4,10 +4,51 @@ import 'dart:convert';
 import '../models/playlist_draft_models.dart';
 import '../models/rate_limit_models.dart';
 import '../models/playlist_request.dart';
+import '../models/app_config.dart';
 import '../config/settings.dart';
 
 class ApiService {
     final http.Client _client = http.Client();
+
+    /// Generic GET method
+    Future<Map<String, dynamic>> get(String endpoint, {Map<String, String>? headers}) async {
+        final response = await _client.get(
+            Uri.parse(AppConfig.apiUrl(endpoint)),
+            headers: headers,
+        );
+
+        if (response.statusCode == 200) {
+            return jsonDecode(response.body);
+        } else if (response.statusCode == 401) {
+            throw ApiException('Authentication required');
+        } else if (response.statusCode == 404) {
+            throw ApiException('Resource not found');
+        } else {
+            throw ApiException('Request failed with status ${response.statusCode}');
+        }
+    }
+
+    /// Generic POST method
+    Future<Map<String, dynamic>> post(String endpoint, {Map<String, dynamic>? body, Map<String, String>? headers}) async {
+        final defaultHeaders = {'Content-Type': 'application/json'};
+        final mergedHeaders = headers != null ? {...defaultHeaders, ...headers} : defaultHeaders;
+
+        final response = await _client.post(
+            Uri.parse(AppConfig.apiUrl(endpoint)),
+            headers: mergedHeaders,
+            body: body != null ? jsonEncode(body) : null,
+        );
+
+        if (response.statusCode == 200) {
+            return jsonDecode(response.body);
+        } else if (response.statusCode == 401) {
+            throw ApiException('Authentication required');
+        } else if (response.statusCode == 404) {
+            throw ApiException('Resource not found');
+        } else {
+            throw ApiException('Request failed with status ${response.statusCode}');
+        }
+    }
 
     Future<PlaylistResponse> generatePlaylist(PlaylistRequest request) async {
         final response = await _client.post(
@@ -113,6 +154,16 @@ class ApiService {
 
         catch (e) {
             return false;
+        }
+    }
+
+    Future<AppConfigData> getConfig() async {
+        final response = await _client.get(Uri.parse(AppConfig.apiUrl('/config')));
+        
+        if (response.statusCode == 200) {
+            return AppConfigData.fromJson(jsonDecode(response.body));
+        } else {
+            throw ApiException('Failed to get configuration');
         }
     }
 

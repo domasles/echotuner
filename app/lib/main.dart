@@ -1,9 +1,13 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:responsive_framework/responsive_framework.dart';
 
 import 'providers/playlist_provider.dart';
+import 'services/personality_service.dart';
 import 'services/auth_service.dart';
+import 'services/config_service.dart';
 import 'config/app_constants.dart';
 import 'screens/login_screen.dart';
 import 'services/api_service.dart';
@@ -42,6 +46,20 @@ class EchoTunerApp extends StatelessWidget {
                     create: (context) => ApiService(),
                 ),
 
+                Provider<ConfigService>(
+                    create: (context) => ConfigService(
+                        context.read<ApiService>(),
+                    ),
+                ),
+
+                Provider<PersonalityService>(
+                    create: (context) => PersonalityService(
+                        apiService: context.read<ApiService>(),
+                        authService: context.read<AuthService>(),
+                        configService: context.read<ConfigService>(),
+                    ),
+                ),
+
                 ChangeNotifierProvider<PlaylistProvider>(
                     create: (context) => PlaylistProvider(
                         apiService: context.read<ApiService>(),
@@ -50,16 +68,29 @@ class EchoTunerApp extends StatelessWidget {
                 ),
             ],
 
-            child: MaterialApp(
-                title: AppConstants.appName,
-                debugShowCheckedModeBanner: false,
-
+            child: ScreenUtilInit(
+                designSize: const Size(375, 812),
+                minTextAdapt: true,
+                splitScreenMode: true,
                 builder: (context, child) {
-                    return ScrollConfiguration(
-                        behavior: const _NoGlowScrollBehavior(),
-                        child: child!,
-                    );
-                },
+                    return MaterialApp(
+                        title: AppConstants.appName,
+                        debugShowCheckedModeBanner: false,
+
+                        builder: (context, child) {
+                            return ResponsiveBreakpoints.builder(
+                                child: ScrollConfiguration(
+                                    behavior: const _NoGlowScrollBehavior(),
+                                    child: child!,
+                                ),
+                                breakpoints: [
+                                    const Breakpoint(start: 0, end: 450, name: MOBILE),
+                                    const Breakpoint(start: 451, end: 800, name: TABLET),
+                                    const Breakpoint(start: 801, end: 1920, name: DESKTOP),
+                                    const Breakpoint(start: 1921, end: double.infinity, name: '4K'),
+                                ],
+                            );
+                        },
 
                 theme: ThemeData(
                     useMaterial3: true,
@@ -102,7 +133,7 @@ class EchoTunerApp extends StatelessWidget {
                         surfaceTintColor: const Color(0xFF8B5CF6),
 
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(AppConstants.cardRadius),
                             side: BorderSide(
                                 color: const Color(0xFF2A2A2A),
                                 width: 0.5,
@@ -134,7 +165,7 @@ class EchoTunerApp extends StatelessWidget {
 
                             shape: WidgetStateProperty.all(
                                 RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24),
+                                    borderRadius: BorderRadius.circular(AppConstants.buttonRadius),
                                 ),
                             ),
 
@@ -215,7 +246,7 @@ class EchoTunerApp extends StatelessWidget {
                         style: TextButton.styleFrom(
                             foregroundColor: const Color(0xFF8B5CF6),
                             disabledForegroundColor: Colors.white54,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.buttonRadius)),
                             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
 
                             textStyle: const TextStyle(
@@ -232,27 +263,27 @@ class EchoTunerApp extends StatelessWidget {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
 
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(AppConstants.inputRadius),
                             borderSide: const BorderSide(color: Color(0xFF2A2A2A), width: 1),
                         ),
 
                         enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(AppConstants.inputRadius),
                             borderSide: const BorderSide(color: Color(0xFF2A2A2A), width: 1),
                         ),
 
                         focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(AppConstants.inputRadius),
                             borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 2),
                         ),
 
                         errorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(AppConstants.inputRadius),
                             borderSide: const BorderSide(color: Colors.red, width: 1),
                         ),
 
                         focusedErrorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(AppConstants.inputRadius),
                             borderSide: const BorderSide(color: Colors.red, width: 2),
                         ),
 
@@ -286,7 +317,7 @@ class EchoTunerApp extends StatelessWidget {
                         brightness: Brightness.dark,
                         elevation: 0,
                         shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.chipRadius)),
                         side: const BorderSide(color: Color(0xFF8B5CF6), width: 1),
                     ),
 
@@ -318,7 +349,7 @@ class EchoTunerApp extends StatelessWidget {
                         backgroundColor: Color(0xFF1A1625),
                         surfaceTintColor: Colors.transparent,
                         elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(20))),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(AppConstants.dialogRadius))),
 
                         titleTextStyle: TextStyle(
                             color: Colors.white,
@@ -335,7 +366,7 @@ class EchoTunerApp extends StatelessWidget {
                     snackBarTheme: SnackBarThemeData(
                         backgroundColor: const Color(0xFF1A1625),
                         contentTextStyle: const TextStyle(color: Colors.white),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.messageRadius)),
                         behavior: SnackBarBehavior.fixed,
                         elevation: 0,
                         actionTextColor: const Color(0xFF8B5CF6),
@@ -391,7 +422,9 @@ class EchoTunerApp extends StatelessWidget {
                 ),
 
                 home: const AuthWrapper(),
-            ),
+            );
+        },
+    ),
         );
     }
 }

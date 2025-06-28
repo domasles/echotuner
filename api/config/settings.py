@@ -50,6 +50,11 @@ class Settings:
 
     CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "true").lower() == "true"
 
+    # Personality Configuration
+    MAX_FAVORITE_ARTISTS: int = int(os.getenv("MAX_FAVORITE_ARTISTS", 12))
+    MAX_DISLIKED_ARTISTS: int = int(os.getenv("MAX_DISLIKED_ARTISTS", 20))
+    MAX_FAVORITE_GENRES: int = int(os.getenv("MAX_FAVORITE_GENRES", 10))
+
     MAX_AUTH_ATTEMPTS_PER_IP: int = int(os.getenv("MAX_AUTH_ATTEMPTS_PER_IP", 10))
     AUTH_ATTEMPT_WINDOW_MINUTES: int = int(os.getenv("AUTH_ATTEMPT_WINDOW_MINUTES", 60))
     SECURE_HEADERS: bool = os.getenv("SECURE_HEADERS", "true").lower() == "true"

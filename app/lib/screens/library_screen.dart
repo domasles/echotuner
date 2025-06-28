@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/playlist_draft_models.dart';
 import '../providers/playlist_provider.dart';
 import '../services/message_service.dart';
+import '../utils/responsive_layout.dart';
 
 import 'playlist_screen.dart';
 
@@ -15,7 +16,7 @@ class LibraryScreen extends StatefulWidget {
     State<LibraryScreen> createState() => _LibraryScreenState();
 }
 
-class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMixin {
+class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
     List<PlaylistDraft> _drafts = [];
     List<SpotifyPlaylistInfo> _spotifyPlaylists = [];
 
@@ -28,13 +29,25 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
     void initState() {
         super.initState();
         _tabController = TabController(length: 2, vsync: this);
+        WidgetsBinding.instance.addObserver(this);
         _loadLibrary();
     }
 
     @override
     void dispose() {
+        WidgetsBinding.instance.removeObserver(this);
         _tabController.dispose();
         super.dispose();
+    }
+
+    @override
+    void didChangeAppLifecycleState(AppLifecycleState state) {
+        super.didChangeAppLifecycleState(state);
+        
+        // Refresh library when app resumes
+        if (state == AppLifecycleState.resumed) {
+            _loadLibrary();
+        }
     }
 
     Future<void> _loadLibrary() async {
@@ -178,42 +191,48 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
     @override
     Widget build(BuildContext context) {
-        return Scaffold(
-            appBar: AppBar(
-                title: const Text('Your Library'),
-                centerTitle: true,
+        return PopScope(
+            onPopInvokedWithResult: (didPop, result) {
+                // Refresh when this screen is about to be shown again
+                if (!didPop) _loadLibrary();
+            },
+            child: Scaffold(
+                appBar: AppBar(
+                    title: const Text('Your Library'),
+                    centerTitle: true,
 
-                actions: [
-                    IconButton(
-                        icon: const Icon(Icons.refresh),
-                        onPressed: _loadLibrary,
-                    ),
-                ],
-            ),
-
-            body: _isLoading ? const Center(child: CircularProgressIndicator()) : _error != null ? Center(
-                child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                        const Icon(Icons.error, size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-
-                        Text(
-                            'Error: $_error',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.red),
-                        ),
-
-                        const SizedBox(height: 16),
-                        FilledButton(
+                    actions: [
+                        IconButton(
+                            icon: const Icon(Icons.refresh),
                             onPressed: _loadLibrary,
-                            child: const Text('Retry'),
                         ),
                     ],
                 ),
-            )
 
-            : _buildLibraryContent(),
+                body: _isLoading ? const Center(child: CircularProgressIndicator()) : _error != null ? Center(
+                    child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                            const Icon(Icons.error, size: 64, color: Colors.red),
+                            const SizedBox(height: 16),
+
+                            Text(
+                                'Error: $_error',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.red),
+                            ),
+
+                            const SizedBox(height: 16),
+                            FilledButton(
+                                onPressed: _loadLibrary,
+                                child: const Text('Retry'),
+                            ),
+                        ],
+                    ),
+                )
+
+                : _buildLibraryContent(),
+            ),
         );
     }
 
@@ -267,7 +286,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
         }
 
         return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: ResponsiveLayout.getResponsivePadding(context),
             itemCount: _drafts.length,
 
             itemBuilder: (context, index) {
@@ -383,7 +402,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
         }
 
         return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: ResponsiveLayout.getResponsivePadding(context),
             itemCount: _spotifyPlaylists.length,
 
             itemBuilder: (context, index) {

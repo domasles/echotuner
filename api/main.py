@@ -5,7 +5,7 @@ import click
 import sys
 
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from contextlib import asynccontextmanager
@@ -14,7 +14,9 @@ from pathlib import Path
 from core.models import (
     PlaylistRequest, PlaylistResponse, RateLimitStatus, AuthInitRequest, AuthInitResponse, 
     SessionValidationRequest, SessionValidationResponse, DeviceRegistrationRequest, DeviceRegistrationResponse,
-    SpotifyPlaylistRequest, SpotifyPlaylistResponse, LibraryPlaylistsRequest, LibraryPlaylistsResponse, SpotifyPlaylistInfo
+    SpotifyPlaylistRequest, SpotifyPlaylistResponse, LibraryPlaylistsRequest, LibraryPlaylistsResponse, SpotifyPlaylistInfo,
+    UserPersonalityRequest, UserPersonalityResponse, FollowedArtistsRequest, FollowedArtistsResponse,
+    ArtistSearchRequest, ArtistSearchResponse
 )
 
 from config.app_constants import AppConstants
@@ -28,6 +30,7 @@ from services.template_service import template_service
 from services.rate_limiter import RateLimiterService
 from services.auth_service import AuthService
 from services.data_loader import data_loader
+from services.personality_service import PersonalityService
 
 class CustomFormatter(logging.Formatter):
     def format(self, record):
@@ -64,6 +67,7 @@ playlist_generator = PlaylistGeneratorService()
 auth_service = AuthService()
 playlist_draft_service = PlaylistDraftService()
 spotify_playlist_service = SpotifyPlaylistService()
+personality_service = PersonalityService()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -78,7 +82,8 @@ async def lifespan(app: FastAPI):
             playlist_generator.initialize(),
             auth_service.initialize(),
             playlist_draft_service.initialize(),
-            spotify_playlist_service.initialize()
+            spotify_playlist_service.initialize(),
+            personality_service.initialize()
         ]
 
         cache_task = asyncio.create_task(preload_data_cache())
@@ -307,6 +312,27 @@ async def health_check():
         logger.warning("API health check is disabled in production mode")
         raise HTTPException(status_code=403, detail="API health check is disabled in production mode")
 
+@app.get("/config")
+async def get_config():
+    """Get client configuration values"""
+    return {
+        "personality": {
+            "max_favorite_artists": settings.MAX_FAVORITE_ARTISTS,
+            "max_disliked_artists": settings.MAX_DISLIKED_ARTISTS,
+            "max_favorite_genres": settings.MAX_FAVORITE_GENRES,
+        },
+        "playlists": {
+            "max_songs_per_playlist": settings.MAX_SONGS_PER_PLAYLIST,
+            "max_playlists_per_day": settings.MAX_PLAYLISTS_PER_DAY,
+            "max_refinements_per_playlist": settings.MAX_REFINEMENTS_PER_PLAYLIST,
+        },
+        "features": {
+            "auth_required": settings.AUTH_REQUIRED,
+            "playlist_limit_enabled": settings.PLAYLIST_LIMIT_ENABLED,
+            "refinement_limit_enabled": settings.REFINEMENT_LIMIT_ENABLED,
+        }
+    }
+
 @app.post("/reload-config")
 async def reload_config():
     """Reload JSON configuration files without restarting the server"""
@@ -351,9 +377,33 @@ async def generate_playlist(request: PlaylistRequest):
                 detail="The prompt doesn't seem to be related to music or mood. Please try a different description."
             )
 
+        # Load user personality if not provided in request
+        user_context = request.user_context
+        if not user_context and request.session_id:
+            try:
+                user_context = await personality_service.get_user_personality(
+                    session_id=request.session_id,
+                    device_id=request.device_id
+                )
+            except Exception as e:
+                logger.warning(f"Failed to load user personality: {e}")
+
+        # Merge Spotify artists with custom artists if personality is available
+        if user_context and request.session_id:
+            try:
+                merged_artists = await personality_service.get_merged_favorite_artists(
+                    session_id=request.session_id,
+                    device_id=request.device_id,
+                    user_context=user_context
+                )
+                # Update user_context with merged artists
+                user_context.favorite_artists = merged_artists
+            except Exception as e:
+                logger.warning(f"Failed to merge favorite artists: {e}")
+
         songs = await playlist_generator.generate_playlist(
             prompt=request.prompt,
-            user_context=request.user_context,
+            user_context=user_context,
             count=request.count if settings.DEBUG else settings.MAX_SONGS_PER_PLAYLIST
         )
 
@@ -423,10 +473,34 @@ async def refine_playlist(request: PlaylistRequest):
                 detail="The refinement request doesn't seem to be music-related. Please try a different description."
             )
 
+        # Load user personality if not provided in request
+        user_context = request.user_context
+        if not user_context and request.session_id:
+            try:
+                user_context = await personality_service.get_user_personality(
+                    session_id=request.session_id,
+                    device_id=request.device_id
+                )
+            except Exception as e:
+                logger.warning(f"Failed to load user personality: {e}")
+
+        # Merge Spotify artists with custom artists if personality is available
+        if user_context and request.session_id:
+            try:
+                merged_artists = await personality_service.get_merged_favorite_artists(
+                    session_id=request.session_id,
+                    device_id=request.device_id,
+                    user_context=user_context
+                )
+                # Update user_context with merged artists
+                user_context.favorite_artists = merged_artists
+            except Exception as e:
+                logger.warning(f"Failed to merge favorite artists: {e}")
+
         songs = await playlist_generator.refine_playlist(
             original_songs=current_songs,
             refinement_prompt=request.prompt,
-            user_context=request.user_context,
+            user_context=user_context,
             count=request.count or 30
         )
 
@@ -651,17 +725,15 @@ async def get_library_playlists(request: LibraryPlaylistsRequest):
 
                         for playlist in all_playlists:
                             if playlist.get('id') in echotuner_playlist_ids:
-                                refinements_used = await playlist_draft_service.get_spotify_playlist_refinement_count(
-                                    playlist['id']
-                                )
-
+                                # Spotify playlists don't support refinement through our system
                                 spotify_playlist_info = SpotifyPlaylistInfo(
                                     id=playlist['id'],
                                     name=playlist.get('name', 'Unknown'),
                                     description=playlist.get('description'),
                                     tracks_count=playlist.get('tracks', {}).get('total', 0),
-                                    refinements_used=refinements_used,
-                                    max_refinements=settings.MAX_REFINEMENTS_PER_PLAYLIST,
+                                    refinements_used=0,
+                                    max_refinements=0,
+                                    can_refine=False,  # Spotify playlists can't be refined through our system
                                     spotify_url=playlist.get('external_urls', {}).get('spotify'),
                                     images=playlist.get('images', [])
                                 )
@@ -810,6 +882,91 @@ async def delete_spotify_playlist(playlist_id: str, session_id: str = None, devi
     except Exception as e:
         logger.error(f"Failed to delete Spotify playlist {playlist_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete Spotify playlist")
+
+# Personality Management Endpoints
+
+@app.post("/personality/save", response_model=UserPersonalityResponse)
+async def save_user_personality(request: UserPersonalityRequest):
+    """Save user personality preferences"""
+    try:
+        success = await personality_service.save_user_personality(
+            session_id=request.session_id,
+            device_id=request.device_id,
+            user_context=request.user_context
+        )
+        
+        if success:
+            return UserPersonalityResponse(success=True, message="Personality saved successfully")
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save personality")
+            
+    except Exception as e:
+        logger.error(f"Failed to save user personality: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save personality")
+
+@app.get("/personality/load")
+async def load_user_personality(request: Request):
+    """Load user personality preferences"""
+    try:
+        session_id = request.headers.get('session-id')
+        device_id = request.headers.get('device-id')
+        
+        if not session_id or not device_id:
+            raise HTTPException(status_code=422, detail="Missing session-id or device-id headers")
+        
+        user_context = await personality_service.get_user_personality(
+            session_id=session_id,
+            device_id=device_id
+        )
+        
+        if user_context:
+            return {"user_context": user_context.model_dump()}
+        else:
+            return {"user_context": None}
+            
+    except Exception as e:
+        logger.error(f"Failed to load user personality: {e}")
+        raise HTTPException(status_code=500, detail="Failed to load personality")
+
+@app.get("/user/followed-artists", response_model=FollowedArtistsResponse)
+async def get_followed_artists(request: Request, limit: int = 50):
+    """Get user's followed artists from Spotify"""
+    try:
+        session_id = request.headers.get('session-id')
+        device_id = request.headers.get('device-id')
+        
+        if not session_id or not device_id:
+            raise HTTPException(status_code=422, detail="Missing session-id or device-id headers")
+        
+        artists = await personality_service.get_followed_artists(
+            session_id=session_id,
+            device_id=device_id,
+            limit=limit
+        )
+        
+        return FollowedArtistsResponse(artists=artists)
+        
+    except Exception as e:
+        logger.warning(f"Failed to get followed artists: {e}")
+        # Return empty list instead of error - user can still use the app
+        return FollowedArtistsResponse(artists=[])
+
+@app.post("/user/search-artists", response_model=ArtistSearchResponse)
+async def search_artists(request: ArtistSearchRequest):
+    """Search for artists on Spotify"""
+    try:
+        artists = await personality_service.search_artists(
+            session_id=request.session_id,
+            device_id=request.device_id,
+            query=request.query,
+            limit=request.limit or 20
+        )
+        
+        return ArtistSearchResponse(artists=artists)
+        
+    except Exception as e:
+        logger.error(f"Failed to search artists: {e}")
+        raise HTTPException(status_code=500, detail="Failed to search artists")
 
 if __name__ == "__main__":
     logger.info(AppConstants.STARTUP_MESSAGE)

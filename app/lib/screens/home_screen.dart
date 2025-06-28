@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import '../providers/playlist_provider.dart';
 import '../widgets/info_message_widget.dart';
 import '../config/app_constants.dart';
+import '../utils/responsive_layout.dart';
 
 import 'playlist_screen.dart';
 import 'settings_screen.dart';
 import 'library_screen.dart';
+import 'personality_screen.dart';
 
 class HomeScreen extends StatefulWidget {
     const HomeScreen({super.key});
@@ -21,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     int _selectedIndex = 0;
     bool _hasText = false;
+    Key _libraryKey = UniqueKey(); // Key to force library rebuild
 
     final List<String> _quickPrompts = [
         "I'm feeling happy and energetic",
@@ -40,6 +43,16 @@ class _HomeScreenState extends State<HomeScreen> {
     void initState() {
         super.initState();
         _promptController.addListener(_onTextChanged);
+        
+        // Refresh daily playlist limit when visiting home screen
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+            _refreshDailyLimit();
+        });
+    }
+
+    void _refreshDailyLimit() async {
+        final playlistProvider = context.read<PlaylistProvider>();
+        await playlistProvider.refreshRateLimitStatus();
     }
 
     void _onTextChanged() {
@@ -85,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 return _buildHomeScreen();
 
             case 1:
-                return _buildSearchScreen();
+                return _buildPersonalityScreen();
 
             case 2:
                 return _buildLibraryScreen();
@@ -105,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Expanded(
                                     child: SingleChildScrollView(
                                         child: Padding(
-                                            padding: const EdgeInsets.all(24.0),
+                                            padding: ResponsiveLayout.getResponsivePadding(context),
                                             child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
@@ -133,45 +146,12 @@ class _HomeScreenState extends State<HomeScreen> {
         );
     }
 
-    Widget _buildSearchScreen() {
-        return const Center(
-            child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                        Icon(
-                            Icons.search_rounded,
-                            size: 64,
-                            color: Color(0xFF8B5CF6),
-                        ),
-
-                        SizedBox(height: 16),
-                        Text(
-                            'Search',
-                            style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                            ),
-                        ),
-
-                        SizedBox(height: 8),
-                        Text(
-                            'Feature coming soon!',
-                            style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.white70,
-                            ),
-                        ),
-                    ],
-                ),
-            ),
-        );
+    Widget _buildPersonalityScreen() {
+        return const PersonalityScreen();
     }
 
     Widget _buildLibraryScreen() {
-        return const LibraryScreen();
+        return LibraryScreen(key: _libraryKey);
     }
 
     Widget _buildHeader() {
@@ -304,7 +284,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
             child: Container(
                 height: 56,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: EdgeInsets.symmetric(
+                    horizontal: ResponsiveLayout.getResponsiveSpacing(context, SpacingSize.medium), 
+                    vertical: ResponsiveLayout.getResponsiveSpacing(context, SpacingSize.small)
+                ),
 
                 decoration: BoxDecoration(
                     color: const Color(0xFF1A1625),
@@ -443,6 +426,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 setState(() {
                     _selectedIndex = index;
                 });
+                
+                // Refresh daily limit when visiting home screen
+                if (index == 0) {
+                    _refreshDailyLimit();
+                }
+                
+                // Refresh library when visiting library screen
+                if (index == 2) {
+                    setState(() {
+                        _libraryKey = UniqueKey(); // Force library rebuild
+                    });
+                }
             },
 
             items: const [
@@ -452,8 +447,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
 
                 BottomNavigationBarItem(
-                    icon: Icon(Icons.search_rounded),
-                    label: 'Search',
+                    icon: Icon(Icons.psychology_rounded),
+                    label: 'Personality',
                 ),
             
                 BottomNavigationBarItem(

@@ -50,8 +50,8 @@ class SpotifySearchService:
             raise
 
         except Exception as e:
-            logger.error(f"Spotify initialization failed: {e}")
-            raise RuntimeError(f"Spotify initialization failed: {e}")
+            logger.error(f"Failed to initialize Spotify Search Service: {e}")
+            raise RuntimeError(f"Spotify Search Service initialization failed: {e}")
 
     def is_ready(self) -> bool:
         """Check if the service is ready"""
@@ -215,3 +215,37 @@ class SpotifySearchService:
             selected.extend(remaining[:variety_count])
 
         return selected
+
+    async def get_followed_artists(self, access_token: str, limit: int = 50) -> List[dict]:
+        """Get user's followed artists using access token"""
+        try:
+            # Create authenticated Spotify client
+            spotify_user = spotipy.Spotify(auth=access_token)
+            
+            # Get followed artists
+            results = spotify_user.current_user_followed_artists(limit=limit)
+            artists = results.get('artists', {}).get('items', [])
+            
+            logger.info(f"Retrieved {len(artists)} followed artists")
+            return artists
+            
+        except Exception as e:
+            logger.error(f"Failed to get followed artists: {e}")
+            return []
+
+    async def search_artists(self, access_token: str, query: str, limit: int = 20) -> List[dict]:
+        """Search for artists using access token"""
+        try:
+            # Create authenticated Spotify client  
+            spotify_user = spotipy.Spotify(auth=access_token)
+            
+            # Search for artists
+            results = spotify_user.search(q=query, type='artist', limit=limit)
+            artists = results.get('artists', {}).get('items', [])
+            
+            logger.info(f"Found {len(artists)} artists for query: {query}")
+            return artists
+            
+        except Exception as e:
+            logger.error(f"Failed to search artists: {e}")
+            return []

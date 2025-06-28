@@ -116,7 +116,7 @@ class PlaylistProvider extends ChangeNotifier {
         _deviceId = await DeviceService.getDeviceId();
     }
 
-    void updateUserContext(UserContext context) {
+    void updateUserContext(UserContext? context) {
         _userContext = context;
         notifyListeners();
     }
@@ -317,6 +317,11 @@ class PlaylistProvider extends ChangeNotifier {
                 error: e,
             );
         }
+    }
+
+    /// Public method to refresh rate limit status (for daily limit refresh)
+    Future<void> refreshRateLimitStatus() async {
+        await _loadRateLimitStatus();
     }
 
     Future<String> addToSpotify({required String playlistName, String? description}) async {
