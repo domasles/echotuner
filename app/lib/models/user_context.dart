@@ -6,7 +6,7 @@ part 'user_context.g.dart';
 class UserContext {
     @JsonKey(name: 'age_range')
     final String? ageRange;
-    
+
     @JsonKey(name: 'favorite_genres')
     final List<String>? favoriteGenres;
 

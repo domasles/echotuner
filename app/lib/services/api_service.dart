@@ -1,11 +1,10 @@
-import 'dart:convert';
-
 import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 import '../models/playlist_draft_models.dart';
 import '../models/rate_limit_models.dart';
 import '../models/playlist_request.dart';
-import '../config/app_config.dart';
+import '../config/settings.dart';
 
 class ApiService {
     final http.Client _client = http.Client();
@@ -13,7 +12,7 @@ class ApiService {
     Future<PlaylistResponse> generatePlaylist(PlaylistRequest request) async {
         final response = await _client.post(
             Uri.parse(AppConfig.apiUrl('/generate-playlist')),
-            
+
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -24,16 +23,16 @@ class ApiService {
         if (response.statusCode == 200) {
             return PlaylistResponse.fromJson(jsonDecode(response.body));
         }
-        
+
         else if (response.statusCode == 429) {
             throw ApiException('Daily limit reached. Try again tomorrow.');
         }
-        
+
         else if (response.statusCode == 400) {
             final error = jsonDecode(response.body);
             throw ApiException(error['detail'] ?? 'Invalid request');
         }
-        
+
         else {
             throw ApiException('Failed to generate playlist. Please try again.');
         }
@@ -42,7 +41,7 @@ class ApiService {
     Future<PlaylistResponse> refinePlaylist(PlaylistRequest request) async {
         final response = await _client.post(
             Uri.parse(AppConfig.apiUrl('/refine-playlist')),
-            
+
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -53,16 +52,16 @@ class ApiService {
         if (response.statusCode == 200) {
             return PlaylistResponse.fromJson(jsonDecode(response.body));
         }
-        
+
         else if (response.statusCode == 429) {
             throw ApiException('Maximum refinements reached for this playlist.');
         }
-        
+
         else if (response.statusCode == 400) {
             final error = jsonDecode(response.body);
             throw ApiException(error['detail'] ?? 'Invalid refinement request');
         }
-        
+
         else {
             throw ApiException('Failed to refine playlist. Please try again.');
         }
@@ -76,7 +75,7 @@ class ApiService {
         if (response.statusCode == 200) {
             return RateLimitStatus.fromJson(jsonDecode(response.body));
         }
-        
+
         else {
             throw ApiException('Failed to get rate limit status');
         }
@@ -96,11 +95,11 @@ class ApiService {
         if (response.statusCode == 200) {
             return RateLimitStatus.fromJson(jsonDecode(response.body));
         }
-        
+
         else if (response.statusCode == 401) {
             throw ApiException('Authentication required');
         }
-        
+
         else {
             throw ApiException('Failed to get rate limit status');
         }
@@ -111,7 +110,7 @@ class ApiService {
             final response = await _client.get(Uri.parse(AppConfig.apiUrl('/health'))).timeout(const Duration(seconds: 5));
             return response.statusCode == 200;
         }
-        
+
         catch (e) {
             return false;
         }
@@ -240,18 +239,18 @@ class ApiService {
         if (response.statusCode == 200) {
             return PlaylistResponse.fromJson(jsonDecode(response.body));
         }
-		
-		else if (response.statusCode == 429) {
+
+        else if (response.statusCode == 429) {
             final error = jsonDecode(response.body);
             throw ApiException(error['detail'] ?? 'Refinement limit reached for this playlist.');
         }
-		
-		else if (response.statusCode == 400) {
+
+        else if (response.statusCode == 400) {
             final error = jsonDecode(response.body);
             throw ApiException(error['detail'] ?? 'Invalid refinement request');
         }
-		
-		else {
+
+        else {
             throw ApiException('Failed to refine Spotify playlist. Please try again.');
         }
     }
@@ -264,7 +263,7 @@ class ApiService {
 class ApiException implements Exception {
     final String message;
     ApiException(this.message);
-    
+
     @override
     String toString() => message;
 }

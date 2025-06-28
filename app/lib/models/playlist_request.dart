@@ -28,7 +28,7 @@ class PlaylistRequest {
         required this.prompt,
         required this.deviceId,
         required this.sessionId,
-		
+
         this.userContext,
         this.currentSongs,
         this.playlistId,
@@ -50,7 +50,7 @@ class PlaylistResponse {
 
     @JsonKey(name: 'is_refinement')
     final bool? isRefinement;
-    
+
     @JsonKey(name: 'confidence_score')
     final double? confidenceScore;
 
@@ -61,7 +61,7 @@ class PlaylistResponse {
         required this.songs,
         required this.generatedFrom,
         required this.totalCount,
-		
+
         this.isRefinement,
         this.confidenceScore,
         this.playlistId,

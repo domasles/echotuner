@@ -1,8 +1,8 @@
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
-import '../services/auth_service.dart';
 import '../services/message_service.dart';
+import '../services/auth_service.dart';
 import '../config/app_constants.dart';
 import '../utils/app_logger.dart';
 
@@ -81,7 +81,7 @@ class SettingsScreen extends StatelessWidget {
                             if (!authService.isAuthenticated) {
                                 return const SizedBox.shrink();
                             }
-                            
+
                             return Container(
                                 margin: const EdgeInsets.symmetric(horizontal: 16),
                                 child: ElevatedButton(
@@ -139,24 +139,22 @@ class SettingsScreen extends StatelessWidget {
                     TextButton(
                         onPressed: () async {
                             final navigator = Navigator.of(context);
-                            
                             navigator.pop();
-                            
+
                             try {
                                 await authService.logout();
-                                
+
                                 navigator.pushNamedAndRemoveUntil(
                                     '/', 
                                     (route) => false,
                                 );
-                                
-                            } catch (e) {
-                                // Note: We can't use MessageService.showError here because 
-                                // the context might not be valid after navigation
+                            }
+
+                            catch (e) {
                                 AppLogger.error('Logout failed: ${e.toString()}');
                             }
                         },
-						
+
                         child: const Text(
                             'Logout',
                             style: TextStyle(color: Colors.red),
@@ -178,7 +176,7 @@ class SectionHeader extends StatelessWidget {
             padding: const EdgeInsets.only(left: 16, bottom: 8, top: 8),
             child: Text(
                 title,
-				style: const TextStyle(
+                style: const TextStyle(
                     color: Color(0xFF8B5CF6),
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -193,7 +191,7 @@ class SettingsTile extends StatelessWidget {
     final String title;
     final String subtitle;
     final VoidCallback? onTap;
-    
+
     const SettingsTile({super.key, required this.icon, required this.title, required this.subtitle, this.onTap});
 
     @override
@@ -201,7 +199,7 @@ class SettingsTile extends StatelessWidget {
         return Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: ListTile(
-				leading: Icon(
+                leading: Icon(
                     icon,
                     color: const Color(0xFF8B5CF6),
                 ),
@@ -223,7 +221,7 @@ class SettingsTile extends StatelessWidget {
                     Icons.chevron_right,
                     color: Colors.white54,
                 ),
-                    
+
                 onTap: onTap ?? () {
                     MessageService.showInfo(context, 'Feature coming soon!');
                 },

@@ -5,7 +5,7 @@ import '../config/app_constants.dart';
 
 class AppLogger {
     static const String _appName = AppConstants.appName;
-    
+
     static void debug(String message, {String? name, Object? error, StackTrace? stackTrace}) {
         if (kDebugMode) {
             developer.log(

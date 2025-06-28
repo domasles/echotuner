@@ -38,7 +38,7 @@ class AuthInitResponse {
 class SessionValidationRequest {
     @JsonKey(name: 'session_id')
     final String sessionId;
-	
+
     @JsonKey(name: 'device_id')
     final String deviceId;
 
@@ -63,7 +63,7 @@ class SessionValidationResponse {
 
     SessionValidationResponse({
         required this.valid,
-		
+        
         this.userId,
         this.spotifyUserId,
     });
@@ -97,7 +97,7 @@ class DeviceRegistrationRequest {
 class DeviceRegistrationResponse {
     @JsonKey(name: 'device_id')
     final String deviceId;
-	
+
     @JsonKey(name: 'registration_timestamp')
     final int registrationTimestamp;
 

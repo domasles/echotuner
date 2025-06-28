@@ -83,7 +83,7 @@ For complete Flutter installation instructions and required dependencies for bui
 
 4. **Generate model files:**
    ```bash
-   dart run build_runner build
+   dart run flutter_launcher_icons build_runner build
    ```
 
 5. **Run the app:**

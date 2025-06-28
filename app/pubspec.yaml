@@ -16,7 +16,7 @@ dependencies:
 
     shared_preferences: ^2.5.3
     device_info_plus: ^11.5.0
-    
+
     url_launcher: ^6.2.1
     json_annotation: ^4.8.1
     flutter_dotenv: ^5.1.0
@@ -28,13 +28,40 @@ dependencies:
 dev_dependencies:
     flutter_test:
         sdk: flutter
-    
+
     flutter_lints: ^6.0.0
     json_serializable: ^6.9.5
     build_runner: ^2.4.7
+    flutter_launcher_icons: ^0.14.4
 
 flutter:
     uses-material-design: true
-    
+
     assets:
         - .env
+
+        - assets/logos/EchoTunerLogo.png
+        - assets/logos/SpotifyLogo.png
+
+flutter_launcher_icons:
+    android: true
+    ios: true
+    remove_alpha_ios: true
+
+    windows:
+        generate: true
+        image_path: "assets/logos/EchoTunerLogo.png"
+        icon_size: 256
+
+    macos:
+        generate: true
+        image_path: "assets/logos/EchoTunerLogo.png"
+
+    web:
+        generate: true
+        image_path: "assets/logos/EchoTunerLogo.png"
+
+    image_path: "assets/logos/EchoTunerLogo.png"
+    
+    adaptive_icon_background: "#000000"
+    adaptive_icon_foreground: "assets/logos/EchoTunerLogo.png"

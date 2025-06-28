@@ -29,7 +29,7 @@ class Settings:
 
     PROMPT_VALIDATION_THRESHOLD: float = float(os.getenv("PROMPT_VALIDATION_THRESHOLD", 0.6))
     PROMPT_VALIDATION_TIMEOUT: int = int(os.getenv("PROMPT_VALIDATION_TIMEOUT", 30))
-    
+
     SPOTIFY_CLIENT_ID: Optional[str] = os.getenv("SPOTIFY_CLIENT_ID")
     SPOTIFY_CLIENT_SECRET: Optional[str] = os.getenv("SPOTIFY_CLIENT_SECRET")
     SPOTIFY_REDIRECT_URI: str = os.getenv("SPOTIFY_REDIRECT_URI", f"http://{API_HOST}:{API_PORT}/auth/callback")

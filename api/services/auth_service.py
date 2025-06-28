@@ -24,7 +24,7 @@ class AuthService:
 
     def _initialize_spotify_oauth(self):
         """Initialize Spotify OAuth configuration"""
-        
+
         try:
             if not all([settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET, settings.SPOTIFY_REDIRECT_URI]):
                 logger.warning("Spotify OAuth credentials not configured")
@@ -100,7 +100,7 @@ class AuthService:
 
         state = secrets.token_urlsafe(32)
         auth_url = self.spotify_oauth.get_authorize_url(state=state)
-        
+
         return auth_url, state
 
     async def store_auth_state(self, state: str, device_id: str, platform: str):
@@ -108,7 +108,7 @@ class AuthService:
 
         try:
             expires_at = int((datetime.now() + timedelta(minutes=10)).timestamp())
-            
+
             async with aiosqlite.connect(self.db_path) as db:
                 await db.execute("""
                     INSERT OR REPLACE INTO auth_states 
@@ -132,15 +132,15 @@ class AuthService:
                     WHERE state = ? AND expires_at > ?
                 """, (state, int(datetime.now().timestamp()))) as cursor:
                     row = await cursor.fetchone()
-                    
+
                     if row:
                         await db.execute("DELETE FROM auth_states WHERE state = ?", (state,))
                         await db.commit()
-                        
+
                         return {"device_id": row[0], "platform": row[1]}
-                    
+
             return None
-        
+
         except Exception as e:
             logger.error(f"Failed to validate auth state: {e}")
             return None
@@ -167,7 +167,7 @@ class AuthService:
             spotify = spotipy.Spotify(auth=token_info['access_token'])
             user_info = spotify.current_user()
             session_id = str(uuid.uuid4())
-            
+
             await self.create_session(
                 session_id=session_id,
                 device_id=device_info['device_id'],
@@ -190,7 +190,7 @@ class AuthService:
 
         try:
             now = int(datetime.now().timestamp())
-            
+
             async with aiosqlite.connect(self.db_path) as db:
                 await db.execute("""
                     INSERT OR REPLACE INTO auth_sessions 
@@ -198,7 +198,7 @@ class AuthService:
                      refresh_token, expires_at, created_at, last_used_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (session_id, device_id, platform, spotify_user_id, access_token, refresh_token, expires_at, now, now))
-                
+
                 await db.commit()
 
         except Exception as e:
@@ -210,26 +210,25 @@ class AuthService:
 
         try:
             async with aiosqlite.connect(self.db_path) as db:
-                async with db.execute(
-                    "SELECT device_id, expires_at FROM auth_sessions WHERE session_id = ?", (session_id,)) as cursor:
+                async with db.execute("SELECT device_id, expires_at FROM auth_sessions WHERE session_id = ?", (session_id,)) as cursor:
                     row = await cursor.fetchone()
-                    
+
                     if not row:
                         return False
-                    
+
                     stored_device_id, expires_at = row
 
                     if stored_device_id != device_id:
                         return False
-                    
+
                     if datetime.now().timestamp() > expires_at:
                         await db.execute("DELETE FROM auth_sessions WHERE session_id = ?", (session_id,))
                         await db.commit()
-                        
+
                         return False
-                    
+
                     return True
-                    
+
         except Exception as e:
             logger.error(f"Session validation error: {e}")
             return False
@@ -239,18 +238,18 @@ class AuthService:
 
         try:
             async with aiosqlite.connect(self.db_path) as db:
-                async with db.execute(
-                    """SELECT session_id, expires_at FROM auth_sessions 
-                       WHERE device_id = ? AND expires_at > ? 
-                       ORDER BY created_at DESC LIMIT 1
-                    """, (device_id, datetime.now().timestamp())) as cursor:
+                async with db.execute("""
+                    SELECT session_id, expires_at FROM auth_sessions 
+                    WHERE device_id = ? AND expires_at > ? 
+                    ORDER BY created_at DESC LIMIT 1
+                """, (device_id, datetime.now().timestamp())) as cursor:
                     row = await cursor.fetchone()
-                    
+
                     if row:
                         return row[0]
-                    
+
                     return None
-                    
+
         except Exception as e:
             logger.error(f"Get session by device error: {e}")
             return None
@@ -268,10 +267,10 @@ class AuthService:
 
     async def cleanup_expired_sessions(self):
         """Clean up expired sessions and states"""
-        
+
         try:
             now = int(datetime.now().timestamp())
-            
+
             async with aiosqlite.connect(self.db_path) as db:
                 await db.execute("DELETE FROM auth_sessions WHERE expires_at < ?", (now,))
                 await db.execute("DELETE FROM auth_states WHERE expires_at < ?", (now,))
@@ -282,7 +281,7 @@ class AuthService:
 
     def is_ready(self) -> bool:
         """Check if auth service is ready for use"""
-        
+
         return self.spotify_oauth is not None and all([settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET, settings.SPOTIFY_REDIRECT_URI])
 
     async def register_device(self, platform: str, app_version: Optional[str] = None, device_fingerprint: Optional[str] = None) -> tuple[str, int]:
@@ -291,19 +290,19 @@ class AuthService:
         try:
             device_id = str(uuid.uuid4())
             registration_timestamp = int(datetime.now().timestamp())
-            
+
             async with aiosqlite.connect(self.db_path) as db:
                 await db.execute("""
                     INSERT INTO device_registry 
                     (device_id, platform, app_version, device_fingerprint, registration_timestamp, last_seen_timestamp, is_active)
                     VALUES (?, ?, ?, ?, ?, ?, 1)
                 """, (device_id, platform, app_version, device_fingerprint, registration_timestamp, registration_timestamp))
-                
+
                 await db.commit()
-                
+
                 logger.info(f"Registered new device: {device_id} on {platform}")
                 return device_id, registration_timestamp
-                
+
         except Exception as e:
             logger.error(f"Failed to register device: {e}")
             raise Exception("Device registration failed")
@@ -313,19 +312,19 @@ class AuthService:
 
         try:
             registration_timestamp = int(datetime.now().timestamp())
-            
+
             async with aiosqlite.connect(self.db_path) as db:
                 await db.execute("""
                     INSERT INTO device_registry 
                     (device_id, platform, app_version, device_fingerprint, registration_timestamp, last_seen_timestamp, is_active)
                     VALUES (?, ?, ?, ?, ?, ?, 1)
                 """, (device_id, platform, app_version, device_fingerprint, registration_timestamp, registration_timestamp))
-                
+
                 await db.commit()
-                
+
                 logger.info(f"Auto-registered device: {device_id} on {platform}")
                 return registration_timestamp
-                
+
         except Exception as e:
             logger.error(f"Failed to register device with ID: {e}")
             raise Exception("Device registration failed")
@@ -337,13 +336,13 @@ class AuthService:
             async with aiosqlite.connect(self.db_path) as db:
                 async with db.execute("SELECT is_active, platform FROM device_registry WHERE device_id = ?", (device_id,)) as cursor:
                     row = await cursor.fetchone()
-                    
+
                     if not row:
                         logger.warning(f"Unknown device ID: {device_id}")
                         return False
-                    
+
                     is_active, platform = row
-                    
+
                     if not is_active:
                         logger.warning(f"Inactive device ID: {device_id}")
                         return False
@@ -351,9 +350,9 @@ class AuthService:
                     if update_last_seen:
                         await db.execute("UPDATE device_registry SET last_seen_timestamp = ? WHERE device_id = ?", (int(datetime.now().timestamp()), device_id))
                         await db.commit()
-                    
+
                     return True
-                    
+
         except Exception as e:
             logger.error(f"Device validation failed: {e}")
             return False
@@ -363,13 +362,12 @@ class AuthService:
 
         try:
             async with aiosqlite.connect(self.db_path) as db:
-                async with db.execute(
-                    "SELECT device_id, expires_at, spotify_user_id FROM auth_sessions WHERE session_id = ?", (session_id,)) as cursor:
+                async with db.execute("SELECT device_id, expires_at, spotify_user_id FROM auth_sessions WHERE session_id = ?", (session_id,)) as cursor:
                     row = await cursor.fetchone()
-                    
+
                     if not row:
                         return None
-                    
+
                     stored_device_id, expires_at, spotify_user_id = row
 
                     if datetime.now().timestamp() > expires_at:
@@ -382,35 +380,35 @@ class AuthService:
                             "SELECT 1 FROM auth_sessions WHERE device_id = ? AND spotify_user_id = ?", 
                             (device_id, spotify_user_id)) as device_cursor:
                             device_row = await device_cursor.fetchone()
-                            
+
                             if not device_row:
                                 return None
 
                     await db.execute("UPDATE auth_sessions SET last_used_at = ? WHERE session_id = ?", (int(datetime.now().timestamp()), session_id))
                     await db.commit()
-                    
+
                     return {
                         "spotify_user_id": spotify_user_id,
                         "device_id": device_id
                     }
-                    
+
         except Exception as e:
             logger.error(f"Session validation error: {e}")
             return None
 
     async def get_access_token(self, session_id: str) -> Optional[str]:
         """Get access token for a session."""
-        
+
         try:
             async with aiosqlite.connect(self.db_path) as db:
                 async with db.execute("SELECT access_token, expires_at, refresh_token FROM auth_sessions WHERE session_id = ?", (session_id,)) as cursor:
                     row = await cursor.fetchone()
-                    
+
                     if not row:
                         return None
-                    
+
                     access_token, expires_at, refresh_token = row
-                    
+
                     if datetime.now().timestamp() > expires_at:
                         if refresh_token and self.spotify_oauth:
                             try:
@@ -422,14 +420,16 @@ class AuthService:
                                 await db.commit()
                                 
                                 return new_access_token
+
                             except Exception as e:
                                 logger.error(f"Failed to refresh token: {e}")
                                 return None
+
                         else:
                             return None
-                    
+
                     return access_token
-                    
+
         except Exception as e:
             logger.error(f"Failed to get access token: {e}")
             return None
@@ -441,17 +441,17 @@ class AuthService:
             async with aiosqlite.connect(self.db_path) as db:
                 async with db.execute("SELECT spotify_user_id, device_id FROM auth_sessions WHERE session_id = ?", (session_id,)) as cursor:
                     row = await cursor.fetchone()
-                    
+
                     if not row:
                         return None
-                    
+
                     spotify_user_id, device_id = row
-                    
+
                     return {
                         'spotify_user_id': spotify_user_id,
                         'device_id': device_id
                     }
-                    
+
         except Exception as e:
             logger.error(f"Failed to get user from session: {e}")
             return None

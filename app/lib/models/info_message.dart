@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 class InfoMessage {
     final String id;
     final String message;
+
     final InfoMessageType type;
+
     final DateTime timestamp;
     final Duration? duration;
+    
     final String? actionLabel;
     final VoidCallback? onAction;
     final String? actionUrl;
@@ -14,7 +17,9 @@ class InfoMessage {
         required this.id,
         required this.message,
         required this.type,
+
         DateTime? timestamp,
+
         this.duration = const Duration(seconds: 5),
         this.actionLabel,
         this.onAction,

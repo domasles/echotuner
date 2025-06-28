@@ -51,7 +51,7 @@ class Song {
 
         final minutes = (durationMs! / 60000).floor();
         final seconds = ((durationMs! / 1000) % 60).floor();
-        
+
         return '$minutes:${seconds.toString().padLeft(2, '0')}';
     }
 }

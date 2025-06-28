@@ -15,7 +15,7 @@ import '../utils/app_logger.dart';
 class PlaylistProvider extends ChangeNotifier {
     final ApiService _apiService;
     final AuthService _authService;
-    
+
     List<Song> _currentPlaylist = [];
     String _currentPrompt = '';
     String? _currentPlaylistId;
@@ -51,6 +51,7 @@ class PlaylistProvider extends ChangeNotifier {
         
         return _refinementsUsed;
     }
+
     RateLimitStatus? get rateLimitStatus => _rateLimitStatus;
 
     bool get canRefine {
@@ -64,13 +65,13 @@ class PlaylistProvider extends ChangeNotifier {
 
         return true;
     }
-    
+
     bool get showRefinementLimits => _rateLimitStatus?.refinementLimitEnabled ?? false;
     bool get showPlaylistLimits => _rateLimitStatus?.playlistLimitEnabled ?? false;
     bool get isPlaylistAddedToSpotify => _isPlaylistAddedToSpotify;
 
     SpotifyPlaylistInfo? get spotifyPlaylistInfo => _spotifyPlaylistInfo;
-    
+
     bool get isLoading => _isLoading;
     bool get isAddingToSpotify => _isAddingToSpotify;
 
@@ -78,7 +79,7 @@ class PlaylistProvider extends ChangeNotifier {
     String? get error => _error;
 
     List<InfoMessage> get infoMessages => _infoMessages.where((msg) => !msg.isExpired).toList();
-    
+
     void addInfoMessage(String message, InfoMessageType type, {String? actionLabel, VoidCallback? onAction, String? actionUrl, Duration? duration}) {
         final infoMessage = InfoMessage(
             id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -89,7 +90,7 @@ class PlaylistProvider extends ChangeNotifier {
             actionUrl: actionUrl,
             duration: duration,
         );
-        
+
         _infoMessages.add(infoMessage);
         notifyListeners();
 
@@ -100,12 +101,12 @@ class PlaylistProvider extends ChangeNotifier {
             });
         }
     }
-    
+
     void removeInfoMessage(String id) {
         _infoMessages.removeWhere((msg) => msg.id == id);
         notifyListeners();
     }
-    
+
     void clearInfoMessages() {
         _infoMessages.clear();
         notifyListeners();
@@ -148,37 +149,37 @@ class PlaylistProvider extends ChangeNotifier {
             );
 
             final response = await _apiService.generatePlaylist(request);
-            
+
             _currentPlaylist = response.songs;
             _currentPrompt = prompt;
             _currentPlaylistId = response.playlistId;
             _error = null;
-            
+
             _loadRateLimitStatus();
         }
-        
+
         catch (e, stackTrace) {
             AppLogger.error('Playlist generation error', error: e, stackTrace: stackTrace);
 
             if (e.toString().contains('timeout')) {
                 _error = 'Request timed out. Please try again.';
             }
-			
-			else if (e.toString().contains('network')) {
+
+            else if (e.toString().contains('network')) {
                 _error = 'Network error. Please check your connection.';
             }
-			
-			else if (e.toString().contains('authentication')) {
+
+            else if (e.toString().contains('authentication')) {
                 _error = 'Authentication error. Please log in again.';
             }
-			
-			else {
+
+            else {
                 _error = 'Failed to generate playlist. Please try again.';
             }
-            
+
             _currentPlaylist = [];
         }
-        
+
         finally {
             _isLoading = false;
             notifyListeners();
@@ -221,10 +222,9 @@ class PlaylistProvider extends ChangeNotifier {
                     spotifyUrl: _spotifyPlaylistInfo!.spotifyUrl,
                     images: _spotifyPlaylistInfo!.images,
                 );
-
             }
-			
-			else {
+
+            else {
                 final request = PlaylistRequest(
                     prompt: refinementPrompt,
                     deviceId: _deviceId!,
@@ -236,34 +236,34 @@ class PlaylistProvider extends ChangeNotifier {
 
                 response = await _apiService.refinePlaylist(request);
             }
-            
+
             _currentPlaylist = response.songs;
 
             if (!_isPlaylistAddedToSpotify || _spotifyPlaylistInfo == null) {
                 _currentPlaylistId = response.playlistId;
                 _refinementsUsed++;
             }
-            
+
             _error = null;
             _loadRateLimitStatus();
         }
-        
+
         catch (e, stackTrace) {
             AppLogger.error('Playlist refinement error', error: e, stackTrace: stackTrace);
-            
+
             if (e.toString().contains('timeout')) {
                 _error = 'Refinement timed out. Please try again.';
             }
-			
-			else if (e.toString().contains('authentication')) {
+
+            else if (e.toString().contains('authentication')) {
                 _error = 'Authentication error. Please log in again.';
             }
-			
-			else {
+
+            else {
                 _error = 'Failed to refine playlist. Please try again.';
             }
         }
-        
+
         finally {
             _isLoading = false;
             notifyListeners();
@@ -309,8 +309,8 @@ class PlaylistProvider extends ChangeNotifier {
             _rateLimitStatus = await getRateLimitStatus();
             notifyListeners();
         }
-		
-		catch (e) {
+
+        catch (e) {
             developer.log(
                 'Failed to load rate limit status: $e',
                 name: 'PlaylistProvider._loadRateLimitStatus',
@@ -351,6 +351,7 @@ class PlaylistProvider extends ChangeNotifier {
         }
 
         final sessionId = _authService.sessionId;
+
         if (sessionId == null) {
             throw Exception('Not authenticated');
         }
@@ -369,19 +370,18 @@ class PlaylistProvider extends ChangeNotifier {
             );
 
             final response = await _apiService.createSpotifyPlaylist(request);
-            
+
             if (response.success) {
                 _isPlaylistAddedToSpotify = true;
                 return response.playlistUrl;
             }
-			
-			else {
+
+            else {
                 throw Exception(response.message);
             }
-
         }
-		
-		finally {
+
+        finally {
             _isAddingToSpotify = false;
             notifyListeners();
         }
@@ -399,20 +399,20 @@ class PlaylistProvider extends ChangeNotifier {
                     _deviceId!
                 );
             }
-			
-			catch (e, stackTrace) {
+
+            catch (e, stackTrace) {
                 developer.log(
                     'Authenticated rate limit check failed, falling back: $e',
                     name: 'PlaylistProvider.getRateLimitStatus',
                     error: e,
                     stackTrace: stackTrace,
                 );
-				
+
                 return await _apiService.getRateLimitStatus(_deviceId!);
             }
         }
-		
-		else {
+
+        else {
             return await _apiService.getRateLimitStatus(_deviceId!);
         }
     }
@@ -499,9 +499,7 @@ class PlaylistProvider extends ChangeNotifier {
 
                 return Song(
                     title: trackData['name'] ?? 'Unknown',
-                    artist: trackData['artists'] != null && trackData['artists'].length > 0
-                        ? trackData['artists'][0]['name'] ?? 'Unknown'
-                        : 'Unknown',
+                    artist: trackData['artists'] != null && trackData['artists'].length > 0 ? trackData['artists'][0]['name'] ?? 'Unknown' : 'Unknown',
                     album: trackData['album']?['name'] ?? 'Unknown',
                     spotifyId: trackData['id'],
                 );
@@ -515,14 +513,13 @@ class PlaylistProvider extends ChangeNotifier {
             _isPlaylistAddedToSpotify = false;
             _spotifyPlaylistInfo = null;
             _error = null;
-
         }
-		
-		catch (e) {
+
+        catch (e) {
             _error = e.toString();
         }
-		
-		finally {
+
+        finally {
             _isLoading = false;
             notifyListeners();
         }

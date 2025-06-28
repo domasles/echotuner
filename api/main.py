@@ -91,28 +91,29 @@ async def lifespan(app: FastAPI):
         logger.info(f"Auth Service: {'ENABLED' if auth_service.is_ready() else 'DISABLED'}")
         logger.info(f"Playlist Drafts: {'ENABLED' if playlist_draft_service.is_ready() else 'DISABLED'}")
         logger.info(f"Spotify Playlists: {'ENABLED' if spotify_playlist_service.is_ready() else 'DISABLED'}")
-        
+
     except Exception as e:
         logger.error(f"Failed to initialize {AppConstants.APP_NAME} API: {e}")
         raise
-    
+
     yield
 
 async def preload_data_cache():
     """Pre-load frequently used data in background"""
+
     try:
         loop = asyncio.get_event_loop()
-        
+
         preload_tasks = [
             loop.run_in_executor(None, data_loader.get_mood_patterns),
             loop.run_in_executor(None, data_loader.get_genre_patterns),
             loop.run_in_executor(None, data_loader.get_activity_patterns),
             loop.run_in_executor(None, data_loader.get_energy_trigger_words),
         ]
-        
+
         await asyncio.gather(*preload_tasks, return_exceptions=True)
         logger.info("Data cache preloaded successfully!")
-        
+
     except Exception as e:
         logger.warning(f"Cache preloading failed (non-critical): {e}")
 
@@ -135,14 +136,14 @@ app.add_middleware(
 @app.middleware("http")
 async def add_security_headers(request, call_next):
     response = await call_next(request)
-    
+
     if settings.SECURE_HEADERS:
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
-    
+
     return response
 
 @app.get("/")
@@ -170,7 +171,7 @@ async def auth_init(request: AuthInitRequest):
 
     try:
         logger.info(f"Auth init request: device_id={request.device_id}, platform={request.platform}")
-        
+
         if not auth_service.is_ready():
             logger.error("Auth service not ready")
             raise HTTPException(status_code=503, detail="Authentication service not available")
@@ -187,13 +188,13 @@ async def auth_init(request: AuthInitRequest):
             except Exception as e:
                 logger.error(f"Failed to auto-register device: {e}")
                 raise HTTPException(status_code=500, detail="Failed to register device")
-        
+
         auth_url, state = auth_service.generate_auth_url(request.device_id, request.platform)
         await auth_service.store_auth_state(state, request.device_id, request.platform)
-        
+
         logger.info(f"Generated auth URL for device {request.device_id}")
         return AuthInitResponse(auth_url=auth_url, state=state)
-        
+
     except Exception as e:
         logger.error(f"Auth init failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to initialize authentication")
@@ -208,18 +209,18 @@ async def auth_callback(code: str = None, state: str = None, error: str = None):
             html_content = template_service.render_template("auth_error.html", error=error)
 
             return HTMLResponse(content=html_content)
-        
+
         if not code or not state:
             raise HTTPException(status_code=400, detail="Missing authorization code or state")
-        
+
         session_id = await auth_service.handle_spotify_callback(code, state)
-        
+
         if not session_id:
             raise HTTPException(status_code=400, detail="Failed to create session")
 
         html_content = template_service.render_template("auth_success.html", session_id=session_id)
         return HTMLResponse(content=html_content)
-        
+
     except HTTPException:
         raise
 
@@ -239,7 +240,7 @@ async def validate_session(request: SessionValidationRequest):
         logger.info(f"Session validation result: {is_valid}")
 
         return SessionValidationResponse(valid=is_valid)
-        
+
     except Exception as e:
         logger.error(f"Session validation failed: {e}")
         raise HTTPException(status_code=500, detail="Session validation failed")
@@ -251,14 +252,14 @@ async def check_session(device_id: str):
     try:
         logger.info(f"Checking session for device: {device_id}")
         session_id = await auth_service.get_session_by_device(device_id)
-        
+
         if session_id:
             logger.info(f"Found session for device {device_id}")
             return {"session_id": session_id}
-        
+
         else:
             return {"session_id": None}
-            
+
     except Exception as e:
         logger.error(f"Check session failed: {e}")
         return {"session_id": None}
@@ -271,15 +272,15 @@ async def require_auth(request: PlaylistRequest):
 
     if not await auth_service.validate_device(request.device_id):
         raise HTTPException(status_code=403, detail="Invalid device ID. Please register device first.")
-        
+
     if not hasattr(request, 'session_id') or not request.session_id:
         raise HTTPException(status_code=401, detail="Authentication required")
-    
+
     user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
 
     if not user_info:
         raise HTTPException(status_code=401, detail="Invalid or expired session")
-    
+
     return user_info
 
 @app.get("/health")
@@ -301,7 +302,7 @@ async def health_check():
                 "rate_limiting": settings.PLAYLIST_LIMIT_ENABLED
             }
         }
-    
+
     else:
         logger.warning("API health check is disabled in production mode")
         raise HTTPException(status_code=403, detail="API health check is disabled in production mode")
@@ -319,11 +320,11 @@ async def reload_config():
                 "message": "Configuration reloaded successfully",
                 "status": "success"
             }
-        
+
         except Exception as e:
             logger.error(f"Failed to reload configuration: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to reload configuration: {str(e)}")
-        
+
     else:
         logger.warning("Configuration reload is disabled in production mode")
         raise HTTPException(status_code=403, detail="Configuration reload is disabled in production mode")
@@ -366,7 +367,7 @@ async def generate_playlist(request: PlaylistRequest):
 
         if settings.PLAYLIST_LIMIT_ENABLED:
             await rate_limiter.record_request(rate_limit_key)
-        
+
         return PlaylistResponse(
             songs=songs,
             generated_from=request.prompt,
@@ -374,7 +375,7 @@ async def generate_playlist(request: PlaylistRequest):
             is_refinement=False,
             playlist_id=playlist_id
         )
-        
+
     except HTTPException:
         raise
 
@@ -403,7 +404,7 @@ async def refine_playlist(request: PlaylistRequest):
                         status_code=429,
                         detail=f"Maximum of {settings.MAX_REFINEMENTS_PER_PLAYLIST} AI refinements reached for this playlist."
                     )
-                
+
             else:
                 logger.warning(f"Draft playlist {playlist_id} not found, using provided songs")
 
@@ -447,7 +448,7 @@ async def refine_playlist(request: PlaylistRequest):
 
         if settings.REFINEMENT_LIMIT_ENABLED:
             await rate_limiter.record_refinement(rate_limit_key)
-        
+
         return PlaylistResponse(
             songs=songs,
             generated_from=request.prompt,
@@ -455,7 +456,7 @@ async def refine_playlist(request: PlaylistRequest):
             is_refinement=True,
             playlist_id=playlist_id
         )
-        
+
     except HTTPException:
         raise
 
@@ -480,17 +481,17 @@ async def get_authenticated_rate_limit_status(request: SessionValidationRequest)
 
     try:
         user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
-        
+
         if not user_info:
             raise HTTPException(status_code=401, detail="Invalid or expired session")
 
         rate_limit_key = user_info["spotify_user_id"]
-        
+
         return await rate_limiter.get_status(rate_limit_key)
 
     except HTTPException:
         raise
-    
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error checking rate limit: {str(e)}")
 
@@ -500,24 +501,24 @@ async def register_device(request: DeviceRegistrationRequest):
 
     try:
         logger.info(f"Device registration request: platform={request.platform}")
-        
+
         if not auth_service.is_ready():
             logger.error("Auth service not ready")
             raise HTTPException(status_code=503, detail="Authentication service not available")
-        
+
         device_id, registration_timestamp = await auth_service.register_device(
             platform=request.platform,
             app_version=request.app_version,
             device_fingerprint=request.device_fingerprint
         )
-        
+
         logger.info(f"Device registered successfully: {device_id}")
 
         return DeviceRegistrationResponse(
             device_id=device_id,
             registration_timestamp=registration_timestamp
         )
-        
+
     except Exception as e:
         logger.error(f"Device registration failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to register device")
@@ -525,13 +526,13 @@ async def register_device(request: DeviceRegistrationRequest):
 @app.post("/spotify/create-playlist", response_model=SpotifyPlaylistResponse)
 async def create_spotify_playlist(request: SpotifyPlaylistRequest):
     """Create a Spotify playlist from a draft."""
-    
+
     try:
         user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
-        
+
         if not user_info:
             raise HTTPException(status_code=401, detail="Invalid or expired session")
-        
+
         if not spotify_playlist_service.is_ready():
             raise HTTPException(status_code=503, detail="Spotify playlist service not available")
 
@@ -544,15 +545,15 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
             draft_user_info = await auth_service.get_user_from_session(draft.session_id)
             current_user_spotify_id = user_info.get('spotify_user_id')
             draft_user_spotify_id = draft_user_info.get('spotify_user_id') if draft_user_info else None
-            
+
             logger.info(f"Cross-device check: draft user {draft_user_spotify_id}, current user {current_user_spotify_id}")
             logger.info(f"Draft user info: {draft_user_info}")
             logger.info(f"Current user info: {user_info}")
-            
+
             if current_user_spotify_id != draft_user_spotify_id:
                 logger.warning(f"Access denied: draft belongs to user {draft_user_spotify_id}, current user is {current_user_spotify_id}")
                 raise HTTPException(status_code=403, detail="This draft belongs to a different user")
-            
+
         elif not draft.session_id and draft.device_id != request.device_id:
             logger.warning(f"Access denied: draft device {draft.device_id}, current device {request.device_id}")
             raise HTTPException(status_code=403, detail="This draft belongs to a different device")
@@ -569,7 +570,7 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
             description=request.description,
             public=request.public or False
         )
-        
+
         await playlist_draft_service.mark_as_added_to_spotify(
             playlist_id=request.playlist_id,
             spotify_playlist_id=spotify_playlist_id,
@@ -579,16 +580,16 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
             session_id=request.session_id,
             playlist_name=request.name
         )
-        
+
         logger.info(f"Created Spotify playlist {spotify_playlist_id} from draft {request.playlist_id}")
-        
+
         return SpotifyPlaylistResponse(
             success=True,
             spotify_playlist_id=spotify_playlist_id,
             playlist_url=playlist_url,
             message="Playlist created successfully"
         )
-        
+
     except HTTPException:
         raise
 
@@ -599,13 +600,13 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
 @app.post("/library/playlists", response_model=LibraryPlaylistsResponse)
 async def get_library_playlists(request: LibraryPlaylistsRequest):
     """Get user's playlist library including drafts and Spotify playlists."""
-    
+
     try:
         user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
-        
+
         if not user_info:
             raise HTTPException(status_code=401, detail="Invalid or expired session")
-        
+
         spotify_user_id = user_info.get("spotify_user_id")
         drafts = []
 
@@ -628,6 +629,7 @@ async def get_library_playlists(request: LibraryPlaylistsRequest):
                     device_id=request.device_id,
                     include_spotify=False
                 )
+
             except Exception as e:
                 logger.error(f"Failed to get device drafts: {e}")
                 drafts = []
@@ -637,11 +639,12 @@ async def get_library_playlists(request: LibraryPlaylistsRequest):
         if spotify_playlist_service.is_ready():
             try:
                 access_token = await auth_service.get_access_token(request.session_id)
+
                 if access_token:
                     echotuner_playlist_ids = await playlist_draft_service.get_user_echotuner_spotify_playlist_ids(
                         user_info.get('spotify_user_id')
                     )
-                    
+
                     if echotuner_playlist_ids:
                         all_playlists = await spotify_playlist_service.get_user_playlists(access_token)
                         spotify_playlists = []
@@ -651,7 +654,7 @@ async def get_library_playlists(request: LibraryPlaylistsRequest):
                                 refinements_used = await playlist_draft_service.get_spotify_playlist_refinement_count(
                                     playlist['id']
                                 )
-                                
+
                                 spotify_playlist_info = SpotifyPlaylistInfo(
                                     id=playlist['id'],
                                     name=playlist.get('name', 'Unknown'),
@@ -659,23 +662,23 @@ async def get_library_playlists(request: LibraryPlaylistsRequest):
                                     tracks_count=playlist.get('tracks', {}).get('total', 0),
                                     refinements_used=refinements_used,
                                     max_refinements=settings.MAX_REFINEMENTS_PER_PLAYLIST,
-                                    can_refine=False,  # Spotify playlists can no longer be refined
                                     spotify_url=playlist.get('external_urls', {}).get('spotify'),
                                     images=playlist.get('images', [])
                                 )
-                                
+
                                 spotify_playlists.append(spotify_playlist_info)
 
             except Exception as e:
                 logger.warning(f"Failed to fetch Spotify playlists: {e}")
-        
+
         return LibraryPlaylistsResponse(
             drafts=drafts,
             spotify_playlists=spotify_playlists
         )
-        
+
     except HTTPException:
         raise
+
     except Exception as e:
         logger.error(f"Failed to get library playlists: {e}")
         raise HTTPException(status_code=500, detail="Failed to get library playlists")
@@ -683,21 +686,21 @@ async def get_library_playlists(request: LibraryPlaylistsRequest):
 @app.get("/drafts/{playlist_id}")
 async def get_draft_playlist(playlist_id: str, device_id: str = None):
     """Get a specific draft playlist."""
-    
+
     try:
         if not device_id:
             raise HTTPException(status_code=400, detail="device_id parameter required")
-        
+
         draft = await playlist_draft_service.get_draft(playlist_id)
-        
+
         if not draft:
             raise HTTPException(status_code=404, detail="Draft playlist not found")
-        
+
         if draft.device_id != device_id:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         return draft
-        
+
     except HTTPException:
         raise
 
@@ -708,30 +711,30 @@ async def get_draft_playlist(playlist_id: str, device_id: str = None):
 @app.delete("/drafts/{playlist_id}")
 async def delete_draft_playlist(playlist_id: str, device_id: str = None):
     """Delete a draft playlist."""
-    
+
     try:
         if not device_id:
             raise HTTPException(status_code=400, detail="device_id parameter required")
-        
+
         draft = await playlist_draft_service.get_draft(playlist_id)
-        
+
         if not draft:
             raise HTTPException(status_code=404, detail="Draft playlist not found")
-        
+
         if draft.device_id != device_id:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         if draft.status != "draft":
             raise HTTPException(status_code=400, detail="Can only delete draft playlists")
-        
+
         success = await playlist_draft_service.delete_draft(playlist_id)
-        
+
         if success:
             return {"message": "Draft playlist deleted successfully"}
-        
+
         else:
             raise HTTPException(status_code=500, detail="Failed to delete draft playlist")
-        
+
     except HTTPException:
         raise
 
@@ -742,16 +745,16 @@ async def delete_draft_playlist(playlist_id: str, device_id: str = None):
 @app.get("/spotify/playlist/{playlist_id}/tracks")
 async def get_spotify_playlist_tracks(playlist_id: str, session_id: str = None, device_id: str = None):
     """Get tracks from a Spotify playlist."""
-    
+
     try:
         if not session_id or not device_id:
             raise HTTPException(status_code=400, detail="session_id and device_id parameters required")
-        
+
         user_info = await auth_service.validate_session_and_get_user(session_id, device_id)
-        
+
         if not user_info:
             raise HTTPException(status_code=401, detail="Invalid or expired session")
-        
+
         if not spotify_playlist_service.is_ready():
             raise HTTPException(status_code=503, detail="Spotify playlist service not available")
 
@@ -761,11 +764,12 @@ async def get_spotify_playlist_tracks(playlist_id: str, session_id: str = None, 
             raise HTTPException(status_code=401, detail="No valid access token")
 
         tracks = await spotify_playlist_service.get_playlist_tracks(access_token, playlist_id)
-        
+
         return {"tracks": tracks}
-        
+
     except HTTPException:
         raise
+
     except Exception as e:
         logger.error(f"Failed to get Spotify playlist tracks: {e}")
         raise HTTPException(status_code=500, detail="Failed to get Spotify playlist tracks")
@@ -773,16 +777,16 @@ async def get_spotify_playlist_tracks(playlist_id: str, session_id: str = None, 
 @app.delete("/spotify/playlist/{playlist_id}")
 async def delete_spotify_playlist(playlist_id: str, session_id: str = None, device_id: str = None):
     """Delete/unfollow a Spotify playlist."""
-    
+
     try:
         if not session_id or not device_id:
             raise HTTPException(status_code=400, detail="session_id and device_id parameters required")
-        
+
         user_info = await auth_service.validate_session_and_get_user(session_id, device_id)
-        
+
         if not user_info:
             raise HTTPException(status_code=401, detail="Invalid or expired session")
-        
+
         if not spotify_playlist_service.is_ready():
             raise HTTPException(status_code=503, detail="Spotify playlist service not available")
 
@@ -796,10 +800,10 @@ async def delete_spotify_playlist(playlist_id: str, session_id: str = None, devi
         if success:
             await playlist_draft_service.remove_spotify_playlist_tracking(playlist_id)
             return {"message": "Playlist deleted/unfollowed successfully"}
-        
+
         else:
             raise HTTPException(status_code=500, detail="Failed to delete playlist from Spotify")
-        
+
     except HTTPException:
         raise
 

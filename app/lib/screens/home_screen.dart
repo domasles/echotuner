@@ -17,8 +17,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-	final TextEditingController _promptController = TextEditingController();
-	
+    final TextEditingController _promptController = TextEditingController();
+
     int _selectedIndex = 0;
     bool _hasText = false;
 
@@ -33,8 +33,8 @@ class _HomeScreenState extends State<HomeScreen> {
         "I'm feeling sad and want to embrace it",
         "Upbeat electronic dance music",
         "Cozy acoustic coffee shop vibes",
-		"Indie folk for a rainy day"
-	];
+        "Indie folk for a rainy day"
+    ];
 
     @override
     void initState() {
@@ -55,13 +55,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
         super.dispose();
     }
-	
-	@override
+
+    @override
     Widget build(BuildContext context) {
         return Scaffold(
             body: SafeArea(
                 child: _buildCurrentScreen(),
-			),
+            ),
 
             bottomNavigationBar: _buildBottomNavigationBar(),
             floatingActionButton: FloatingActionButton(
@@ -89,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             case 2:
                 return _buildLibraryScreen();
-				
+
             default:
                 return _buildHomeScreen();
         }
@@ -114,7 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                                     _buildPromptInput(playlistProvider),
                                                     const SizedBox(height: 32),
-                                                    
+
                                                     _buildQuickPrompts(playlistProvider),
                                                     const SizedBox(height: 100),
                                                 ],
@@ -124,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                             ],
                         ),
-						
+
                         _buildBottomInfoMessages(playlistProvider),
                         _buildBottomLimitIndicator(playlistProvider),
                     ],
@@ -209,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     maxLines: null,
                     minLines: 3,
                     style: const TextStyle(color: Colors.white, fontSize: 16),
-					
+
                     decoration: InputDecoration(
                         hintText: 'Describe your ideal playlist...',
                         hintStyle: TextStyle(
@@ -227,41 +227,41 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     child: FilledButton(
                         onPressed: (provider.isLoading || !_hasText) ? null : () => _generatePlaylist(provider),
-						style: FilledButton.styleFrom(
+                        style: FilledButton.styleFrom(
                             backgroundColor: const Color(0xFF8B5CF6),
                             foregroundColor: Colors.white,
                             disabledBackgroundColor: const Color(0xFF1A1625),
                             disabledForegroundColor: Colors.white54,
-						),
+                        ),
 
                         child: provider.isLoading ? const Row(
-							mainAxisAlignment: MainAxisAlignment.center,
-							children: [
-								SizedBox(
-									width: 24,
-									height: 24,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                                SizedBox(
+                                    width: 24,
+                                    height: 24,
 
-									child: CircularProgressIndicator(
-										strokeWidth: 2.5,
-										valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-									),
-								),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                ),
 
-								SizedBox(width: 16),
-								Text(
-									'Generating...',
-								 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-								),
-							],
-						)
+                                SizedBox(width: 16),
+                                Text(
+                                    'Generating...',
+                                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                ),
+                            ],
+                        )
 
-						: const Text(
-							'Generate',
-							style: TextStyle(
-								fontSize: 18,
-								fontWeight: FontWeight.w600
-							),
-						),
+                        : const Text(
+                            'Generate',
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600
+                            ),
+                        ),
                     ),
                 ),
             ],
@@ -272,31 +272,31 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!provider.showPlaylistLimits) {
             return const SizedBox.shrink();
         }
-        
+
         final rateLimitStatus = provider.rateLimitStatus;
 
         if (rateLimitStatus == null) {
             return const SizedBox.shrink();
         }
-        
+
         final requestsMade = rateLimitStatus.requestsMadeToday;
         final maxRequests = rateLimitStatus.maxRequestsPerDay;
         final progress = maxRequests > 0 ? requestsMade / maxRequests : 0.0;
-        
+
         Color progressColor;
 
         if (progress <= 0.5) {
             progressColor = Colors.green;
         }
-		
-		else if (progress <= 0.8) {
+
+        else if (progress <= 0.8) {
             progressColor = Colors.orange;
         }
-		
-		else {
+
+        else {
             progressColor = Colors.red;
         }
-        
+
         return Positioned(
             left: 16,
             right: 88,
@@ -352,19 +352,20 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
         );
     }
-	
+
     Widget _buildBottomInfoMessages(PlaylistProvider provider) {
         final infoMessages = provider.infoMessages;
-        
+
         if (infoMessages.isEmpty) {
             return const SizedBox.shrink();
         }
 
         double bottomPosition = 100;
+
         if (provider.showPlaylistLimits && provider.rateLimitStatus != null) {
             bottomPosition = 76;
         }
-        
+
         return Positioned(
             left: 16,
             right: 88,
@@ -381,7 +382,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
         );
     }
-	
+
     Widget _buildQuickPrompts(PlaylistProvider provider) {
         return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -425,7 +426,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                             ),
-							
+
                             elevation: 0,
                             shadowColor: Colors.transparent,
                         );
@@ -434,8 +435,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
         );
     }
-	
-	Widget _buildBottomNavigationBar() {
+
+    Widget _buildBottomNavigationBar() {
         return BottomNavigationBar(
             currentIndex: _selectedIndex,
             onTap: (index) {
@@ -454,7 +455,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: Icon(Icons.search_rounded),
                     label: 'Search',
                 ),
-                
+            
                 BottomNavigationBarItem(
                     icon: Icon(Icons.library_music_rounded),
                     label: 'Library',
@@ -462,19 +463,19 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
         );
     }
-	
-	void _generatePlaylist(PlaylistProvider provider) async {
+
+    void _generatePlaylist(PlaylistProvider provider) async {
         final prompt = _promptController.text.trim();
 
         try {
             await provider.generatePlaylist(prompt);
             if (!mounted) return;
-            
+
             if (provider.error != null) {
                 _showErrorDialog(provider.error!);
             }
-			
-			else {
+
+            else {
                 Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -483,22 +484,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
             }
         }
-		
-		catch (e) {
+
+        catch (e) {
             if (!mounted) return;
             _showErrorDialog(e.toString());
         }
     }
-	
-	void _showErrorDialog(String error) {
+
+    void _showErrorDialog(String error) {
         String displayError = error;
         String title = 'Error';
-        
+
         if (error.toLowerCase().contains('rate limit') || error.toLowerCase().contains('limit reached') || error.toLowerCase().contains('daily limit')) {
             title = 'Daily Limit Reached';
             displayError = 'You\'ve reached your daily playlist generation limit. Please try again tomorrow or upgrade your plan for more playlists.';
         }
-        
+
         showDialog(
             context: context,
             builder: (context) => AlertDialog(

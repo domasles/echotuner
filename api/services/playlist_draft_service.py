@@ -61,7 +61,6 @@ class PlaylistDraftService:
                     )
                 ''')
 
-                # Create Spotify playlists table with proper string formatting
                 spotify_table_sql = f'''
                     CREATE TABLE IF NOT EXISTS {AppConstants.SPOTIFY_PLAYLISTS_TABLE} (
                         spotify_playlist_id TEXT PRIMARY KEY,
@@ -76,6 +75,7 @@ class PlaylistDraftService:
                         FOREIGN KEY (original_draft_id) REFERENCES playlist_drafts (id)
                     )
                 '''
+
                 cursor.execute(spotify_table_sql)
 
                 try:
@@ -83,16 +83,18 @@ class PlaylistDraftService:
                         ALTER TABLE {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
                         ADD COLUMN refinements_used INTEGER DEFAULT 0
                     '''
+
                     cursor.execute(alter_refinements_sql)
 
                 except sqlite3.OperationalError:
                     pass
-                
+
                 try:
                     alter_updated_at_sql = f'''
                         ALTER TABLE {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
                         ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     '''
+
                     cursor.execute(alter_updated_at_sql)
 
                 except sqlite3.OperationalError:
@@ -102,33 +104,34 @@ class PlaylistDraftService:
                     CREATE INDEX IF NOT EXISTS idx_playlist_drafts_device_id 
                     ON playlist_drafts(device_id)
                 ''')
-                
+
                 cursor.execute('''
                     CREATE INDEX IF NOT EXISTS idx_playlist_drafts_status 
                     ON playlist_drafts(status)
                 ''')
-                
-                # Create indexes
+
                 user_index_sql = f'''
                     CREATE INDEX IF NOT EXISTS {AppConstants.SPOTIFY_PLAYLISTS_USER_INDEX} 
                     ON {AppConstants.SPOTIFY_PLAYLISTS_TABLE}(user_id)
                 '''
+
                 cursor.execute(user_index_sql)
-                
+
                 device_index_sql = f'''
                     CREATE INDEX IF NOT EXISTS {AppConstants.SPOTIFY_PLAYLISTS_DEVICE_INDEX} 
                     ON {AppConstants.SPOTIFY_PLAYLISTS_TABLE}(device_id)
                 '''
+
                 cursor.execute(device_index_sql)
-                
+
                 cursor.execute('''
                     CREATE INDEX IF NOT EXISTS idx_playlist_drafts_created_at 
                     ON playlist_drafts(created_at)
                 ''')
-                
+
                 conn.commit()
                 logger.debug("Playlist drafts database tables initialized")
-                
+
         except Exception as e:
             logger.error(f"Failed to initialize playlist drafts database: {e}")
             raise
@@ -155,9 +158,10 @@ class PlaylistDraftService:
 
     async def _cleanup_expired_drafts(self):
         """Remove expired draft playlists."""
+
         try:
             cutoff_date = datetime.now() - timedelta(days=settings.DRAFT_STORAGE_TIMEOUT)
-            
+
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
 
@@ -165,13 +169,13 @@ class PlaylistDraftService:
                     DELETE FROM playlist_drafts 
                     WHERE status = 'draft' AND created_at < ?
                 ''', (cutoff_date,))
-                
+
                 deleted_count = cursor.rowcount
                 conn.commit()
-                
+
                 if deleted_count > 0:
                     logger.info(f"Cleaned up {deleted_count} expired draft playlists")
-                    
+
         except Exception as e:
             logger.error(f"Failed to cleanup expired drafts: {e}")
 
@@ -182,22 +186,21 @@ class PlaylistDraftService:
             playlist_id = str(uuid.uuid4())
             now = datetime.now()
             songs_json = [song.model_dump() for song in songs]
-            
+
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                
+
                 cursor.execute('''
                     INSERT INTO playlist_drafts 
                     (id, device_id, session_id, prompt, songs, created_at, updated_at, refinements_used)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (playlist_id, device_id, session_id, prompt, 
-                     json.dumps(songs_json), now, now, refinements_used))
-                
+                ''', (playlist_id, device_id, session_id, prompt, json.dumps(songs_json), now, now, refinements_used))
+
                 conn.commit()
-                
+
             logger.info(f"Saved draft playlist {playlist_id} for device {device_id}")
             return playlist_id
-            
+
         except Exception as e:
             logger.error(f"Failed to save draft playlist: {e}")
             raise
@@ -208,10 +211,10 @@ class PlaylistDraftService:
         try:
             songs_json = [song.model_dump() for song in songs]
             now = datetime.now()
-            
+
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                
+
                 if prompt:
                     cursor.execute('''
                         UPDATE playlist_drafts 
@@ -225,18 +228,18 @@ class PlaylistDraftService:
                         SET songs = ?, refinements_used = ?, updated_at = ?
                         WHERE id = ? AND status = 'draft'
                     ''', (json.dumps(songs_json), refinements_used, now, playlist_id))
-                
+
                 success = cursor.rowcount > 0
                 conn.commit()
-                
+
             if success:
                 logger.info(f"Updated draft playlist {playlist_id}")
 
             else:
                 logger.warning(f"Failed to update draft playlist {playlist_id} - not found or not draft")
-                
+
             return success
-            
+
         except Exception as e:
             logger.error(f"Failed to update draft playlist {playlist_id}: {e}")
             raise
@@ -256,35 +259,36 @@ class PlaylistDraftService:
                         updated_at = ?
                     WHERE id = ?
                 ''', (spotify_playlist_id, spotify_url, datetime.now(), playlist_id))
-                
+
                 success = cursor.rowcount > 0
 
                 if success and user_id and device_id and playlist_name:
                     cursor.execute('''
                         SELECT refinements_used FROM playlist_drafts WHERE id = ?
                     ''', (playlist_id,))
-                    
+
                     draft_row = cursor.fetchone()
                     refinements_used = draft_row[0] if draft_row else 0
-                    
+
                     insert_playlist_sql = f'''
                         INSERT OR REPLACE INTO {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
                         (spotify_playlist_id, user_id, device_id, session_id, original_draft_id, 
                          playlist_name, refinements_used, created_at, updated_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     '''
+
                     cursor.execute(insert_playlist_sql, (spotify_playlist_id, user_id, device_id, session_id, playlist_id, playlist_name, refinements_used, datetime.now(), datetime.now()))
-                
+
                 conn.commit()
-                
+
             if success:
                 logger.info(f"Marked playlist {playlist_id} as added to Spotify ({spotify_playlist_id})")
 
             else:
                 logger.warning(f"Failed to mark playlist {playlist_id} as added to Spotify - not found")
-                
+
             return success
-            
+
         except Exception as e:
             logger.error(f"Failed to mark playlist {playlist_id} as added to Spotify: {e}")
             raise
@@ -295,19 +299,19 @@ class PlaylistDraftService:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                
+
                 select_playlists_sql = f'''
                     SELECT spotify_playlist_id 
                     FROM {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
                     WHERE user_id = ?
                     ORDER BY created_at DESC
                 '''
+
                 cursor.execute(select_playlists_sql, (user_id,))
-                
                 rows = cursor.fetchall()
-                
+
             return [row[0] for row in rows]
-            
+
         except Exception as e:
             logger.error(f"Failed to get EchoTuner Spotify playlist IDs for user {user_id}: {e}")
             raise
@@ -318,21 +322,21 @@ class PlaylistDraftService:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                
+
                 cursor.execute('''
                     SELECT id, device_id, session_id, prompt, songs, created_at, 
                     updated_at, refinements_used, status, spotify_playlist_id
                     FROM playlist_drafts 
                     WHERE id = ?
                 ''', (playlist_id,))
-                
+
                 row = cursor.fetchone()
-                
+
             if row:
                 return self._row_to_draft(row)
-            
+
             return None
-            
+
         except Exception as e:
             logger.error(f"Failed to get draft playlist {playlist_id}: {e}")
             raise
@@ -343,11 +347,10 @@ class PlaylistDraftService:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                
+
                 if include_spotify:
                     cursor.execute('''
-                        SELECT id, device_id, session_id, prompt, songs, created_at, 
-                               updated_at, refinements_used, status, spotify_playlist_id
+                        SELECT id, device_id, session_id, prompt, songs, created_at, updated_at, refinements_used, status, spotify_playlist_id
                         FROM playlist_drafts 
                         WHERE device_id = ?
                         ORDER BY updated_at DESC
@@ -355,17 +358,16 @@ class PlaylistDraftService:
 
                 else:
                     cursor.execute('''
-                        SELECT id, device_id, session_id, prompt, songs, created_at, 
-                               updated_at, refinements_used, status, spotify_playlist_id
+                        SELECT id, device_id, session_id, prompt, songs, created_at, updated_at, refinements_used, status, spotify_playlist_id
                         FROM playlist_drafts 
                         WHERE device_id = ? AND status = 'draft'
                         ORDER BY updated_at DESC
                     ''', (device_id,))
-                
+
                 rows = cursor.fetchall()
-                
+
             return [self._row_to_draft(row) for row in rows]
-            
+
         except Exception as e:
             logger.error(f"Failed to get drafts for device {device_id}: {e}")
             raise
@@ -381,7 +383,7 @@ class PlaylistDraftService:
                     SELECT DISTINCT device_id, session_id FROM auth_sessions 
                     WHERE spotify_user_id = ?
                 ''', (user_id,))
-                
+
                 user_identifiers = cursor.fetchall()
 
                 device_ids = list(set([row[0] for row in user_identifiers if row[0]]))
@@ -392,31 +394,31 @@ class PlaylistDraftService:
 
                 if session_id and session_id not in session_ids:
                     session_ids.append(session_id)
-                
+
                 if not device_ids and not session_ids:
                     return []
-                
+
                 conditions = []
                 params = []
-                
+
                 if device_ids:
                     placeholders = ','.join(['?' for _ in device_ids])
                     conditions.append(f"device_id IN ({placeholders})")
                     params.extend(device_ids)
-                
+
                 if session_ids:
                     placeholders = ','.join(['?' for _ in session_ids])
                     conditions.append(f"session_id IN ({placeholders})")
                     params.extend(session_ids)
-                
+
                 if not conditions:
                     return []
-                
+
                 where_clause = " OR ".join(conditions)
 
                 if not include_spotify:
                     where_clause = f"({where_clause}) AND status = 'draft'"
-                
+
                 cursor.execute(f'''
                     SELECT id, device_id, session_id, prompt, songs, created_at, 
                     updated_at, refinements_used, status, spotify_playlist_id
@@ -424,11 +426,11 @@ class PlaylistDraftService:
                     WHERE {where_clause}
                     ORDER BY updated_at DESC
                 ''', params)
-                
+
                 rows = cursor.fetchall()
-                
+
             return [self._row_to_draft(row) for row in rows]
-            
+
         except Exception as e:
             logger.error(f"Failed to get drafts for user {user_id}: {e}")
             raise
@@ -439,23 +441,23 @@ class PlaylistDraftService:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                
+
                 cursor.execute('''
                     DELETE FROM playlist_drafts 
                     WHERE id = ? AND status = 'draft'
                 ''', (playlist_id,))
-                
+
                 success = cursor.rowcount > 0
                 conn.commit()
-                
+
             if success:
                 logger.info(f"Deleted draft playlist {playlist_id}")
 
             else:
                 logger.warning(f"Failed to delete draft playlist {playlist_id} - not found or not draft")
-                
+
             return success
-            
+
         except Exception as e:
             logger.error(f"Failed to delete draft playlist {playlist_id}: {e}")
             raise
@@ -466,16 +468,17 @@ class PlaylistDraftService:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                
+
                 select_refinements_sql = f'''
                     SELECT refinements_used FROM {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
                     WHERE spotify_playlist_id = ?
                 '''
+
                 cursor.execute(select_refinements_sql, (spotify_playlist_id,))
-                
                 row = cursor.fetchone()
+
                 return row[0] if row else 0
-                
+
         except Exception as e:
             logger.error(f"Failed to get refinement count for Spotify playlist {spotify_playlist_id}: {e}")
             return 0
@@ -486,19 +489,19 @@ class PlaylistDraftService:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                
+
                 update_refinements_sql = f'''
                     UPDATE {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
                     SET refinements_used = ?, updated_at = ?
                     WHERE spotify_playlist_id = ?
                 '''
+
                 cursor.execute(update_refinements_sql, (refinements_used, datetime.now(), spotify_playlist_id))
-                
                 success = cursor.rowcount > 0
                 conn.commit()
 
                 return success
-                
+
         except Exception as e:
             logger.error(f"Failed to update refinement count for Spotify playlist {spotify_playlist_id}: {e}")
             return False
@@ -509,34 +512,34 @@ class PlaylistDraftService:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                
+
                 delete_playlist_sql = f'''
                     DELETE FROM {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
                     WHERE spotify_playlist_id = ?
                 '''
+
                 cursor.execute(delete_playlist_sql, (spotify_playlist_id,))
-                
                 success = cursor.rowcount > 0
                 conn.commit()
-                
+
                 if success:
                     logger.info(f"Removed tracking for Spotify playlist {spotify_playlist_id}")
 
                 else:
                     logger.warning(f"Spotify playlist {spotify_playlist_id} not found in tracking")
-                
+
                 return success
-                
+
         except Exception as e:
             logger.error(f"Failed to remove tracking for Spotify playlist {spotify_playlist_id}: {e}")
             return False
 
     def _row_to_draft(self, row) -> PlaylistDraft:
         """Convert database row to PlaylistDraft object."""
-        
+
         songs_data = json.loads(row[4])
         songs = [Song(**song_data) for song_data in songs_data]
-        
+
         return PlaylistDraft(
             id=row[0],
             device_id=row[1],

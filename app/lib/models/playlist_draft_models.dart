@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+
 import 'song.dart';
 
 part 'playlist_draft_models.g.dart';
@@ -146,22 +147,22 @@ class SpotifyPlaylistInfo {
     final String id;
     final String name;
     final String? description;
-    
+
     @JsonKey(name: 'tracks_count')
     final int tracksCount;
-    
+
     @JsonKey(name: 'refinements_used')
     final int refinementsUsed;
-    
+
     @JsonKey(name: 'max_refinements')
     final int maxRefinements;
-    
+
     @JsonKey(name: 'can_refine')
     final bool canRefine;
-    
+
     @JsonKey(name: 'spotify_url')
     final String? spotifyUrl;
-    
+
     final List<Map<String, dynamic>>? images;
 
     SpotifyPlaylistInfo({
@@ -174,7 +175,7 @@ class SpotifyPlaylistInfo {
         required this.refinementsUsed,
         required this.maxRefinements,
         required this.canRefine,
-		
+
         this.spotifyUrl,
         this.images,
     });

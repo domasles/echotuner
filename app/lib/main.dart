@@ -8,11 +8,11 @@ import 'config/app_constants.dart';
 import 'screens/login_screen.dart';
 import 'services/api_service.dart';
 import 'screens/home_screen.dart';
-import 'config/app_config.dart';
+import 'config/settings.dart';
 
 class _NoGlowScrollBehavior extends ScrollBehavior {
     const _NoGlowScrollBehavior();
-    
+
     @override
     Widget buildOverscrollIndicator(BuildContext context, Widget child, ScrollableDetails details) {
         return child;
@@ -21,7 +21,7 @@ class _NoGlowScrollBehavior extends ScrollBehavior {
 
 Future<void> main() async {
     WidgetsFlutterBinding.ensureInitialized();
-    
+
     await dotenv.load(fileName: ".env");
     AppConfig.printConfig();
     runApp(const EchoTunerApp());
@@ -37,7 +37,7 @@ class EchoTunerApp extends StatelessWidget {
                 ChangeNotifierProvider<AuthService>(
                     create: (context) => AuthService(),
                 ),
-                
+
                 Provider<ApiService>(
                     create: (context) => ApiService(),
                 ),
@@ -60,8 +60,8 @@ class EchoTunerApp extends StatelessWidget {
                         child: child!,
                     );
                 },
-                
-				theme: ThemeData(
+
+                theme: ThemeData(
                     useMaterial3: true,
                     brightness: Brightness.dark,
 
@@ -77,15 +77,15 @@ class EchoTunerApp extends StatelessWidget {
                         outline: const Color(0xFF3A3A3A),
                         outlineVariant: const Color(0xFF2A2A2A),
                     ),
-                    
+
                     scaffoldBackgroundColor: const Color(0xFF0F0A1A),
-					appBarTheme: const AppBarTheme(
+                    appBarTheme: const AppBarTheme(
                         backgroundColor: Color(0xFF0F0A1A),
                         foregroundColor: Colors.white,
                         elevation: 0,
                         centerTitle: true,
                     ),
-                    
+
                     textTheme: const TextTheme(
                         displayLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                         displayMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -96,7 +96,7 @@ class EchoTunerApp extends StatelessWidget {
                         bodySmall: TextStyle(color: Colors.white54),
                     ),
 
-					cardTheme: CardThemeData(
+                    cardTheme: CardThemeData(
                         color: const Color(0xFF1A1625),
                         elevation: 0,
                         surfaceTintColor: const Color(0xFF8B5CF6),
@@ -210,7 +210,7 @@ class EchoTunerApp extends StatelessWidget {
                             ),
                         ),
                     ),
-                    
+
                     textButtonTheme: TextButtonThemeData(
                         style: TextButton.styleFrom(
                             foregroundColor: const Color(0xFF8B5CF6),
@@ -230,17 +230,17 @@ class EchoTunerApp extends StatelessWidget {
                         filled: true,
                         fillColor: const Color(0xFF1A1625),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                        
+
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
                             borderSide: const BorderSide(color: Color(0xFF2A2A2A), width: 1),
                         ),
-                        
+
                         enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
                             borderSide: const BorderSide(color: Color(0xFF2A2A2A), width: 1),
                         ),
-                        
+
                         focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
                             borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 2),
@@ -260,7 +260,7 @@ class EchoTunerApp extends StatelessWidget {
                         labelStyle: const TextStyle(color: Colors.white70),
                         errorStyle: const TextStyle(color: Colors.red),
                     ),
-                    
+
                     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
                         backgroundColor: Color(0xFF1A1625),
                         selectedItemColor: Color(0xFF8B5CF6),
@@ -346,7 +346,7 @@ class EchoTunerApp extends StatelessWidget {
                             if (states.contains(WidgetState.selected)) {
                                 return Colors.white;
                             }
-							
+
                             return Colors.white54;
                         }),
 
@@ -389,7 +389,7 @@ class EchoTunerApp extends StatelessWidget {
                         circularTrackColor: Color(0xFF2A2A2A),
                     ),
                 ),
-                
+
                 home: const AuthWrapper(),
             ),
         );
@@ -431,8 +431,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 if (authService.isAuthenticated) {
                     return const HomeScreen();
                 }
-				
-				else {
+
+                else {
                     return const LoginScreen();
                 }
             },

@@ -5,101 +5,101 @@ import '../models/info_message.dart';
 import '../config/app_colors.dart';
 
 class InfoMessageWidget extends StatelessWidget {
-  final InfoMessage message;
-  final VoidCallback? onDismiss;
+    final InfoMessage message;
+    final VoidCallback? onDismiss;
 
-  const InfoMessageWidget({
-    super.key,
-    required this.message,
-    this.onDismiss,
-  });
+    const InfoMessageWidget({
+        super.key,
+        required this.message,
+        this.onDismiss,
+    });
 
-  @override
-  Widget build(BuildContext context) {
+    @override
+    Widget build(BuildContext context) {
         return Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            
+
             decoration: BoxDecoration(
-                color: _getBackgroundColor(),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                color: _getBorderColor(),
-                width: 1,
+                    color: _getBackgroundColor(),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                    color: _getBorderColor(),
+                    width: 1,
+                ),
             ),
-        ),
 
-        child: Row(
-            children: [
-                Icon(
-                    _getIcon(),
-                    color: _getIconColor(),
-                    size: 20,
-                ),
-
-                const SizedBox(width: 12),
-                Expanded(
-                    child: Text(
-                        message.message,
-                        style: TextStyle(
-                            color: _getTextColor(),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                        ),
+            child: Row(
+                children: [
+                    Icon(
+                        _getIcon(),
+                        color: _getIconColor(),
+                        size: 20,
                     ),
-                ),
 
-                if (message.actionLabel != null && (message.onAction != null || message.actionUrl != null)) ...[
-                    const SizedBox(width: 8),
-                    TextButton(
-                        onPressed: () async {
-                            if (message.onAction != null) {
-                                message.onAction!();
-                            }
-                            
-                            else if (message.actionUrl != null) {
-                                final uri = Uri.parse(message.actionUrl!);
-                                
-                                if (await canLaunchUrl(uri)) {
-                                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                }
-                            }
-                        },
-                        
-                        style: TextButton.styleFrom(
-                            foregroundColor: _getActionColor(),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-
+                    const SizedBox(width: 12),
+                    Expanded(
                         child: Text(
-                            message.actionLabel!,
-                            style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                            message.message,
+                            style: TextStyle(
+                                color: _getTextColor(),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
                             ),
                         ),
                     ),
-                ],
 
-                if (onDismiss != null) ...[
-                    const SizedBox(width: 4),
-                    IconButton(
-                        onPressed: onDismiss,
-                        icon: const Icon(Icons.close),
-                        iconSize: 16,
-                        color: _getTextColor().withValues(alpha: 128),
-                        padding: EdgeInsets.zero,
-                        
-                        constraints: const BoxConstraints(
-                            minWidth: 24,
-                            minHeight: 24,
+                    if (message.actionLabel != null && (message.onAction != null || message.actionUrl != null)) ...[
+                        const SizedBox(width: 8),
+                        TextButton(
+                            onPressed: () async {
+                                if (message.onAction != null) {
+                                    message.onAction!();
+                                }
+
+                                else if (message.actionUrl != null) {
+                                    final uri = Uri.parse(message.actionUrl!);
+
+                                    if (await canLaunchUrl(uri)) {
+                                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                    }
+                                }
+                            },
+
+                            style: TextButton.styleFrom(
+                                foregroundColor: _getActionColor(),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+
+                            child: Text(
+                                message.actionLabel!,
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                ),
+                            ),
                         ),
-                    ),
+                    ],
+
+                    if (onDismiss != null) ...[
+                        const SizedBox(width: 4),
+                        IconButton(
+                            onPressed: onDismiss,
+                            icon: const Icon(Icons.close),
+                            iconSize: 16,
+                            color: _getTextColor().withValues(alpha: 128),
+                            padding: EdgeInsets.zero,
+
+                            constraints: const BoxConstraints(
+                                minWidth: 24,
+                                minHeight: 24,
+                            ),
+                        ),
+                    ],
                 ],
-            ],
-        ),
+            ),
         );
     }
 
@@ -163,7 +163,7 @@ class InfoMessageWidget extends StatelessWidget {
         switch (message.type) {
             case InfoMessageType.success:
                 return Icons.check_circle_outline;
-                
+
             case InfoMessageType.info:
                 return Icons.info_outline;
 

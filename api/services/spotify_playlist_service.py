@@ -20,11 +20,12 @@ class SpotifyPlaylistService:
 
     async def initialize(self):
         """Initialize the Spotify playlist service."""
+
         try:
             if not settings.SPOTIFY_CLIENT_ID or not settings.SPOTIFY_CLIENT_SECRET:
                 logger.warning("Spotify credentials not configured - playlist creation disabled")
                 return
-                
+
             self._initialized = True
             logger.info("Spotify playlist service initialized successfully")
 
@@ -38,21 +39,21 @@ class SpotifyPlaylistService:
         try:
             async with aiohttp.ClientSession() as session:
                 headers = {'Authorization': f'Bearer {access_token}'}
-                
+
                 url = 'https://api.spotify.com/v1/me/playlists'
                 params = {'limit': 50}
-                
+
                 async with session.get(url, headers=headers, params=params) as response:
                     if response.status == 200:
                         data = await response.json()
                         return data.get('items', [])
-                    
+
                     elif response.status == 401:
                         raise Exception("Invalid or expired access token")
-                    
+
                     else:
                         raise Exception(f"Failed to fetch playlists: {response.status}")
-                        
+
         except Exception as e:
             logger.error(f"Failed to get user playlists: {e}")
             raise
@@ -63,12 +64,12 @@ class SpotifyPlaylistService:
         try:
             async with aiohttp.ClientSession() as session:
                 headers = {'Authorization': f'Bearer {access_token}'}
-                
+
                 url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
                 params = {'limit': 100}
-                
+
                 tracks = []
-                
+
                 while url:
                     async with session.get(url, headers=headers, params=params) as response:
                         if response.status == 200:
@@ -79,12 +80,12 @@ class SpotifyPlaylistService:
 
                         elif response.status == 401:
                             raise Exception("Invalid or expired access token")
-                        
+
                         else:
                             raise Exception(f"Failed to fetch playlist tracks: {response.status}")
-                
+
                 return tracks
-                        
+
         except Exception as e:
             logger.error(f"Failed to get playlist tracks: {e}")
             raise
@@ -106,9 +107,9 @@ class SpotifyPlaylistService:
                     'description': description or AppConstants.DEFAULT_PLAYLIST_DESCRIPTION,
                     'public': public
                 }
-                
+
                 url = f'https://api.spotify.com/v1/users/{user_id}/playlists'
-                
+
                 async with session.post(url, headers=headers, json=playlist_data) as response:
                     if response.status == 201:
                         playlist_info = await response.json()
@@ -117,7 +118,7 @@ class SpotifyPlaylistService:
 
                     elif response.status == 401:
                         raise Exception("Invalid or expired access token")
-                    
+
                     else:
                         raise Exception(f"Failed to create playlist: {response.status}")
 
@@ -126,13 +127,13 @@ class SpotifyPlaylistService:
                 for song in songs:
                     if song.spotify_id:
                         track_uris.append(f'spotify:track:{song.spotify_id}')
-                
+
                 if track_uris:
                     await self._add_tracks_to_playlist(session, headers, playlist_id, track_uris)
-                
+
                 logger.info(f"Created Spotify playlist {playlist_id} with {len(track_uris)} tracks")
                 return playlist_id, playlist_url
-                
+
         except Exception as e:
             logger.error(f"Failed to create Spotify playlist: {e}")
             raise
@@ -141,15 +142,15 @@ class SpotifyPlaylistService:
         """Get the current user's Spotify ID."""
 
         url = 'https://api.spotify.com/v1/me'
-        
+
         async with session.get(url, headers=headers) as response:
             if response.status == 200:
                 user_data = await response.json()
                 return user_data['id']
-            
+
             elif response.status == 401:
                 raise Exception("Invalid or expired access token")
-            
+
             else:
                 raise Exception(f"Failed to get user ID: {response.status}")
 
@@ -157,13 +158,13 @@ class SpotifyPlaylistService:
         """Add tracks to a Spotify playlist."""
 
         batch_size = 100
-        
+
         for i in range(0, len(track_uris), batch_size):
             batch = track_uris[i:i + batch_size]
-            
+
             url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
             data = {'uris': batch}
-            
+
             async with session.post(url, headers=headers, json=data) as response:
                 if response.status not in [200, 201]:
                     raise Exception(f"Failed to add tracks to playlist: {response.status}")
@@ -182,16 +183,18 @@ class SpotifyPlaylistService:
                 for song in songs:
                     if song.spotify_id:
                         new_track_uris.append(f'spotify:track:{song.spotify_id}')
-                
+
                 if new_track_uris:
                     url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
                     data = {'uris': new_track_uris}
-                    
+
                     async with session.put(url, headers=headers, json=data) as response:
                         if response.status not in [200, 201]:
                             logger.warning(f"Replace tracks failed with status {response.status}, falling back to clear + add")
+
                             await self._clear_playlist_tracks(session, headers, playlist_id)
                             await self._add_tracks_to_playlist(session, headers, playlist_id, new_track_uris)
+
                 else:
                     await self._clear_playlist_tracks(session, headers, playlist_id)
 
@@ -199,7 +202,7 @@ class SpotifyPlaylistService:
                 logger.info(f"Updated Spotify playlist {playlist_id} with {len(new_track_uris)} tracks")
 
                 return playlist_url
-                
+
         except Exception as e:
             logger.error(f"Failed to update Spotify playlist: {e}")
             raise
@@ -208,22 +211,22 @@ class SpotifyPlaylistService:
         """Remove all tracks from a Spotify playlist."""
 
         url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
-        
+
         async with session.get(url, headers=headers) as response:
             if response.status == 200:
                 data = await response.json()
                 tracks = data.get('items', [])
-                
+
                 if tracks:
                     batch_size = 100
                     track_uris = [{'uri': track['track']['uri']} for track in tracks if track.get('track')]
-                    
+
                     for i in range(0, len(track_uris), batch_size):
                         batch = track_uris[i:i + batch_size]
-                        
+
                         delete_url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
                         delete_data = {'tracks': batch}
-                        
+
                         async with session.delete(delete_url, headers=headers, json=delete_data) as delete_response:
                             if delete_response.status not in [200, 201]:
                                 raise Exception(f"Failed to clear playlist tracks: {delete_response.status}")
@@ -233,7 +236,7 @@ class SpotifyPlaylistService:
 
             elif response.status == 401:
                 raise Exception("Invalid or expired access token")
-            
+
             else:
                 raise Exception(f"Failed to get playlist tracks: {response.status}")
 
@@ -259,7 +262,7 @@ class SpotifyPlaylistService:
                             if user_response.status == 200:
                                 user_data = await user_response.json()
                                 current_user_id = user_data.get('id')
-                                
+
                                 if owner_id == current_user_id:
                                     logger.info(f"User owns playlist {playlist_id}, unfollowing instead of deleting")
 
@@ -269,19 +272,19 @@ class SpotifyPlaylistService:
                                     if unfollow_response.status in [200, 204]:
                                         logger.info(f"Successfully unfollowed playlist {playlist_id}")
                                         return True
-                                    
+
                                     else:
                                         logger.error(f"Failed to unfollow playlist: {unfollow_response.status}")
                                         return False
-                                    
+
                             else:
                                 logger.error(f"Failed to get user info: {user_response.status}")
                                 return False
-                            
+
                     else:
                         logger.error(f"Failed to get playlist info: {response.status}")
                         return False
-                        
+
         except Exception as e:
             logger.error(f"Error deleting/unfollowing playlist {playlist_id}: {e}")
             return False

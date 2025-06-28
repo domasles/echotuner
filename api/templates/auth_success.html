@@ -17,15 +17,12 @@
         <p style="color: #999999; font-size: 14px;">You can now close this window and return to the app.</p>
     </div>
     <script>
-        // For web apps, try to communicate the session ID
         if (window.opener) {
             window.opener.postMessage({
                 type: 'SPOTIFY_AUTH_SUCCESS',
                 sessionId: '{{session_id}}'
             }, '*');
         }
-        
-        // Auto-close after 3 seconds
         setTimeout(() => {
             window.close();
         }, 3000);

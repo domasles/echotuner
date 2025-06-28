@@ -19,7 +19,7 @@ class AppConstants:
     SPOTIFY_PLAYLISTS_TABLE = "echotuner_spotify_playlists"
     SPOTIFY_PLAYLISTS_USER_INDEX = "idx_echotuner_spotify_playlists_user_id"
     SPOTIFY_PLAYLISTS_DEVICE_INDEX = "idx_echotuner_spotify_playlists_device_id"
-    
+
     LOGGER_COLORS = {
         'DEBUG': 'cyan',
         'INFO': 'green',

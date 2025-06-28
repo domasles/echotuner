@@ -71,12 +71,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             boxShadow: null,
                         ),
 
-                        child: Icon(
-                            Icons.music_note_rounded,
-                            size: 50,
-                            color: Colors.white,
-                            shadows: const [],
-                            textDirection: TextDirection.ltr,
+                        child: Image.asset(
+                            'assets/logos/EchoTunerLogo.png',
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.contain,
                         ),
                     ),
                 ),
@@ -186,53 +185,48 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
 
                 child: _isLoading ? const Row(
-					mainAxisAlignment: MainAxisAlignment.center,
-					children: [
-						SizedBox(
-							width: 24,
-							height: 24,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                        SizedBox(
+                            width: 24,
+                            height: 24,
 
-							child: CircularProgressIndicator(
-								strokeWidth: 2.5,
-								valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-							),
-						),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                        ),
 
-						SizedBox(width: 16),
-						Text(
-							'Connecting...',
-							style: TextStyle(
-								fontSize: 16,
-								fontWeight: FontWeight.w600,
-							),
-						),
-					],
-				)
-				
-				: Row(
-					mainAxisAlignment: MainAxisAlignment.center,
-					children: [
-						Image.asset(
-							'assets/spotify_icon.png',
-							width: 24,
-							height: 24,
+                        SizedBox(width: 16),
+                        Text(
+                            'Connecting...',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                            ),
+                        ),
+                    ],
+                )
 
-							errorBuilder: (context, error, stackTrace) => const Icon(
-								Icons.music_note,
-								size: 24,
-							),
-						),
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                        Image.asset(
+                            'assets/logos/SpotifyLogo.png',
+                            width: 32,
+                            height: 32,
+                        ),
 
-						const SizedBox(width: 12),
-						const Text(
-							'Connect with Spotify',
-							style: TextStyle(
-								fontSize: 16,
-								fontWeight: FontWeight.w600,
-							),
-						),
-					],
-				),
+                        const SizedBox(width: 8),
+                        const Text(
+                            'Connect with Spotify',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                            ),
+                        ),
+                    ],
+                ),
             ),
         );
     }
@@ -245,27 +239,26 @@ class _LoginScreenState extends State<LoginScreen> {
         try {
             final authService = context.read<AuthService>();
             final authResponse = await authService.initiateAuth();
-			
+
             await _handleBrowserAuth(authResponse);
         }
-		
-		catch (e, stackTrace) {
-            AppLogger.error('Login error', error: e, stackTrace: stackTrace);
 
+        catch (e, stackTrace) {
+            AppLogger.error('Login error', error: e, stackTrace: stackTrace);
             String errorMessage = 'Failed to connect to Spotify. Please try again.';
 
             if (e.toString().contains('timeout')) {
                 errorMessage = 'Connection timeout. Please check your internet connection and try again.';
             }
-			
-			else if (e.toString().contains('network')) {
+
+            else if (e.toString().contains('network')) {
                 errorMessage = 'Network error. Please check your internet connection.';
             }
-            
+
             _showErrorDialog(errorMessage);
         }
-		
-		finally {
+
+        finally {
             setState(() {
                 _isLoading = false;
             });
@@ -281,25 +274,24 @@ class _LoginScreenState extends State<LoginScreen> {
                 Uri.parse(authResponse.authUrl),
                 mode: LaunchMode.externalApplication,
             );
-            
+
             try {
                 await authService.completeAuth();
             }
-			
-			catch (e, stackTrace) {
+
+            catch (e, stackTrace) {
                 if (mounted) {
                     AppLogger.error('Browser auth error', error: e, stackTrace: stackTrace);
-                    
                     String errorMessage = 'Authentication failed or timed out.';
 
                     if (e.toString().contains('timeout')) {
                         errorMessage = 'Authentication timed out. Please try again.';
                     }
-					
-					else if (e.toString().contains('cancelled')) {
+
+                    else if (e.toString().contains('cancelled')) {
                         errorMessage = 'Authentication was cancelled.';
                     }
-                    
+
                     _showErrorDialog(errorMessage);
                 }
             }
@@ -333,5 +325,4 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
         );
     }
-
 }

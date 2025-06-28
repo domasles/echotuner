@@ -1,20 +1,19 @@
-import 'dart:developer' as developer;
-import 'dart:io' show Platform;
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart' show kIsWeb, ChangeNotifier;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:http/http.dart' as http;
+import 'dart:developer' as developer;
+import 'dart:io' show Platform;
+import 'dart:convert';
 
 import '../config/app_constants.dart';
 import '../models/auth_models.dart';
-import '../config/app_config.dart';
+import '../config/settings.dart';
 
 class AuthService extends ChangeNotifier {
     static const String _sessionIdKey = 'session_id';
     static const String _deviceIdKey = 'device_id';
-    
+
     String? _sessionId;
     String? _deviceId;
 
@@ -35,24 +34,23 @@ class AuthService extends ChangeNotifier {
             final prefs = await SharedPreferences.getInstance();
             _deviceId = prefs.getString(_deviceIdKey);
 
-
             if (_deviceId == null || _isClientGeneratedId(_deviceId!)) {
                 try {
                     _deviceId = await _registerDeviceWithServer();
                     await prefs.setString(_deviceIdKey, _deviceId!);
                     developer.log('Registered new device with server: $_deviceId');
                 }
-				
-				catch (e) {
+
+                catch (e) {
                     developer.log('Failed to register device with server: $e');
                     _deviceId = await _generateDeviceId();
-					
+
                     await prefs.setString(_deviceIdKey, _deviceId!);
                 }
             }
 
             _sessionId = prefs.getString(_sessionIdKey);
-            
+
             if (_sessionId != null) {
                 _isAuthenticated = await _validateSession();
                 if (!_isAuthenticated) {
@@ -60,8 +58,8 @@ class AuthService extends ChangeNotifier {
                 }
             }
         }
-		
-		catch (e, stackTrace) {
+
+        catch (e, stackTrace) {
             developer.log(
                 'Auth initialization error: $e',
                 name: 'AuthService',
@@ -78,22 +76,22 @@ class AuthService extends ChangeNotifier {
 
     Future<String> _generateDeviceId() async {
         final deviceInfo = DeviceInfoPlugin();
-        
+
         if (kIsWeb) {
             return 'web_${DateTime.now().millisecondsSinceEpoch}';
         }
-		
-		else if (Platform.isAndroid) {
+
+        else if (Platform.isAndroid) {
             final androidInfo = await deviceInfo.androidInfo;
             return 'android_${androidInfo.id}';
         }
-		
-		else if (Platform.isIOS) {
+
+        else if (Platform.isIOS) {
             final iosInfo = await deviceInfo.iosInfo;
             return 'ios_${iosInfo.identifierForVendor ?? DateTime.now().millisecondsSinceEpoch}';
         }
-		
-		else {
+
+        else {
             return 'unknown_${DateTime.now().millisecondsSinceEpoch}';
         }
     }
@@ -128,8 +126,8 @@ class AuthService extends ChangeNotifier {
         if (response.statusCode == 200) {
             return AuthInitResponse.fromJson(jsonDecode(response.body));
         }
-		
-		else {
+
+        else {
             throw Exception('Failed to initiate auth: ${response.body}');
         }
     }
@@ -149,13 +147,13 @@ class AuthService extends ChangeNotifier {
 
         for (int i = 0; i < 150; i++) {
             await Future.delayed(const Duration(seconds: 2));
-            
+
             try {
                 final response = await http.get(
                     Uri.parse(AppConfig.apiUrl('/auth/check-session/${_deviceId!}')),
                     headers: {'Content-Type': 'application/json'},
                 );
-                
+
                 if (response.statusCode == 200) {
                     final data = jsonDecode(response.body);
 
@@ -166,8 +164,8 @@ class AuthService extends ChangeNotifier {
                     }
                 }
             }
-			
-			catch (e, stackTrace) {
+
+            catch (e, stackTrace) {
                 developer.log(
                     'Polling error: $e',
                     name: 'AuthService.completeAuth',
@@ -176,7 +174,7 @@ class AuthService extends ChangeNotifier {
                 );
             }
         }
-        
+
         throw Exception('Authentication timeout - please try again');
     }
 
@@ -204,8 +202,8 @@ class AuthService extends ChangeNotifier {
                 return validationResponse.valid;
             }
         }
-		
-		catch (e, stackTrace) {
+
+        catch (e, stackTrace) {
             developer.log(
                 'Session validation error: $e',
                 name: 'AuthService._validateSession',
@@ -220,20 +218,20 @@ class AuthService extends ChangeNotifier {
     Future<void> setSession(String sessionId) async {
         _sessionId = sessionId;
         _isAuthenticated = true;
-        
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_sessionIdKey, sessionId);
-        
+
         notifyListeners();
     }
 
     Future<void> _clearSession() async {
         _sessionId = null;
         _isAuthenticated = false;
-        
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove(_sessionIdKey);
-        
+
         notifyListeners();
     }
 
@@ -247,13 +245,13 @@ class AuthService extends ChangeNotifier {
         if (_sessionId == null) {
             return false;
         }
-        
+
         final isValid = await _validateSession();
 
         if (!isValid) {
             await _clearSession();
         }
-        
+
         return isValid;
     }
 
@@ -267,7 +265,7 @@ class AuthService extends ChangeNotifier {
     Future<String> _registerDeviceWithServer() async {
         try {
             final platform = _getPlatform();
-            
+ 
             final request = DeviceRegistrationRequest(
                 platform: platform,
                 appVersion: AppConstants.appVersion,
@@ -284,13 +282,13 @@ class AuthService extends ChangeNotifier {
                 final deviceResponse = DeviceRegistrationResponse.fromJson(data);
                 return deviceResponse.deviceId;
             }
-			
-			else {
+
+            else {
                 throw Exception('Server returned ${response.statusCode}: ${response.body}');
             }
         }
-		
-		catch (e) {
+
+        catch (e) {
             developer.log('Device registration failed: $e');
             rethrow;
         }

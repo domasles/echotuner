@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../providers/playlist_provider.dart';
 import '../services/message_service.dart';
-import '../utils/app_logger.dart';
 import '../config/app_colors.dart';
+import '../utils/app_logger.dart';
 
 class PlaylistScreen extends StatelessWidget {
     const PlaylistScreen({super.key});
@@ -21,7 +21,7 @@ class PlaylistScreen extends StatelessWidget {
                 );
             }
         }
-		
+
         catch (e, stackTrace) {
             AppLogger.error('Failed to launch Spotify URL', error: e, stackTrace: stackTrace);
         }
@@ -29,7 +29,7 @@ class PlaylistScreen extends StatelessWidget {
 
     Future<void> _showRefineDialog(BuildContext context, PlaylistProvider provider) async {
         String refinementText = '';
-        
+
         return showDialog<void>(
             context: context,
             builder: (BuildContext dialogContext) {
@@ -87,10 +87,10 @@ class PlaylistScreen extends StatelessWidget {
             await _updateSpotifyPlaylist(context, provider);
             return;
         }
-        
+
         String playlistName = '';
         String description = '';
-        
+
         return showDialog<void>(
             context: context,
             builder: (BuildContext dialogContext) {
@@ -140,9 +140,10 @@ class PlaylistScreen extends StatelessWidget {
                             onPressed: () async {
                                 if (playlistName.trim().isNotEmpty) {
                                     Navigator.of(dialogContext).pop();
-                                    
+
                                     try {
                                         final isUpdate = provider.isPlaylistAddedToSpotify;
+
                                         await provider.addToSpotify(
                                             playlistName: playlistName.trim(),
                                             description: description.trim().isEmpty ? null : description.trim(),
@@ -155,13 +156,11 @@ class PlaylistScreen extends StatelessWidget {
                                                 : 'Playlist added to Spotify successfully!');
                                         }
                                     }
-									
-									catch (e) {
+
+                                    catch (e) {
                                         if (context.mounted) {
                                             Navigator.of(context).pop();
-                                            MessageService.showError(context, provider.isPlaylistAddedToSpotify 
-                                                ? 'Failed to update playlist: $e' 
-                                                : 'Failed to add playlist: $e');
+                                            MessageService.showError(context, provider.isPlaylistAddedToSpotify ? 'Failed to update playlist: $e' : 'Failed to add playlist: $e');
                                         }
                                     }
                                 }
@@ -189,8 +188,8 @@ class PlaylistScreen extends StatelessWidget {
                 MessageService.showSuccess(context, 'Playlist updated on Spotify successfully!');
             }
         }
-		
-		catch (e) {
+
+        catch (e) {
             if (context.mounted) {
                 Navigator.of(context).pop();
                 MessageService.showError(context, 'Failed to update playlist: $e');
@@ -291,7 +290,7 @@ class PlaylistScreen extends StatelessWidget {
                             width: 1,
                         ),
                     ),
-                    
+
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -314,12 +313,12 @@ class PlaylistScreen extends StatelessWidget {
                         ],
                     ),
                 ),
-                
+
                 Expanded(
                     child: ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: provider.currentPlaylist.length,
-                        
+
                         itemBuilder: (context, index) {
                             final song = provider.currentPlaylist[index];
 
@@ -378,16 +377,16 @@ class PlaylistScreen extends StatelessWidget {
                                     minimumSize: WidgetStatePropertyAll(Size.fromHeight(48)),
                                 ),
 
-                                child: provider.isAddingToSpotify 
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      )
-                                    : Text(provider.isPlaylistAddedToSpotify ? 'Update' : 'Add to Spotify'),
+                                child: provider.isAddingToSpotify ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+
+                                : Text(provider.isPlaylistAddedToSpotify ? 'Update' : 'Add to Spotify'),
                             ),
                         ),
-                        
+
                         const SizedBox(width: 8),
 
                         if (provider.canRefine) Expanded(
@@ -415,31 +414,31 @@ class PlaylistScreen extends StatelessWidget {
         if (!provider.showRefinementLimits) {
             return const SizedBox.shrink();
         }
-        
+
         final rateLimitStatus = provider.rateLimitStatus;
-		
+
         if (rateLimitStatus == null) {
             return const SizedBox.shrink();
         }
-        
+
         final refinementsUsed = provider.refinementsUsed;
         final maxRefinements = rateLimitStatus.maxRefinements;
         final progress = maxRefinements > 0 ? refinementsUsed / maxRefinements : 0.0;
-        
+
         Color progressColor;
 
         if (progress <= 0.5) {
             progressColor = AppColors.progressBlue;
         }
-		
-		else if (progress <= 0.8) {
+
+        else if (progress <= 0.8) {
             progressColor = AppColors.progressOrange;
         }
-		
-		else {
+
+        else {
             progressColor = AppColors.progressRed;
         }
-        
+
         return Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(

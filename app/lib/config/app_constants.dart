@@ -18,8 +18,6 @@ class AppConstants {
     static const double messageBottomMargin = 16.0;
 
     static const double progressBarHeight = 4.0;
-    static const int maxRefinementsDefault = 3;
-    static const int maxPlaylistsDefault = 3;
 
     static const List<String> clientGeneratedPrefixes = [
         'android_',

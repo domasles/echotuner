@@ -46,14 +46,14 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
         try {
             final provider = Provider.of<PlaylistProvider>(context, listen: false);
             final response = await provider.getLibraryPlaylists();
-            
+
             setState(() {
                 _drafts = response.drafts;
                 _spotifyPlaylists = response.spotifyPlaylists;
                 _isLoading = false;
             });
         }
-        
+
         catch (e) {
             setState(() {
                 _error = e.toString();
@@ -64,7 +64,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
     Future<void> _openDraft(PlaylistDraft draft) async {
         final provider = Provider.of<PlaylistProvider>(context, listen: false);
-        
+
         try {
             await provider.loadDraft(draft);
             if (mounted) {
@@ -76,7 +76,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                 _loadLibrary();
             }
         }
-        
+
         catch (e) {
             if (mounted) {
                 MessageService.showError(
@@ -116,7 +116,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
         if (confirmed == true) {
             if (!mounted) return;
             final provider = Provider.of<PlaylistProvider>(context, listen: false);
-            
+
             try {
                 await provider.deleteDraft(draft.id);
                 _loadLibrary();
@@ -125,7 +125,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                     MessageService.showInfo(context, 'Draft deleted successfully');
                 }
             }
-            
+
             catch (e) {
                 if (mounted) {
                     MessageService.showError(context, 'Failed to delete draft: $e');
@@ -133,8 +133,6 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
             }
         }
     }
-
-
 
     Future<void> _deleteSpotifyPlaylist(SpotifyPlaylistInfo playlist) async {
         final confirmed = await showDialog<bool>(
@@ -169,7 +167,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                     MessageService.showInfo(context, 'Playlist deleted successfully');
                 }
             }
-            
+
             catch (e) {
                 if (mounted) {
                     MessageService.showError(context, 'Failed to delete playlist: $e');
@@ -319,7 +317,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                         ),
                     ],
                 ),
-                
+
                 trailing: draft.isDraft 
                     ? PopupMenuButton<String>(
                         onSelected: (value) {
