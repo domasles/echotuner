@@ -7,85 +7,50 @@ class AppConstants {
     static const int defaultApiPort = 8000;
 
     static const int authPollingMaxAttempts = 150;
-    
+
     static const Duration authPollingInterval = Duration(seconds: 2);
     static const Duration authStateExpiry = Duration(minutes: 10);
-
     static const Duration messageDisplayDuration = Duration(seconds: 2);
     static const Duration quickPromptDelay = Duration(milliseconds: 500);
-
-    static const double bottomNavigationHeight = 80.0;
-    static const double fabBottomMargin = 16.0;
-    static const double messageBottomMargin = 90.0;
-    static const double progressBarHeight = 4.0;
-    static const double appBarHeight = 56.0;
-    static const double tabBarHeight = 48.0;
 
     static const double tinyRadius = 2.0;
     static const double smallRadius = 8.0;
     static const double mediumRadius = 12.0;
-    static const double largeRadius = 16.0;
-    static const double extraLargeRadius = 20.0;
-    static const double pillRadius = 24.0;
-    static const double circularRadius = 28.0;
-
-    static const double buttonRadius = 24.0;
-    static const double chipRadius = 20.0;
-    static const double cardRadius = 16.0;
-    static const double inputRadius = 16.0;
-    static const double dialogRadius = 20.0;
-    static const double dialogWidth = 400.0;
-    static const double messageRadius = 16.0;
-    static const double snackbarRadius = 16.0;
-    static const double modalRadius = 20.0;
-    static const double avatarRadius = 20.0;
+    static const double bigRadius = 16.0;
+    static const double largeRadius = 20.0;
+    static const double enormousRadius = 28.0;
 
     static const double tinySpacing = 4.0;
     static const double smallSpacing = 8.0;
     static const double mediumSpacing = 16.0;
-    static const double largeSpacing = 24.0;
-    static const double extraLargeSpacing = 32.0;
-    static const double massiveSpacing = 48.0;
+    static const double bigSpacing = 24.0;
+    static const double largeSpacing = 32.0;
+    static const double enormousSpacing = 48.0;
 
     static const double tinyIconSize = 16.0;
     static const double smallIconSize = 20.0;
     static const double mediumIconSize = 24.0;
-    static const double largeIconSize = 32.0;
-    static const double extraLargeIconSize = 48.0;
-    static const double massiveIconSize = 64.0;
+    static const double bigIconSize = 32.0;
+    static const double largeIconSize = 48.0;
+    static const double enormousIconSize = 64.0;
 
     static const double tinyPadding = 4.0;
     static const double smallPadding = 8.0;
-    static const double smallMediumPadding = 12.0;
     static const double mediumPadding = 16.0;
-    static const double largePadding = 24.0;
-    static const double extraLargePadding = 32.0;
-
-    static const double screenPaddingMobile = 16.0;
-    static const double screenPaddingTablet = 24.0;
-    static const double screenPaddingDesktop = 32.0;
+    static const double bigPadding = 24.0;
+    static const double largePadding = 32.0;
 
     static const double tinyFontSize = 10.0;
     static const double smallFontSize = 12.0;
     static const double mediumFontSize = 14.0;
-    static const double largeFontSize = 16.0;
-    static const double extraLargeFontSize = 18.0;
-    static const double titleFontSize = 20.0;
-    static const double headingFontSize = 24.0;
-    static const double displayFontSize = 32.0;
+    static const double bigFontSize = 16.0;
+    static const double largeFontSize = 20.0;
+    static const double enormousFontSize = 32.0;
 
-    static const double buttonHeight = 48.0;
-    static const double inputHeight = 48.0;
-    static const double listItemHeight = 56.0;
-    static const double chipHeight = 32.0;
-    static const double toolbarHeight = 56.0;
-
-    static const double messageHorizontalPadding = 12.0;
-    static const double messageVerticalPadding = 8.0;
-    static const double messageLeftRightMargin = 20.0;
-    static const double messageBottomPosition = 90.0;
-    static const double messageFontSize = 14.0;
-    static const double messageBorderWidth = 1.0;
+    static const double tinyHeight = 32.0;
+    static const double smallHeight = 48.0;
+    static const double mediumHeight = 56.0;
+    static const double bigHeight = 80.0;
 
     static const Duration fastAnimation = Duration(milliseconds: 150);
     static const Duration normalAnimation = Duration(milliseconds: 300);
@@ -98,6 +63,22 @@ class AppConstants {
     static const double mobileBreakpoint = 600.0;
     static const double tabletBreakpoint = 1024.0;
     static const double desktopBreakpoint = 1440.0;
+
+    static const double messageHorizontalPadding = 12.0;
+    static const double messageVerticalPadding = 8.0;
+    static const double messageBottomPosition = 90.0;
+    static const double messageFontSize = 14.0;
+    static const double messageBorderWidth = 1.0;
+    static const double messageRadius = 16.0;
+
+    static const double buttonRadius = 24.0;
+    static const double dialogWidth = 400.0;
+    static const double smallMediumPadding = 12.0;
+    
+    static const double cardRadius = 16.0;
+    static const double inputRadius = 16.0;
+    static const double chipRadius = 20.0;
+    static const double dialogRadius = 20.0;
 
     static const int mobileGridColumns = 2;
     static const int tabletGridColumns = 3;

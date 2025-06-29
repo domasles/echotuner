@@ -2,45 +2,52 @@
 
 # EchoTuner - AI Powered Playlist Generation Platform
 
-EchoTuner is a production-ready platform that generates personalized music playlists using artificial intelligence and natural language processing. Built with strict dependency requirements, EchoTuner requires both Ollama AI models and Spotify Web API to deliver intelligent music recommendations with zero fallback mechanisms, ensuring consistent AI-driven results.
+EchoTuner is a production-ready platform that generates personalized music playlists using artificial intelligence and natural language processing. The platform features a flexible AI model system supporting both local (Ollama) and cloud-based AI providers (OpenAI, Anthropic Claude), combined with Spotify Web API integration for intelligent music recommendations.
 
-The platform consists of a RESTful API service for integration with third-party applications and a dedicated user application for direct music discovery and playlist creation.
+The platform consists of a RESTful API service and a cross-platform Flutter application for music discovery and playlist creation.
 
 ## Project Status
 
-EchoTuner currently consists of a mostly complete, production-ready API backend service designed for integration with music applications, mobile apps, and web platforms. The API provides intelligent playlist generation capabilities while maintaining strict quality standards through required AI and music service dependencies.
+EchoTuner is now feature-complete with both API backend and user application ready for production deployment.
 
 **Platform Components:**
-- **API Backend**: Complete and production-ready (current release)
-- **User Application**: In development, coming soon for direct music discovery
-- **Integration Libraries**: Available for third-party development
+- **API Backend**: Complete and production-ready ✅
+- **Flutter Application**: Complete cross-platform app (Android, iOS, Web, Desktop) ✅
+- **AI Model System**: Flexible support for multiple AI providers ✅
 
-**Key Characteristics:**
-- **Zero-Fallback Architecture**: Requires both Ollama and Spotify API to be operational
-- **Pure AI-Driven**: No hardcoded song databases or keyword-based fallbacks
-- **Real-Time Processing**: Live Spotify search integrated with local AI analysis
+**Key Features:**
+- **Flexible AI Models**: Support for Ollama (local), OpenAI, Anthropic Claude, and custom endpoints
+- **Real-Time Processing**: Live Spotify search integrated with AI analysis
+- **User Personality System**: Comprehensive user preference learning and application
+- **Cross-Platform Support**: Single codebase for all major platforms
 - **Production Hardened**: Comprehensive error handling with graceful failures
 - **Integration Ready**: RESTful API designed for both internal app and external integration
 
 ## Architecture Overview
 
-### Core Dependencies (Required)
+### AI Model Support
 
-**Ollama Local AI Stack**
+**Local AI (Ollama)**
+- **Default Model**: `llama3.2:3b` for intelligent playlist generation
 - **Validation Model**: `nomic-embed-text` for semantic prompt validation
-- **Generation Model**: `phi3:mini` for intelligent playlist strategy generation
-- **Local Processing**: All AI operations run on your infrastructure
-- **No External AI APIs**: Complete independence from cloud AI services
+- **Benefits**: No API costs, privacy, offline capability
+- **Requirements**: Local Ollama installation
 
-**Spotify Web API Integration**
-- **Real-Time Search**: Live access to Spotify's music catalog
-- **Current Music Data**: No static databases, always up-to-date content
-- **Authenticated Access**: Requires valid Spotify Developer credentials
+**Cloud AI Providers**
+- **OpenAI**: `gpt-4o-mini` for fast, intelligent responses
+- **Anthropic Claude**: `claude-3-5-sonnet-20241022` for sophisticated analysis
+- **Benefits**: No local resources, powerful models, consistent performance
+- **Requirements**: Valid API keys
+
+**Custom AI Models**
+- Support for any REST API-based AI service
+- Configurable endpoints, headers, and parameters
+- Extensible architecture for future providers
 
 ### Service Architecture
 
 **FastAPI Backend**
-- Asynchronous request processing
+- Asynchronous request processing with flexible AI model routing
 - Comprehensive error handling and logging
 - Rate limiting and abuse prevention
 - Health monitoring and status endpoints
@@ -48,6 +55,7 @@ EchoTuner currently consists of a mostly complete, production-ready API backend 
 **AI Pipeline**
 - **Prompt Validation**: Semantic analysis to ensure music-related requests
 - **Strategy Generation**: AI-powered mood and genre analysis
+- **Model Fallback**: Automatic switching between available AI providers
 - **Music Search**: Real-time Spotify API integration
 - **Result Processing**: Intelligent song selection and playlist assembly
 
@@ -90,6 +98,58 @@ For Flutter app installation and development setup, see the **[App Setup Guide](
 - **No External AI APIs**: Complete independence from cloud AI services
 - **Hashed Device IDs**: User anonymity through cryptographic hashing
 - **No Data Persistence**: User prompts and preferences are not stored permanently
+
+## AI Model Configuration
+
+EchoTuner supports multiple AI providers with automatic model selection and fallback capabilities.
+
+### Supported AI Models
+
+#### Ollama (Local AI - Default)
+- **Model**: `llama3.2:3b` (configurable)
+- **Benefits**: No API costs, complete privacy, offline capability
+- **Requirements**: Local Ollama installation and model download
+- **Configuration**: Set `DEFAULT_AI_MODEL=ollama` (default)
+
+```bash
+# Install and start Ollama
+curl -fsSL https://ollama.ai/install.sh | sh
+ollama serve
+ollama pull llama3.2:3b
+```
+
+#### OpenAI (Cloud AI)
+- **Model**: `gpt-4o-mini` (configurable)
+- **Benefits**: Fast responses, powerful reasoning, no local resources
+- **Requirements**: OpenAI API key
+- **Configuration**: Set `OPENAI_API_KEY` in environment variables
+
+```env
+DEFAULT_AI_MODEL=openai
+OPENAI_API_KEY=sk-your-openai-api-key-here
+```
+
+#### Anthropic Claude (Cloud AI)
+- **Model**: `claude-3-5-sonnet-20241022` (configurable)
+- **Benefits**: Sophisticated analysis, strong reasoning capabilities
+- **Requirements**: Anthropic API key
+- **Configuration**: Set `ANTHROPIC_API_KEY` in environment variables
+
+```env
+DEFAULT_AI_MODEL=anthropic
+ANTHROPIC_API_KEY=your-anthropic-api-key-here
+```
+
+#### Custom AI Models
+- Support for any REST API-based AI service
+- Configurable endpoints, headers, and authentication
+- Extensible architecture for future AI providers
+
+### Model Selection Logic
+1. Uses model specified in `DEFAULT_AI_MODEL` environment variable
+2. Falls back to Ollama if default model is unavailable
+3. Automatic failover between available models
+4. Graceful error handling with informative messages
 
 ### Authentication and Session Management
 - **Spotify OAuth Integration**: Secure OAuth 2.0 flow with authorization code grant

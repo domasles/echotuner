@@ -275,6 +275,14 @@ class PlaylistProvider extends ChangeNotifier {
         notifyListeners();
     }
 
+    Future<bool> removeSongFromSpotifyPlaylist(String playlistId, String trackUri, String sessionId, String deviceId) async {
+        try {
+            return await _apiService.removeTrackFromSpotifyPlaylist(playlistId, trackUri, sessionId, deviceId);
+        } catch (e) {
+            return false;
+        }
+    }
+
     void addSong(Song song) {
         if (!_currentPlaylist.contains(song)) {
             _currentPlaylist.add(song);

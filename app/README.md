@@ -1,21 +1,23 @@
 ![EchoTuner Logo](../EchoTunerLogo.svg)
 
-# EchoTuner app - AI-Powered Music Discovery Application
+# EchoTuner App - AI-Powered Music Discovery Application
 
 The EchoTuner application provides a user-friendly interface for AI-powered playlist generation and music discovery. Built with Flutter, it offers cross-platform compatibility and seamless integration with the EchoTuner API backend for intelligent music recommendations.
 
 ## Overview
 
-The EchoTuner app delivers an intuitive app experience for creating personalized playlists through natural language prompts. Users can describe their mood, preferences, or activities, and the app leverages AI-powered backend services to generate tailored music recommendations.
+The EchoTuner app delivers an intuitive experience for creating personalized playlists through natural language prompts. Users can describe their mood, preferences, or activities, and the app leverages AI-powered backend services to generate tailored music recommendations with support for multiple AI providers.
 
 **Key Features:**
 - **Natural Language Interface**: Describe your music preferences in plain language
-- **AI-Powered Recommendations**: Intelligent playlist generation through backend API integration
+- **AI-Powered Recommendations**: Intelligent playlist generation with flexible AI model support
 - **Cross-Platform Compatibility**: Built with Flutter for Android, iOS, Desktop and Web
-- **Real-Time Music Discovery**: Live integration with music streaming services
-- **Personalized Experience**: Adaptive recommendations based on user preferences
+- **User Personality System**: Comprehensive preference learning and personalized recommendations
+- **Real-Time Music Discovery**: Live integration with Spotify streaming service
+- **Spotify Integration**: Direct playlist creation and synchronization
+- **Library Management**: Track drafts and created playlists with silent refresh system
+- **Song Management**: Add, remove, and reorder songs with Spotify sync
 - **Smart Limit Indicators**: Visual rate limiting with floating progress bars
-- **Conditional UI**: Limit indicators appear only when backend limits are enabled
 
 ## Prerequisites
 

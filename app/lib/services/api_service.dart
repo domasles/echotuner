@@ -267,6 +267,14 @@ class ApiService {
         return response.statusCode == 200;
     }
 
+    Future<bool> removeTrackFromSpotifyPlaylist(String playlistId, String trackUri, String sessionId, String deviceId) async {
+        final response = await _client.delete(
+            Uri.parse(AppConfig.apiUrl('/spotify/playlist/$playlistId/tracks/$trackUri?session_id=$sessionId&device_id=$deviceId')),
+        );
+
+        return response.statusCode == 200;
+    }
+
     Future<List<Map<String, dynamic>>> getSpotifyPlaylistTracks(String playlistId, String sessionId, String deviceId) async {
         final response = await _client.get(
             Uri.parse(AppConfig.apiUrl('/spotify/playlist/$playlistId/tracks?session_id=$sessionId&device_id=$deviceId')),

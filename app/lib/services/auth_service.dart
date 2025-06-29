@@ -231,6 +231,9 @@ class AuthService extends ChangeNotifier {
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove(_sessionIdKey);
+        await prefs.remove('device_id');
+        await prefs.remove('user_id');
+        await prefs.clear();
 
         notifyListeners();
     }

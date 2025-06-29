@@ -16,6 +16,10 @@ class MessageService {
         _showMessage(context, message, MessageType.info);
     }
 
+    static void showWarning(BuildContext context, String message) {
+        _showMessage(context, message, MessageType.warning);
+    }
+
     static void _showMessage(BuildContext context, String message, MessageType type) {
         final overlay = Overlay.of(context);
         late OverlayEntry overlayEntry;
@@ -89,7 +93,8 @@ class _FixedText extends StatelessWidget {
 enum MessageType {
     success(AppColors.success),
     error(AppColors.error),
-    info(AppColors.info);
+    info(AppColors.info),
+    warning(AppColors.warning);
 
     const MessageType(this.color);
     final Color color;

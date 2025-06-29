@@ -42,7 +42,9 @@ flutter:
 
     assets:
         - .env
-        - assets/
+
+        - assets/logos/EchoTunerLogo.png
+        - assets/logos/SpotifyLogo.png
 
 flutter_launcher_icons:
     android: true

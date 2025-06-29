@@ -54,4 +54,8 @@ class Song {
 
         return '$minutes:${seconds.toString().padLeft(2, '0')}';
     }
+
+    String get uri {
+        return spotifyId != null ? 'spotify:track:$spotifyId' : '';
+    }
 }

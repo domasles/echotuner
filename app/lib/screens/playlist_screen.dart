@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../providers/playlist_provider.dart';
 import '../services/message_service.dart';
+import '../services/auth_service.dart';
 import '../config/app_constants.dart';
 import '../config/app_colors.dart';
 import '../utils/app_logger.dart';
@@ -503,6 +504,7 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
 
     Future<void> _removeSong(BuildContext context, int index) async {
         final provider = Provider.of<PlaylistProvider>(context, listen: false);
+        final authService = Provider.of<AuthService>(context, listen: false);
         final currentPlaylist = provider.currentPlaylist;
         
         if (currentPlaylist.isEmpty || index >= currentPlaylist.length) return;
@@ -539,9 +541,31 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
             ),
         );
 
-        if (confirmed == true) {
+        if (confirmed == true && context.mounted) {
             provider.removeSong(song);
-            MessageService.showSuccess(context, 'Song removed from playlist');
+            
+            if (provider.isPlaylistAddedToSpotify && provider.currentPlaylistId != null && authService.sessionId != null && authService.deviceId != null && song.uri.isNotEmpty) {
+                try {
+                    final success = await provider.removeSongFromSpotifyPlaylist(
+                        provider.currentPlaylistId!,
+                        song.uri,
+                        authService.sessionId!,
+                        authService.deviceId!,
+                    );
+                    
+                    if (success && context.mounted) {
+                        MessageService.showSuccess(context, 'Song removed from playlist and Spotify');
+                    } else if (context.mounted) {
+                        MessageService.showWarning(context, 'Song removed locally but failed to remove from Spotify');
+                    }
+                } catch (e) {
+                    if (context.mounted) {
+                        MessageService.showWarning(context, 'Song removed locally but failed to remove from Spotify');
+                    }
+                }
+            } else if (context.mounted) {
+                MessageService.showSuccess(context, 'Song removed from playlist');
+            }
         }
     }
 }

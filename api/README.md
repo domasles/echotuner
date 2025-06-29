@@ -2,27 +2,38 @@
 
 # EchoTuner API - AI-Powered Playlist Generation Backend
 
-The EchoTuner API is a production-ready RESTful service that generates personalized music playlists using artificial intelligence and natural language processing. This backend service powers the EchoTuner platform with intelligent music recommendations through strict dependency requirements and zero-fallback architecture.
+The EchoTuner API is a production-ready RESTful service that generates personalized music playlists using artificial intelligence and natural language processing. This backend service powers the EchoTuner platform with intelligent music recommendations through flexible AI model support and real-time Spotify integration.
 
 ## Overview
 
-The API provides intelligent playlist generation capabilities while maintaining strict quality standards through required AI and music service dependencies. Built with FastAPI, it offers asynchronous request processing, comprehensive error handling, and seamless integration capabilities for third-party applications.
+The API provides intelligent playlist generation capabilities with support for multiple AI providers including local Ollama models, OpenAI, Anthropic Claude, and custom AI endpoints. Built with FastAPI, it offers asynchronous request processing, comprehensive error handling, and seamless integration capabilities for third-party applications.
 
 **Key Features:**
-- **Pure AI-Driven**: No hardcoded song databases or keyword-based fallbacks
-- **Real-Time Processing**: Live Spotify search integrated with local AI analysis
-- **Zero-Fallback Architecture**: Requires both Ollama and Spotify API to be operational
+- **Flexible AI Models**: Support for Ollama (local), OpenAI, Anthropic Claude, and custom endpoints
+- **Real-Time Processing**: Live Spotify search integrated with AI analysis
+- **User Personality System**: Comprehensive preference learning and application
 - **Production Hardened**: Comprehensive error handling with graceful failures
 - **Integration Ready**: RESTful API designed for both internal app and external integration
 - **Configurable Rate Limiting**: Independent playlist and refinement limits with backend control
 
-## Core Dependencies
+## AI Model Support
 
-**Ollama Local AI Stack (Required)**
+**Local AI (Ollama) - Default**
+- **Generation Model**: `llama3.2:3b` for intelligent playlist strategy generation
 - **Validation Model**: `nomic-embed-text` for semantic prompt validation
-- **Generation Model**: `phi3:mini` for intelligent playlist strategy generation
-- **Local Processing**: All AI operations run on your infrastructure
-- **No External AI APIs**: Complete independence from cloud AI services
+- **Benefits**: No API costs, privacy, offline capability
+- **Requirements**: Local Ollama installation
+
+**Cloud AI Providers**
+- **OpenAI**: `gpt-4o-mini` for fast, intelligent responses
+- **Anthropic Claude**: `claude-3-5-sonnet-20241022` for sophisticated analysis
+- **Benefits**: No local resources, powerful models, consistent performance
+- **Requirements**: Valid API keys
+
+**Custom AI Models**
+- Support for any REST API-based AI service
+- Configurable endpoints, headers, and parameters
+- Extensible architecture for future providers
 
 **Spotify Web API Integration (Required)**
 - **Real-Time Search**: Live access to Spotify's music catalog
@@ -36,11 +47,14 @@ For complete installation and setup instructions, please refer to the [master in
 ### Prerequisites
 
 1. **Python 3.8+** installed on your system
-2. **Ollama** installed from [https://ollama.ai](https://ollama.ai)
+2. **AI Model Provider** - Choose one:
+   - **Ollama** (local) from [https://ollama.ai](https://ollama.ai)
+   - **OpenAI API Key** from [https://platform.openai.com](https://platform.openai.com)
+   - **Anthropic API Key** from [https://console.anthropic.com](https://console.anthropic.com)
 3. **Spotify Developer Account** for API credentials
 4. **Spotify API credentials** (Client ID and Client Secret)
 
-### Installaton
+### Installation
 
 1. **Navigate to API directory:**
    ```bash
@@ -51,20 +65,46 @@ For complete installation and setup instructions, please refer to the [master in
     ```bash
     cp .env.sample .env
     ```
-    Don't forget to Configure Spotify API credentials in the generated `.env` file
 
-3. **Run automated setup:**
+3. **Configure your AI model:**
+
+   **For Ollama (Local AI - Default):**
+   ```bash
+   # Install and start Ollama
+   curl -fsSL https://ollama.ai/install.sh | sh
+   ollama serve
+   
+   # Install required models
+   ollama pull llama3.2:3b
+   ollama pull nomic-embed-text
+   ```
+
+   **For OpenAI (Cloud AI):**
+   ```env
+   # Edit .env file
+   DEFAULT_AI_MODEL=openai
+   OPENAI_API_KEY=sk-your-openai-api-key-here
+   ```
+
+   **For Anthropic Claude (Cloud AI):**
+   ```env
+   # Edit .env file
+   DEFAULT_AI_MODEL=anthropic
+   ANTHROPIC_API_KEY=your-anthropic-api-key-here
+   ```
+
+4. **Configure Spotify API credentials in `.env` file:**
+   ```env
+   SPOTIFY_CLIENT_ID=your_spotify_client_id
+   SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+   ```
+
+5. **Run automated setup:**
    ```bash
    python setup.py
    ```
 
-4. **Install required AI models:**
-   ```bash
-   ollama pull nomic-embed-text
-   ollama pull phi3:mini
-   ```
-
-5. **Start the API:**
+6. **Start the API:**
    ```bash
    python main.py
    ```

@@ -1,8 +1,6 @@
 import asyncio
 import logging
 import httpx
-
-import ollama
 import random
 import json
 
@@ -12,6 +10,7 @@ from services.spotify_search_service import SpotifySearchService
 from services.data_loader import data_loader
 from core.models import Song, UserContext
 from config.settings import settings
+from config.ai_models import ai_model_manager
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +19,7 @@ class PlaylistGeneratorService:
 
     def __init__(self):
         self.spotify_search = SpotifySearchService()
-
-        self.ollama_base_url = settings.OLLAMA_BASE_URL
-        self.model_name = settings.OLLAMA_GENERATION_MODEL
-        self.use_ollama = settings.USE_OLLAMA
-
+        self.model_config = ai_model_manager.get_model()
         self.initialized = False
         self.http_client = None
 
@@ -32,20 +27,16 @@ class PlaylistGeneratorService:
         """Initialize the AI model and Spotify search service"""
 
         try:
-            self.http_client = httpx.AsyncClient(timeout=settings.OLLAMA_TIMEOUT)
+            self.http_client = httpx.AsyncClient(timeout=self.model_config.timeout)
             await self.spotify_search.initialize()
 
-            if not self.use_ollama:
-                logger.error("Ollama is required for this application")
-                raise RuntimeError("Ollama must be enabled. Set USE_OLLAMA=true in environment variables.")
-
-            if not await self._check_ollama_connection():
-                logger.error("Ollama not running or not accessible")
-                raise RuntimeError("Ollama is not running. Please start Ollama and try again.")
+            if not await self._check_ai_model_connection():
+                logger.error(f"AI model {self.model_config.name} not running or not accessible")
+                raise RuntimeError(f"AI model {self.model_config.name} is not accessible. Please check your configuration.")
 
             await self._ensure_model_available()
 
-            logger.info("AI Playlist Generation initialized successfully!")
+            logger.info(f"AI Playlist Generation initialized successfully with {self.model_config.name}!")
             self.initialized = True
 
         except RuntimeError:
@@ -60,12 +51,17 @@ class PlaylistGeneratorService:
 
         return self.initialized
 
-    async def _check_ollama_connection(self) -> bool:
-        """Check if Ollama is running and accessible"""
+    async def _check_ai_model_connection(self) -> bool:
+        """Check if the AI model is running and accessible"""
 
         try:
-            response = await self.http_client.get(f"{self.ollama_base_url}/api/tags")
-            return response.status_code == 200
+            if self.model_config.name.lower() == "ollama":
+                response = await self.http_client.get(f"{self.model_config.endpoint}/api/tags")
+                return response.status_code == 200
+            else:
+                # For external APIs, just check if we have proper configuration
+                return (self.model_config.api_key is not None and 
+                       self.model_config.endpoint is not None)
 
         except:
             return False
@@ -74,39 +70,45 @@ class PlaylistGeneratorService:
         """Ensure the required model is available"""
 
         try:
-            response = await self.http_client.get(f"{self.ollama_base_url}/api/tags")
+            if self.model_config.name.lower() == "ollama":
+                response = await self.http_client.get(f"{self.model_config.endpoint}/api/tags")
 
-            if response.status_code == 200:
-                models = response.json().get("models", [])
-                model_names = [model.get("name", "") for model in models]
+                if response.status_code == 200:
+                    models = response.json().get("models", [])
+                    model_names = [model.get("name", "") for model in models]
 
-                if self.model_name not in model_names:
-                    logger.info(f"Model {self.model_name} not found, pulling...")
-                    await self._pull_model()
+                    if self.model_config.model_name not in model_names:
+                        logger.info(f"Model {self.model_config.model_name} not found, pulling...")
+                        await self._pull_model()
 
-                else:
-                    logger.info(f"Model {self.model_name} is available")
+                    else:
+                        logger.info(f"Model {self.model_config.model_name} is available")
+            else:
+                logger.info(f"Using external AI model: {self.model_config.name}")
 
         except Exception as e:
             logger.error(f"Model check failed: {e}")
             raise RuntimeError(f"Model check failed: {e}")
 
     async def _pull_model(self):
-        """Pull the required model"""
+        """Pull the required model (Ollama only)"""
 
         try:
+            if self.model_config.name.lower() != "ollama":
+                return
+
             response = await self.http_client.post(
-                f"{self.ollama_base_url}/api/pull",
-                json={"name": self.model_name},
-                timeout=settings.OLLAMA_MODEL_PULL_TIMEOUT
+                f"{self.model_config.endpoint}/api/pull",
+                json={"name": self.model_config.model_name},
+                timeout=settings.AI_MODEL_PULL_TIMEOUT
             )
 
             if response.status_code == 200:
-                logger.info(f"Model {self.model_name} pulled successfully")
+                logger.info(f"Model {self.model_config.model_name} pulled successfully")
 
             else:
-                logger.error(f"Failed to pull model {self.model_name}")
-                raise RuntimeError(f"Failed to pull model {self.model_name}")
+                logger.error(f"Failed to pull model {self.model_config.model_name}")
+                raise RuntimeError(f"Failed to pull model {self.model_config.model_name}")
 
         except Exception as e:
             logger.error(f"Model pull failed: {e}")
@@ -192,27 +194,31 @@ class PlaylistGeneratorService:
             Dictionary with mood_keywords, genres, energy_level, etc.
         """
 
-        if not await self._check_ollama_connection():
-            raise RuntimeError("Ollama connection lost during playlist generation")
+        if not await self._check_ai_model_connection():
+            raise RuntimeError("AI model connection lost during playlist generation")
 
         return await self._ai_generate_strategy(prompt, user_context)
 
     async def _ai_generate_strategy(self, prompt: str, user_context: Optional[UserContext] = None) -> Dict[str, Any]:
-        """Generate search strategy using Ollama AI"""
+        """Generate search strategy using AI model"""
 
         try:
-            context = f"User prompt: {prompt}\n"
+            context = f"User prompt: {prompt}\n\n"
+            context += "CRITICAL CONSTRAINTS:\n"
 
             if user_context:
+                if user_context.disliked_artists:
+                    context += f"NEVER INCLUDE songs by these artists (user explicitly dislikes them): {', '.join(user_context.disliked_artists)}\n"
+                    context += f"STRICTLY FORBIDDEN artists that must be avoided at ALL COSTS: {', '.join(user_context.disliked_artists)}\n"
+                    context += f"Before recommending ANY song, verify the artist is NOT in this list: {', '.join(user_context.disliked_artists)}\n\n"
+
+                context += "USER PREFERENCES:\n"
+                
                 if user_context.favorite_genres:
-                    context += f"User's favorite genres: {', '.join(user_context.favorite_genres)}\n"
+                    context += f"Preferred genres (prioritize these): {', '.join(user_context.favorite_genres)}\n"
 
                 if user_context.favorite_artists:
-                    context += f"User's favorite artists: {', '.join(user_context.favorite_artists)}\n"
-                
-                if user_context.disliked_artists:
-                    context += f"CRITICAL: NEVER include songs by these artists (user explicitly dislikes them): {', '.join(user_context.disliked_artists)}\n"
-                    context += f"Double-check every song recommendation to ensure none are by: {', '.join(user_context.disliked_artists)}\n"
+                    context += f"Favorite artists (include similar artists): {', '.join(user_context.favorite_artists)}\n"
 
                 if user_context.energy_preference:
                     context += f"Energy preference: {user_context.energy_preference}\n"
@@ -241,8 +247,7 @@ class PlaylistGeneratorService:
                     mood_preferences.append(f"For parties: {user_context.party_music_preference}")
 
                 if mood_preferences:
-                    context += f"User's mood preferences: {'; '.join(mood_preferences)}\n"
-
+                    context += f"Mood preferences: {'; '.join(mood_preferences)}\n"
 
                 if user_context.discovery_openness:
                     context += f"Discovery openness: {user_context.discovery_openness}\n"
@@ -345,20 +350,14 @@ class PlaylistGeneratorService:
                 Remember: The user's request is the primary guide, but their saved preferences should strongly influence your final recommendations.
             """
 
-            response = await asyncio.to_thread(
-                ollama.generate,
-                model=self.model_name,
-                prompt=ai_prompt
-            )
-
-            ai_text = response["response"].strip()
+            response_text = await self._call_ai_model(ai_prompt)
 
             try:
-                start_idx = ai_text.find("{")
-                end_idx = ai_text.rfind("}") + 1
+                start_idx = response_text.find("{")
+                end_idx = response_text.rfind("}") + 1
 
                 if start_idx >= 0 and end_idx > start_idx:
-                    json_str = ai_text[start_idx:end_idx]
+                    json_str = response_text[start_idx:end_idx]
                     strategy = json.loads(json_str)
 
                     if "mood_keywords" in strategy and isinstance(strategy["mood_keywords"], list):
@@ -367,7 +366,7 @@ class PlaylistGeneratorService:
             except json.JSONDecodeError:
                 pass
 
-            return await self._parse_ai_response(ai_text, prompt, user_context)
+            return await self._parse_ai_response(response_text, prompt, user_context)
 
         except Exception as e:
             logger.error(f"AI strategy generation failed: {e}")
@@ -532,3 +531,65 @@ class PlaylistGeneratorService:
         except Exception as e:
             logger.error(f"Playlist refinement failed: {e}")
             raise RuntimeError(f"Playlist refinement failed: {e}")
+
+    async def _call_ai_model(self, prompt: str) -> str:
+        """Universal method to call different AI models"""
+        
+        if self.model_config.name.lower() == "ollama":
+            response = await self.http_client.post(
+                f"{self.model_config.endpoint}/api/generate",
+                json={
+                    "model": self.model_config.model_name,
+                    "prompt": prompt,
+                    "stream": False
+                },
+                timeout=self.model_config.timeout
+            )
+            
+            if response.status_code == 200:
+                return response.json()["response"].strip()
+            else:
+                raise RuntimeError(f"Ollama API error: {response.status_code}")
+        
+        elif self.model_config.name.lower() == "openai":
+            headers = self.model_config.headers or {}
+            data = {
+                "model": self.model_config.model_name,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": self.model_config.max_tokens,
+                "temperature": self.model_config.temperature
+            }
+            
+            response = await self.http_client.post(
+                f"{self.model_config.endpoint}/chat/completions",
+                headers=headers,
+                json=data
+            )
+            if response.status_code == 200:
+                result = response.json()
+                return result["choices"][0]["message"]["content"].strip()
+            else:
+                raise Exception(f"OpenAI API error: {response.status_code}")
+        
+        elif self.model_config.name.lower() == "anthropic":
+            headers = self.model_config.headers or {}
+            data = {
+                "model": self.model_config.model_name,
+                "max_tokens": self.model_config.max_tokens,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": self.model_config.temperature
+            }
+            
+            response = await self.http_client.post(
+                f"{self.model_config.endpoint}/messages",
+                headers=headers,
+                json=data
+            )
+            if response.status_code == 200:
+                result = response.json()
+                return result["content"][0]["text"].strip()
+            else:
+                raise Exception(f"Anthropic API error: {response.status_code}")
+        
+        else:
+            raise Exception(f"Unsupported AI model: {self.model_config.name}")

@@ -19,13 +19,8 @@ class Settings:
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
-    USE_OLLAMA: bool = os.getenv("USE_OLLAMA", "true").lower() == "true"
-    OLLAMA_TIMEOUT: int = int(os.getenv("OLLAMA_TIMEOUT", 30))
-    OLLAMA_MODEL_PULL_TIMEOUT: int = int(os.getenv("OLLAMA_MODEL_PULL_TIMEOUT", 300))
-
-    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_VALIDATION_MODEL: str = os.getenv("OLLAMA_VALIDATION_MODEL", "nomic-embed-text:latest")
-    OLLAMA_GENERATION_MODEL: str = os.getenv("OLLAMA_GENERATION_MODEL", "phi3:mini")
+    AI_TIMEOUT: int = int(os.getenv("AI_TIMEOUT", 30))
+    AI_MODEL_PULL_TIMEOUT: int = int(os.getenv("AI_MODEL_PULL_TIMEOUT", 300))
 
     PROMPT_VALIDATION_THRESHOLD: float = float(os.getenv("PROMPT_VALIDATION_THRESHOLD", 0.6))
     PROMPT_VALIDATION_TIMEOUT: int = int(os.getenv("PROMPT_VALIDATION_TIMEOUT", 30))
@@ -57,5 +52,15 @@ class Settings:
     MAX_AUTH_ATTEMPTS_PER_IP: int = int(os.getenv("MAX_AUTH_ATTEMPTS_PER_IP", 10))
     AUTH_ATTEMPT_WINDOW_MINUTES: int = int(os.getenv("AUTH_ATTEMPT_WINDOW_MINUTES", 60))
     SECURE_HEADERS: bool = os.getenv("SECURE_HEADERS", "true").lower() == "true"
+
+    # AI Model Configuration
+    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
+    ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
+    
+    # Default AI model endpoint and configuration
+    AI_ENDPOINT: str = os.getenv("AI_ENDPOINT", "http://localhost:11434")
+    AI_MODEL_NAME: str = os.getenv("AI_MODEL_NAME", "llama3.2:3b")
+    AI_EMBEDDING_MODEL: str = os.getenv("AI_EMBEDDING_MODEL", "nomic-embed-text:latest")
+    DEFAULT_AI_MODEL: str = os.getenv("DEFAULT_AI_MODEL", "ollama")
 
 settings = Settings()

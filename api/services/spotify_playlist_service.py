@@ -316,6 +316,33 @@ class SpotifyPlaylistService:
             logger.error(f"Failed to get playlist details for {playlist_id}: {e}")
             raise
 
+    async def remove_track_from_playlist(self, access_token: str, playlist_id: str, track_uri: str) -> bool:
+        """Remove a track from a Spotify playlist."""
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                headers = {
+                    'Authorization': f'Bearer {access_token}',
+                    'Content-Type': 'application/json'
+                }
+
+                url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
+                data = {
+                    'tracks': [{'uri': track_uri}]
+                }
+
+                async with session.delete(url, headers=headers, json=data) as response:
+                    if response.status in [200, 201]:
+                        logger.info(f"Successfully removed track from playlist {playlist_id}")
+                        return True
+                    else:
+                        logger.error(f"Failed to remove track: {response.status}")
+                        return False
+
+        except Exception as e:
+            logger.error(f"Error removing track from playlist: {e}")
+            return False
+
     def is_ready(self) -> bool:
         """Check if the service is ready."""
         return self._initialized and settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET

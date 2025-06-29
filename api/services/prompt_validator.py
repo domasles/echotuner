@@ -4,6 +4,7 @@ import httpx
 
 from services.data_loader import data_loader
 from config.settings import settings
+from config.ai_models import ai_model_manager
 
 logger = logging.getLogger(__name__)
 
@@ -11,10 +12,8 @@ class PromptValidatorService:
     """Lightweight model to validate if user input is music/mood related."""
 
     def __init__(self):
-        self.ollama_base_url = settings.OLLAMA_BASE_URL
-        self.model_name = settings.OLLAMA_VALIDATION_MODEL
-        self.use_ollama = settings.USE_OLLAMA
-
+        self.model_config = ai_model_manager.get_model()
+        
         self.prompt_validation_threshold = settings.PROMPT_VALIDATION_THRESHOLD
         self.prompt_validation_timeout = settings.PROMPT_VALIDATION_TIMEOUT
 
@@ -26,15 +25,11 @@ class PromptValidatorService:
         """Initialize the model asynchronously"""
 
         try:
-            self.http_client = httpx.AsyncClient(timeout=settings.OLLAMA_TIMEOUT)
+            self.http_client = httpx.AsyncClient(timeout=self.model_config.timeout)
 
-            if not self.use_ollama:
-                logger.error("Ollama is required for this application")
-                raise RuntimeError("Ollama must be enabled. Set USE_OLLAMA=true in environment variables.")
-
-            if not await self._check_ollama_connection():
-                logger.error("Ollama not running or not accessible")
-                raise RuntimeError("Ollama is not running. Please start Ollama and try again.")
+            if not await self._check_ai_model_connection():
+                logger.error("AI model not running or not accessible")
+                raise RuntimeError("AI model is not running. Please check your AI model configuration and try again.")
 
             await self._ensure_model_available()
             await self._compute_reference_embeddings()
@@ -54,43 +49,62 @@ class PromptValidatorService:
 
         return self.initialized
 
-    async def _check_ollama_connection(self) -> bool:
-        """Check if Ollama is running and accessible"""
+    async def _check_ai_model_connection(self) -> bool:
+        """Check if AI model is running and accessible"""
 
         try:
-            response = await self.http_client.get(f"{self.ollama_base_url}/api/tags")
+            response = await self.http_client.get(f"{self.model_config.endpoint}/api/tags")
             return response.status_code == 200
 
         except:
             return False
 
     async def _ensure_model_available(self):
-        """Ensure the model is available in Ollama"""
+        """Ensure the model is available"""
 
         try:
-            response = await self.http_client.get(f"{self.ollama_base_url}/api/tags")
+            # Only check for Ollama models that need to be pulled
+            if self.model_config.name.lower() != "ollama":
+                logger.info(f"Using external AI model: {self.model_config.name}")
+                return
+                
+            response = await self.http_client.get(f"{self.model_config.endpoint}/api/tags")
 
             if response.status_code == 200:
                 models = response.json().get('models', [])
                 model_names = [model['name'] for model in models]
 
-                if self.model_name not in model_names:
-                    logger.info(f"Pulling model {self.model_name}...")
+                if self.model_config.embedding_model and self.model_config.embedding_model not in model_names:
+                    logger.info(f"Pulling embedding model {self.model_config.embedding_model}...")
 
                     pull_response = await self.http_client.post(
-                        f"{self.ollama_base_url}/api/pull",
-                        json={"name": self.model_name}
+                        f"{self.model_config.endpoint}/api/pull",
+                        json={"name": self.model_config.embedding_model}
                     )
 
                     if pull_response.status_code == 200:
-                        logger.info(f"Model {self.model_name} pulled successfully")
+                        logger.info(f"Embedding model {self.model_config.embedding_model} pulled successfully")
+                    else:
+                        logger.error(f"Failed to pull embedding model: {pull_response.text}")
+                        raise RuntimeError(f"Failed to pull embedding model {self.model_config.embedding_model}")
+
+                elif self.model_config.model_name not in model_names:
+                    logger.info(f"Pulling model {self.model_config.model_name}...")
+
+                    pull_response = await self.http_client.post(
+                        f"{self.model_config.endpoint}/api/pull",
+                        json={"name": self.model_config.model_name}
+                    )
+
+                    if pull_response.status_code == 200:
+                        logger.info(f"Model {self.model_config.model_name} pulled successfully")
 
                     else:
                         logger.error(f"Failed to pull model: {pull_response.text}")
-                        raise RuntimeError(f"Failed to pull model {self.model_name}")
+                        raise RuntimeError(f"Failed to pull model {self.model_config.model_name}")
 
                 else:
-                    logger.info(f"Model {self.model_name} already available")
+                    logger.info(f"Model {self.model_config.model_name} already available")
 
         except RuntimeError:
             raise
@@ -135,13 +149,13 @@ class PromptValidatorService:
             raise RuntimeError(f"Failed to compute reference embeddings: {e}")
 
     async def _get_embedding(self, text: str) -> np.ndarray:
-        """Get embedding for text using Ollama"""
+        """Get embedding for text using AI model"""
 
         try:
             response = await self.http_client.post(
-                f"{self.ollama_base_url}/api/embeddings",
+                f"{self.model_config.endpoint}/api/embeddings",
                 json={
-                    "model": self.model_name,
+                    "model": self.model_config.embedding_model or self.model_config.model_name,
                     "prompt": text
                 },
                 timeout=self.prompt_validation_timeout
@@ -153,7 +167,7 @@ class PromptValidatorService:
 
             else:
                 logger.error(f"Failed to get embedding: {response.text}")
-                raise RuntimeError(f"Failed to get embedding from Ollama")
+                raise RuntimeError(f"Failed to get embedding from AI model")
 
         except RuntimeError:
             raise
@@ -207,7 +221,7 @@ class PromptValidatorService:
 
     async def __aenter__(self):
         if not self.http_client:
-            self.http_client = httpx.AsyncClient(timeout=settings.OLLAMA_TIMEOUT)
+            self.http_client = httpx.AsyncClient(timeout=self.model_config.timeout)
 
         return self
 

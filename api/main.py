@@ -87,7 +87,6 @@ async def lifespan(app: FastAPI):
         await asyncio.gather(*init_tasks)
 
         logger.info(f"Spotify Search: {'ENABLED' if playlist_generator.spotify_search.is_ready() else 'DISABLED'}")
-        logger.info(f"AI Generation: {'OLLAMA' if settings.USE_OLLAMA else 'BASIC MODE'}")
         logger.info(f"Rate Limiting: {'ENABLED' if settings.PLAYLIST_LIMIT_ENABLED else 'DISABLED'}")
         logger.info(f"Auth Service: {'ENABLED' if auth_service.is_ready() else 'DISABLED'}")
         logger.info(f"Playlist Drafts: {'ENABLED' if playlist_draft_service.is_ready() else 'DISABLED'}")
@@ -307,7 +306,7 @@ async def health_check():
             },
             "features": {
                 "spotify_search": playlist_generator.spotify_search.is_ready(),
-                "ai_generation": settings.USE_OLLAMA,
+                "ai_generation": True,  # AI generation is always available when configured
                 "rate_limiting": settings.PLAYLIST_LIMIT_ENABLED
             }
         }
@@ -987,6 +986,33 @@ async def search_artists(request: ArtistSearchRequest):
         logger.error(f"Failed to search artists: {e}")
         raise HTTPException(status_code=500, detail="Failed to search artists")
 
+@app.delete("/spotify/playlist/{playlist_id}/track")
+async def remove_track_from_spotify_playlist(playlist_id: str, track_uri: str, session_id: str = None, device_id: str = None):
+    """Remove a track from a Spotify playlist."""
+
+    try:
+        if not spotify_playlist_service._initialized:
+            raise HTTPException(status_code=503, detail="Spotify playlist service not available")
+
+        access_token = await auth_service.get_access_token(session_id)
+
+        if not access_token:
+            raise HTTPException(status_code=401, detail="No valid access token")
+
+        success = await spotify_playlist_service.remove_track_from_playlist(access_token, playlist_id, track_uri)
+        
+        if success:
+            return {"message": "Track removed successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to remove track from Spotify")
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(f"Failed to remove track from Spotify playlist {playlist_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to remove track from playlist")
+    
 if __name__ == "__main__":
     logger.info(AppConstants.STARTUP_MESSAGE)
 

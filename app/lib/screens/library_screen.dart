@@ -33,37 +33,25 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
         _tabController.addListener(() {
             if (!_tabController.indexIsChanging) {
-                _refreshDataOnly();
+                _silentRefreshCurrentTab();
             }
         });
         
-        WidgetsBinding.instance.addObserver(this);
-        _loadLibrary(forceRefresh: true);
+        _loadLibraryData();
     }
 
     @override
     void didChangeDependencies() {
         super.didChangeDependencies();
-        _loadLibrary(forceRefresh: true);
-    }
-
-    @override
-    void didChangeAppLifecycleState(AppLifecycleState state) {
-        super.didChangeAppLifecycleState(state);
-
-        if (state == AppLifecycleState.resumed) {
-            _loadLibrary(forceRefresh: true);
-        }
     }
 
     @override
     void dispose() {
-        WidgetsBinding.instance.removeObserver(this);
         _tabController.dispose();
         super.dispose();
     }
 
-    Future<void> _refreshDataOnly() async {
+    Future<void> _silentRefreshCurrentTab() async {
         if (!mounted) return;
         
         try {
@@ -74,16 +62,16 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                 setState(() {
                     _drafts = response.drafts;
                     _spotifyPlaylists = response.spotifyPlaylists;
+                    if (_error != null) _error = null;
                 });
             }
         }
-
         catch (e) {
-            // Silently handle errors during background refresh
+            // Silent refresh - intentionally ignore errors to avoid disrupting UI
         }
     }
 
-    Future<void> _loadLibrary({bool forceRefresh = false}) async {
+    Future<void> _loadLibraryData() async {
         setState(() {
             _isLoading = true;
             _error = null;
@@ -91,20 +79,24 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
         try {
             final provider = Provider.of<PlaylistProvider>(context, listen: false);
-            final response = forceRefresh ? await provider.refreshLibraryPlaylists() : await provider.getLibraryPlaylists();
+            final response = await provider.getLibraryPlaylists();
 
-            setState(() {
-                _drafts = response.drafts;
-                _spotifyPlaylists = response.spotifyPlaylists;
-                _isLoading = false;
-            });
+            if (mounted) {
+                setState(() {
+                    _drafts = response.drafts;
+                    _spotifyPlaylists = response.spotifyPlaylists;
+                    _isLoading = false;
+                    if (_error != null) _error = null;
+                });
+            }
         }
-
         catch (e) {
-            setState(() {
-                _error = e.toString();
-                _isLoading = false;
-            });
+            if (mounted) {
+                setState(() {
+                    _error = e.toString();
+                    _isLoading = false;
+                });
+            }
         }
     }
 
@@ -119,7 +111,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                     MaterialPageRoute(builder: (context) => const PlaylistScreen()),
                 );
 
-                _loadLibrary(forceRefresh: true);
+                _silentRefreshCurrentTab();
             }
         }
 
@@ -165,7 +157,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
             try {
                 await provider.deleteDraft(draft.id);
-                _loadLibrary(forceRefresh: true);
+                _silentRefreshCurrentTab();
 
                 if (mounted) {
                     MessageService.showInfo(context, 'Draft deleted successfully');
@@ -207,7 +199,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
             try {
                 await provider.deleteSpotifyPlaylist(playlist.id);
-                _loadLibrary(forceRefresh: true);
+                _silentRefreshCurrentTab();
 
                 if (mounted) {
                     MessageService.showInfo(context, 'Playlist deleted successfully');
@@ -226,7 +218,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
     Widget build(BuildContext context) {
         return PopScope(
             onPopInvokedWithResult: (didPop, result) {
-                if (!didPop) _loadLibrary(forceRefresh: true);
+                if (!didPop) _silentRefreshCurrentTab();
             },
             child: Scaffold(
                 appBar: AppBar(
@@ -236,7 +228,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                     actions: [
                         IconButton(
                             icon: const Icon(Icons.refresh),
-                            onPressed: () => _loadLibrary(forceRefresh: true),
+                            onPressed: () => _silentRefreshCurrentTab(),
                         ),
                     ],
                 ),
@@ -256,7 +248,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
                             const SizedBox(height: 16),
                             FilledButton(
-                                onPressed: () => _loadLibrary(forceRefresh: true),
+                                onPressed: () => _silentRefreshCurrentTab(),
                                 child: const Text('Retry'),
                             ),
                         ],

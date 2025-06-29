@@ -61,17 +61,47 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
         if (!mounted) return;
         
         switch (_tabController.index) {
-            case 0: // Basic info - no refresh needed
+            case 0:
+                _silentRefreshPersonalityData();
                 break;
-            case 1: // Music preferences - refresh spotify artists if needed
-                if (_includeSpotifyArtists && _followedArtists.isEmpty) {
-                    _loadFollowedArtists();
-                }
+            case 1:
+                _silentRefreshPersonalityData();
                 break;
-            case 2: // Personality - no refresh needed
+            case 2:
+                _silentRefreshPersonalityData();
                 break;
-            case 3: // Advanced - no refresh needed
+            case 3:
                 break;
+        }
+    }
+
+    Future<void> _silentRefreshPersonalityData() async {
+        if (!mounted) return;
+
+        try {
+            final personalityService = context.read<PersonalityService>();
+            final configService = context.read<ConfigService>();
+            final personalityConfig = await configService.getPersonalityConfig();
+
+            _maxFavoriteArtists = personalityConfig.maxFavoriteArtists;
+            _maxDislikedArtists = personalityConfig.maxDislikedArtists;
+            _maxFavoriteGenres = personalityConfig.maxFavoriteGenres;
+
+            final existingContext = await personalityService.loadUserContext();
+
+            if (existingContext != null) {
+                _userContext = existingContext;
+                _populateFormFromContext(existingContext);
+            }
+
+            await _loadFollowedArtists();
+
+            if (mounted) {
+                setState(() {});
+            }
+        }
+        catch (e) {
+            // Silent refresh - intentionally ignore errors to avoid disrupting UI
         }
     }
 
@@ -272,7 +302,7 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                     _buildSectionHeader('Favorite Genres', 'Select genres you enjoy'),
                     const SizedBox(height: AppConstants.mediumSpacing),
                     _buildGenreSelection(),
-                    const SizedBox(height: AppConstants.extraLargeSpacing),
+                    const SizedBox(height: AppConstants.largeSpacing),
                     
                     _buildSectionHeader('Preferred Decades', 'Choose your favorite musical eras'),
                     const SizedBox(height: AppConstants.mediumSpacing),
@@ -388,7 +418,7 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                     const SizedBox(height: AppConstants.smallSpacing),
 
                     _buildLikedArtistSelection(),
-                    const SizedBox(height: AppConstants.extraLargeSpacing),
+                    const SizedBox(height: AppConstants.largeSpacing),
 
                     _buildSectionHeader('Disliked Artists', 'Artists to exclude from playlists(${_dislikedArtists.length}/$_maxDislikedArtists)'),
                     const SizedBox(height: AppConstants.smallSpacing),
