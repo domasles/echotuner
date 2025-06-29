@@ -1,17 +1,18 @@
+import 'package:responsive_framework/responsive_framework.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:responsive_framework/responsive_framework.dart';
 
-import 'providers/playlist_provider.dart';
 import 'services/personality_service.dart';
-import 'services/auth_service.dart';
+import 'providers/playlist_provider.dart';
 import 'services/config_service.dart';
+import 'services/auth_service.dart';
 import 'config/app_constants.dart';
 import 'screens/login_screen.dart';
 import 'services/api_service.dart';
 import 'screens/home_screen.dart';
+import 'config/app_colors.dart';
 import 'config/settings.dart';
 
 class _NoGlowScrollBehavior extends ScrollBehavior {
@@ -97,21 +98,21 @@ class EchoTunerApp extends StatelessWidget {
                     brightness: Brightness.dark,
 
                     colorScheme: ColorScheme.fromSeed(
-                        seedColor: const Color(0xFF8B5CF6),
+                        seedColor: AppColors.primary,
                         brightness: Brightness.dark,
-                        surface: const Color(0xFF0F0A1A),
+                        surface: AppColors.background,
                         onSurface: Colors.white,
-                        primary: const Color(0xFF8B5CF6),
-                        secondary: const Color(0xFFA78BFA),
-                        surfaceContainerHighest: const Color(0xFF1A1625),
-                        onSurfaceVariant: Colors.white70,
+                        primary: AppColors.primary,
+                        secondary: AppColors.primaryLight,
+                        surfaceContainerHighest: AppColors.surface,
+                        onSurfaceVariant: AppColors.textSecondary,
                         outline: const Color(0xFF3A3A3A),
-                        outlineVariant: const Color(0xFF2A2A2A),
+                        outlineVariant: AppColors.surfaceVariant,
                     ),
 
-                    scaffoldBackgroundColor: const Color(0xFF0F0A1A),
-                    appBarTheme: const AppBarTheme(
-                        backgroundColor: Color(0xFF0F0A1A),
+                    scaffoldBackgroundColor: AppColors.background,
+                    appBarTheme: AppBarTheme(
+                        backgroundColor: AppColors.background,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         centerTitle: true,

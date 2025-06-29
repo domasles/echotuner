@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../config/app_constants.dart';
+import '../config/app_colors.dart';
+
 class MessageService {
     static void showSuccess(BuildContext context, String message) {
         _showMessage(context, message, MessageType.success);
@@ -18,68 +21,75 @@ class MessageService {
         late OverlayEntry overlayEntry;
 
         overlayEntry = OverlayEntry(
-        builder: (context) => Stack(
-            children: [
-            Positioned(
-                bottom: 90,
-                left: 20,
-                right: 20,
-                child: IgnorePointer(
-                child: Center(
-                    child: Material(
-                    color: Colors.transparent,
-                    child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                        color: const Color(0xFF1A1625),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: type.color, width: 1),
+            builder: (context) => Stack(
+                children: [
+                    Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: AppConstants.messageBottomPosition,
+
+                        child: Center(
+                            child: Material(
+                                color: Colors.transparent,
+                                child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: AppConstants.messageHorizontalPadding,
+                                        vertical: AppConstants.messageVerticalPadding,
+                                    ),
+
+                                    decoration: BoxDecoration(
+                                        color: AppColors.surface,
+                                        borderRadius: BorderRadius.circular(AppConstants.messageRadius),
+                                        border: Border.all(
+                                            color: type.color, 
+                                            width: AppConstants.messageBorderWidth,
+                                        ),
+                                    ),
+
+                                    child: _FixedText(message),
+                                ),
+                            ),
                         ),
-                        child: _FixedText(message),
                     ),
-                    ),
-                ),
-                ),
-            ),
-            ],
-        ),
+                ]
+            )
         );
 
         overlay.insert(overlayEntry);
 
-        Future.delayed(const Duration(seconds: 2), () {
-        overlayEntry.remove();
+        Future.delayed(AppConstants.messageDisplayDuration, () {
+            overlayEntry.remove();
         });
     }
 }
 
 class _FixedText extends StatelessWidget {
     final String message;
-
     const _FixedText(this.message);
 
     @override
     Widget build(BuildContext context) {
         return MediaQuery(
-        data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.0)),
-        child: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Colors.white,
-            height: 1.2,
+            data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.0)),
+            child: Text(
+                message,
+                textAlign: TextAlign.center,
+
+                style: const TextStyle(
+                    fontSize: AppConstants.messageFontSize,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                    height: 1.2,
+                ),
             ),
-        ),
         );
     }
 }
 
 enum MessageType {
-    success(Color(0xFF4CAF50)),
-    error(Color(0xFFD32F2F)),
-    info(Color(0xFF666666));
+    success(AppColors.success),
+    error(AppColors.error),
+    info(AppColors.info);
 
     const MessageType(this.color);
     final Color color;

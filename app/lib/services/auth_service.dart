@@ -256,10 +256,7 @@ class AuthService extends ChangeNotifier {
     }
 
     bool _isClientGeneratedId(String deviceId) {
-        return deviceId.startsWith('android_') || 
-               deviceId.startsWith('ios_') || 
-               deviceId.startsWith('web_') || 
-               deviceId.startsWith('unknown_');
+        return deviceId.startsWith('android_') || deviceId.startsWith('ios_') || deviceId.startsWith('web_') || deviceId.startsWith('unknown_');
     }
 
     Future<String> _registerDeviceWithServer() async {

@@ -289,6 +289,33 @@ class SpotifyPlaylistService:
             logger.error(f"Error deleting/unfollowing playlist {playlist_id}: {e}")
             return False
 
+    async def get_playlist_details(self, access_token: str, playlist_id: str) -> Dict[str, Any]:
+        """Get detailed information about a specific Spotify playlist including current track count."""
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                headers = {'Authorization': f'Bearer {access_token}'}
+
+                url = f'https://api.spotify.com/v1/playlists/{playlist_id}'
+                params = {'fields': 'id,name,description,tracks.total,external_urls,images'}
+
+                async with session.get(url, headers=headers, params=params) as response:
+                    if response.status == 200:
+                        return await response.json()
+
+                    elif response.status == 401:
+                        raise Exception("Invalid or expired access token")
+
+                    elif response.status == 404:
+                        raise Exception("Playlist not found")
+
+                    else:
+                        raise Exception(f"Failed to fetch playlist details: {response.status}")
+
+        except Exception as e:
+            logger.error(f"Failed to get playlist details for {playlist_id}: {e}")
+            raise
+
     def is_ready(self) -> bool:
         """Check if the service is ready."""
         return self._initialized and settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET

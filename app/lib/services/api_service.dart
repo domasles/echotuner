@@ -10,7 +10,6 @@ import '../config/settings.dart';
 class ApiService {
     final http.Client _client = http.Client();
 
-    /// Generic GET method
     Future<Map<String, dynamic>> get(String endpoint, {Map<String, String>? headers}) async {
         final response = await _client.get(
             Uri.parse(AppConfig.apiUrl(endpoint)),
@@ -19,16 +18,21 @@ class ApiService {
 
         if (response.statusCode == 200) {
             return jsonDecode(response.body);
-        } else if (response.statusCode == 401) {
+        }
+
+        else if (response.statusCode == 401) {
             throw ApiException('Authentication required');
-        } else if (response.statusCode == 404) {
+        }
+
+        else if (response.statusCode == 404) {
             throw ApiException('Resource not found');
-        } else {
+        }
+
+        else {
             throw ApiException('Request failed with status ${response.statusCode}');
         }
     }
 
-    /// Generic POST method
     Future<Map<String, dynamic>> post(String endpoint, {Map<String, dynamic>? body, Map<String, String>? headers}) async {
         final defaultHeaders = {'Content-Type': 'application/json'};
         final mergedHeaders = headers != null ? {...defaultHeaders, ...headers} : defaultHeaders;
@@ -41,11 +45,17 @@ class ApiService {
 
         if (response.statusCode == 200) {
             return jsonDecode(response.body);
-        } else if (response.statusCode == 401) {
+        }
+
+        else if (response.statusCode == 401) {
             throw ApiException('Authentication required');
-        } else if (response.statusCode == 404) {
+        }
+
+        else if (response.statusCode == 404) {
             throw ApiException('Resource not found');
-        } else {
+        }
+
+        else {
             throw ApiException('Request failed with status ${response.statusCode}');
         }
     }

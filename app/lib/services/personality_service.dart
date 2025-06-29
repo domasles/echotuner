@@ -12,15 +12,8 @@ class PersonalityService {
     final AuthService _authService;
     final ConfigService _configService;
 
-    PersonalityService({
-        required ApiService apiService, 
-        required AuthService authService,
-        required ConfigService configService,
-    }) : _apiService = apiService, 
-         _authService = authService,
-         _configService = configService;
+    PersonalityService({required ApiService apiService, required AuthService authService, required ConfigService configService}) : _apiService = apiService, _authService = authService, _configService = configService;
 
-    /// Save user context to backend
     Future<void> saveUserContext(UserContext context) async {
         try {
             final response = await _apiService.post('/personality/save', body: {
@@ -28,46 +21,50 @@ class PersonalityService {
                 'device_id': await _getDeviceId(),
                 'user_context': context.toJson(),
             });
-            
+
             if (!response['success']) {
                 throw Exception(response['message'] ?? 'Failed to save personality');
             }
-        } catch (e) {
+        }
+
+        catch (e) {
             throw Exception('Failed to save personality: $e');
         }
     }
 
-    /// Load user context from backend
     Future<UserContext?> loadUserContext() async {
         try {
             final response = await _apiService.get('/personality/load', headers: {
                 'session-id': await _getSessionId() ?? '',
                 'device-id': await _getDeviceId() ?? '',
             });
-            
+
             final userContextData = response['user_context'];
+
             if (userContextData != null) {
                 return UserContext.fromJson(userContextData);
             }
-            
+
             return null;
-        } catch (e) {
+
+        }
+
+        catch (e) {
             return null;
         }
     }
 
-    /// Clear user context from backend and local storage
     Future<void> clearUserContext() async {
         final prefs = await SharedPreferences.getInstance();
+
         await prefs.remove(_userContextKey);
         await prefs.remove(_lastSyncKey);
-        // Note: Could add backend clear endpoint if needed
     }
 
-    /// Fetch user's followed artists from backend
     Future<List<SpotifyArtist>> fetchFollowedArtists({String? sessionId}) async {
         try {
             final sessionIdToUse = sessionId ?? await _getSessionId();
+
             if (sessionIdToUse == null) {
                 throw Exception('No session ID available');
             }
@@ -79,20 +76,19 @@ class PersonalityService {
 
             final List<dynamic> artistsJson = response['artists'] ?? [];
             final config = await _configService.getPersonalityConfig();
-            return artistsJson
-                .map((json) => SpotifyArtist.fromJson(json))
-                .take(config.maxFavoriteArtists)
-                .toList();
-        } catch (e) {
-            // Return empty list if unable to fetch
+
+            return artistsJson.map((json) => SpotifyArtist.fromJson(json)).take(config.maxFavoriteArtists).toList();
+        }
+        
+        catch (e) {
             return [];
         }
     }
 
-    /// Search for artists on Spotify
     Future<List<SpotifyArtist>> searchArtists(String query) async {
         try {
             final sessionId = await _getSessionId();
+
             if (sessionId == null) {
                 throw Exception('No session ID available');
             }
@@ -105,49 +101,44 @@ class PersonalityService {
             });
 
             final List<dynamic> artistsJson = response['artists'] ?? [];
+
             return artistsJson
                 .map((json) => SpotifyArtist.fromJson(json))
                 .toList();
-        } catch (e) {
+        }
+
+        catch (e) {
             return [];
         }
     }
 
-    /// Helper to get session ID from auth service
     Future<String?> _getSessionId() async {
         return _authService.sessionId;
     }
 
-    /// Helper to get device ID
     Future<String?> _getDeviceId() async {
         return _authService.deviceId;
     }
 
-    /// Check if artist sync is needed (daily refresh)
     Future<bool> shouldSyncArtists() async {
         final prefs = await SharedPreferences.getInstance();
         final lastSync = prefs.getInt(_lastSyncKey);
-        
+
         if (lastSync == null) return true;
-        
+
         final lastSyncDate = DateTime.fromMillisecondsSinceEpoch(lastSync);
         final now = DateTime.now();
-        
-        // Sync if it's been more than 24 hours
+
         return now.difference(lastSyncDate).inHours >= 24;
     }
 
-    /// Mark that artists have been synced
     Future<void> markArtistsSynced() async {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt(_lastSyncKey, DateTime.now().millisecondsSinceEpoch);
     }
 
-    /// Get default personality context with fetched artists
     Future<UserContext> getDefaultPersonalityContext({String? sessionId}) async {
-        final followedArtists = sessionId != null 
-            ? await fetchFollowedArtists(sessionId: sessionId)
-            : <SpotifyArtist>[];
+        final followedArtists = sessionId != null ? await fetchFollowedArtists(sessionId: sessionId) : <SpotifyArtist>[];
 
         return UserContext(
             favoriteArtists: followedArtists.map((artist) => artist.name).toList(),
@@ -162,7 +153,6 @@ class PersonalityService {
         );
     }
 
-    /// Get all available music genres
     List<String> getAvailableGenres() {
         return [
             'Pop', 'Rock', 'Hip Hop', 'R&B', 'Country', 'Electronic',
@@ -174,15 +164,13 @@ class PersonalityService {
         ];
     }
 
-    /// Get available decades
     List<String> getAvailableDecades() {
         return [
-            '1960s', '1970s', '1980s', '1990s', 
+            '1920s', '1930s', '1940s', '1950s', '1960s', '1970s', '1980s', '1990s', 
             '2000s', '2010s', '2020s'
         ];
     }
 
-    /// Get personality questions with their options
     Map<String, Map<String, dynamic>> getPersonalityQuestions() {
         return {
             'happy_music_preference': {

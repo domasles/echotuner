@@ -422,7 +422,7 @@ class PlaylistProvider extends ChangeNotifier {
         }
     }
 
-    Future<LibraryPlaylistsResponse> getLibraryPlaylists() async {
+    Future<LibraryPlaylistsResponse> getLibraryPlaylists({bool forceRefresh = false}) async {
         if (_deviceId == null) {
             await _initializeDeviceId();
         }
@@ -437,9 +437,14 @@ class PlaylistProvider extends ChangeNotifier {
             deviceId: _deviceId!,
             sessionId: sessionId,
             includeDrafts: true,
+            forceRefresh: forceRefresh,
         );
 
         return await _apiService.getLibraryPlaylists(request);
+    }
+
+    Future<LibraryPlaylistsResponse> refreshLibraryPlaylists() async {
+        return await getLibraryPlaylists(forceRefresh: true);
     }
 
     Future<void> loadDraft(PlaylistDraft draft) async {

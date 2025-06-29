@@ -106,6 +106,7 @@ class SpotifyPlaylistResponse {
 }
 
 @JsonSerializable()
+@JsonSerializable()
 class LibraryPlaylistsRequest {
     @JsonKey(name: 'device_id')
     final String deviceId;
@@ -116,10 +117,14 @@ class LibraryPlaylistsRequest {
     @JsonKey(name: 'include_drafts')
     final bool? includeDrafts;
 
+    @JsonKey(name: 'force_refresh')
+    final bool? forceRefresh;
+
     LibraryPlaylistsRequest({
         required this.deviceId,
         required this.sessionId,
         this.includeDrafts,
+        this.forceRefresh,
     });
 
     factory LibraryPlaylistsRequest.fromJson(Map<String, dynamic> json) => _$LibraryPlaylistsRequestFromJson(json);

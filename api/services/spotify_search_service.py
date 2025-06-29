@@ -7,7 +7,7 @@ from typing import List, Optional
 from spotipy.oauth2 import SpotifyClientCredentials
 from services.data_loader import data_loader
 from config.settings import settings
-from core.models import Song
+from core.models import Song, UserContext
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ class SpotifySearchService:
         except Exception as e:
             raise Exception(f"Spotify API test failed: {e}")
 
-    async def search_songs_by_mood(self, mood_keywords: List[str], genres: Optional[List[str]] = None, energy_level: Optional[str] = None, count: int = 30) -> List[Song]:
+    async def search_songs_by_mood(self, mood_keywords: List[str], genres: Optional[List[str]] = None, energy_level: Optional[str] = None, user_context: Optional['UserContext'] = None, count: int = 30) -> List[Song]:
         """
         Search for songs based on mood keywords and preferences.
         
@@ -78,6 +78,7 @@ class SpotifySearchService:
             mood_keywords: AI-generated keywords describing the mood
             genres: Preferred genres (optional)
             energy_level: "low", "medium", "high" (optional)
+            user_context: User preferences and personality (optional)
             count: Number of songs to return
               Returns:
             List of Song objects
@@ -91,7 +92,7 @@ class SpotifySearchService:
 
         try:
             all_songs = []
-            search_queries = self._generate_search_queries(mood_keywords, genres, energy_level)
+            search_queries = self._generate_search_queries(mood_keywords, genres, energy_level, user_context)
 
             for query in search_queries:
                 songs = await self._search_spotify(query, count // len(search_queries) + 5)
@@ -106,14 +107,25 @@ class SpotifySearchService:
             logger.error(f"Spotify search failed: {e}")
             raise RuntimeError(f"Spotify search failed: {e}")
 
-    def _generate_search_queries(self, mood_keywords: List[str], genres: Optional[List[str]] = None, energy_level: Optional[str] = None) -> List[str]:
+    def _generate_search_queries(self, mood_keywords: List[str], genres: Optional[List[str]] = None, energy_level: Optional[str] = None, user_context: Optional[UserContext] = None) -> List[str]:
         """Generate diverse search queries based on mood and preferences"""
 
         queries = []
 
+        # Basic mood queries
         for keyword in mood_keywords[:3]:
             queries.append(keyword)
 
+        # User's favorite artists queries - prioritize these
+        if user_context and user_context.favorite_artists:
+            favorite_artists = user_context.favorite_artists[:5]  # Limit to top 5
+            for artist in favorite_artists:
+                queries.append(f'artist:"{artist}"')
+                # Combine mood with favorite artists
+                if mood_keywords:
+                    queries.append(f'{mood_keywords[0]} artist:"{artist}"')
+
+        # Genre-based queries
         if genres:
             genre_artists = data_loader.get_genre_artists()
 
@@ -127,7 +139,9 @@ class SpotifySearchService:
                     artists = genre_artists[genre.lower()][:3]
 
                     for artist in artists:
-                        queries.append(f'artist:"{artist}"')
+                        # Skip if this artist is already covered by user's favorites
+                        if not (user_context and user_context.favorite_artists and artist in user_context.favorite_artists):
+                            queries.append(f'artist:"{artist}"')
 
                         if mood_keywords:
                             queries.append(f'{mood_keywords[0]} artist:"{artist}"')

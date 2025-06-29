@@ -50,7 +50,6 @@ class Settings:
 
     CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "true").lower() == "true"
 
-    # Personality Configuration
     MAX_FAVORITE_ARTISTS: int = int(os.getenv("MAX_FAVORITE_ARTISTS", 12))
     MAX_DISLIKED_ARTISTS: int = int(os.getenv("MAX_DISLIKED_ARTISTS", 20))
     MAX_FAVORITE_GENRES: int = int(os.getenv("MAX_FAVORITE_GENRES", 10))

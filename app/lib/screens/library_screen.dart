@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import '../models/playlist_draft_models.dart';
 import '../providers/playlist_provider.dart';
 import '../services/message_service.dart';
-import '../utils/responsive_layout.dart';
+import '../config/app_constants.dart';
+import '../config/app_colors.dart';
 
 import 'playlist_screen.dart';
 
@@ -29,8 +30,30 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
     void initState() {
         super.initState();
         _tabController = TabController(length: 2, vsync: this);
+
+        _tabController.addListener(() {
+            if (!_tabController.indexIsChanging) {
+                _refreshDataOnly();
+            }
+        });
+        
         WidgetsBinding.instance.addObserver(this);
-        _loadLibrary();
+        _loadLibrary(forceRefresh: true);
+    }
+
+    @override
+    void didChangeDependencies() {
+        super.didChangeDependencies();
+        _loadLibrary(forceRefresh: true);
+    }
+
+    @override
+    void didChangeAppLifecycleState(AppLifecycleState state) {
+        super.didChangeAppLifecycleState(state);
+
+        if (state == AppLifecycleState.resumed) {
+            _loadLibrary(forceRefresh: true);
+        }
     }
 
     @override
@@ -40,17 +63,27 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
         super.dispose();
     }
 
-    @override
-    void didChangeAppLifecycleState(AppLifecycleState state) {
-        super.didChangeAppLifecycleState(state);
+    Future<void> _refreshDataOnly() async {
+        if (!mounted) return;
         
-        // Refresh library when app resumes
-        if (state == AppLifecycleState.resumed) {
-            _loadLibrary();
+        try {
+            final provider = Provider.of<PlaylistProvider>(context, listen: false);
+            final response = await provider.refreshLibraryPlaylists();
+
+            if (mounted) {
+                setState(() {
+                    _drafts = response.drafts;
+                    _spotifyPlaylists = response.spotifyPlaylists;
+                });
+            }
+        }
+
+        catch (e) {
+            // Silently handle errors during background refresh
         }
     }
 
-    Future<void> _loadLibrary() async {
+    Future<void> _loadLibrary({bool forceRefresh = false}) async {
         setState(() {
             _isLoading = true;
             _error = null;
@@ -58,7 +91,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
         try {
             final provider = Provider.of<PlaylistProvider>(context, listen: false);
-            final response = await provider.getLibraryPlaylists();
+            final response = forceRefresh ? await provider.refreshLibraryPlaylists() : await provider.getLibraryPlaylists();
 
             setState(() {
                 _drafts = response.drafts;
@@ -86,7 +119,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                     MaterialPageRoute(builder: (context) => const PlaylistScreen()),
                 );
 
-                _loadLibrary();
+                _loadLibrary(forceRefresh: true);
             }
         }
 
@@ -105,11 +138,11 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
             context: context,
             builder: (context) => AlertDialog(
                 backgroundColor: const Color(0xFF1A1625),
-                title: const Text('Delete Draft', style: TextStyle(color: Colors.white)),
+                title: const Text('Delete Draft', style: TextStyle(color: AppColors.textPrimary)),
 
                 content: const Text(
                     'Are you sure you want to delete this draft? This action cannot be undone.',
-                    style: TextStyle(color: Colors.white70),
+                    style: TextStyle(color: AppColors.textSecondary),
                 ),
 
                 actions: [
@@ -132,7 +165,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
             try {
                 await provider.deleteDraft(draft.id);
-                _loadLibrary();
+                _loadLibrary(forceRefresh: true);
 
                 if (mounted) {
                     MessageService.showInfo(context, 'Draft deleted successfully');
@@ -174,7 +207,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
             try {
                 await provider.deleteSpotifyPlaylist(playlist.id);
-                _loadLibrary();
+                _loadLibrary(forceRefresh: true);
 
                 if (mounted) {
                     MessageService.showInfo(context, 'Playlist deleted successfully');
@@ -193,8 +226,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
     Widget build(BuildContext context) {
         return PopScope(
             onPopInvokedWithResult: (didPop, result) {
-                // Refresh when this screen is about to be shown again
-                if (!didPop) _loadLibrary();
+                if (!didPop) _loadLibrary(forceRefresh: true);
             },
             child: Scaffold(
                 appBar: AppBar(
@@ -204,7 +236,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                     actions: [
                         IconButton(
                             icon: const Icon(Icons.refresh),
-                            onPressed: _loadLibrary,
+                            onPressed: () => _loadLibrary(forceRefresh: true),
                         ),
                     ],
                 ),
@@ -224,7 +256,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
                             const SizedBox(height: 16),
                             FilledButton(
-                                onPressed: _loadLibrary,
+                                onPressed: () => _loadLibrary(forceRefresh: true),
                                 child: const Text('Retry'),
                             ),
                         ],
@@ -286,7 +318,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
         }
 
         return ListView.builder(
-            padding: ResponsiveLayout.getResponsivePadding(context),
+            padding: const EdgeInsets.all(AppConstants.largePadding),
             itemCount: _drafts.length,
 
             itemBuilder: (context, index) {
@@ -402,7 +434,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
         }
 
         return ListView.builder(
-            padding: ResponsiveLayout.getResponsivePadding(context),
+            padding: const EdgeInsets.all(AppConstants.largePadding),
             itemCount: _spotifyPlaylists.length,
 
             itemBuilder: (context, index) {

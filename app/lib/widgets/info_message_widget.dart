@@ -1,6 +1,7 @@
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 
+import '../config/app_constants.dart';
 import '../models/info_message.dart';
 import '../config/app_colors.dart';
 
@@ -22,7 +23,7 @@ class InfoMessageWidget extends StatelessWidget {
 
             decoration: BoxDecoration(
                     color: _getBackgroundColor(),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppConstants.mediumRadius),
                     border: Border.all(
                     color: _getBorderColor(),
                     width: 1,
@@ -37,20 +38,20 @@ class InfoMessageWidget extends StatelessWidget {
                         size: 20,
                     ),
 
-                    const SizedBox(width: 12),
+                    const SizedBox(width: AppConstants.mediumSpacing),
                     Expanded(
                         child: Text(
                             message.message,
                             style: TextStyle(
                                 color: _getTextColor(),
-                                fontSize: 14,
+                                fontSize: AppConstants.mediumFontSize,
                                 fontWeight: FontWeight.w500,
                             ),
                         ),
                     ),
 
                     if (message.actionLabel != null && (message.onAction != null || message.actionUrl != null)) ...[
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppConstants.smallSpacing),
                         TextButton(
                             onPressed: () async {
                                 if (message.onAction != null) {
@@ -76,7 +77,7 @@ class InfoMessageWidget extends StatelessWidget {
                             child: Text(
                                 message.actionLabel!,
                                 style: const TextStyle(
-                                    fontSize: 12,
+                                    fontSize: AppConstants.smallFontSize,
                                     fontWeight: FontWeight.w600,
                                 ),
                             ),
@@ -84,7 +85,7 @@ class InfoMessageWidget extends StatelessWidget {
                     ],
 
                     if (onDismiss != null) ...[
-                        const SizedBox(width: 4),
+                        const SizedBox(width: AppConstants.tinySpacing),
                         IconButton(
                             onPressed: onDismiss,
                             icon: const Icon(Icons.close),

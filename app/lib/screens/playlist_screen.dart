@@ -4,11 +4,18 @@ import 'package:flutter/material.dart';
 
 import '../providers/playlist_provider.dart';
 import '../services/message_service.dart';
+import '../config/app_constants.dart';
 import '../config/app_colors.dart';
 import '../utils/app_logger.dart';
 
-class PlaylistScreen extends StatelessWidget {
+class PlaylistScreen extends StatefulWidget {
     const PlaylistScreen({super.key});
+
+    @override
+    State<PlaylistScreen> createState() => _PlaylistScreenState();
+}
+
+class _PlaylistScreenState extends State<PlaylistScreen> {
 
     Future<void> _openSpotifyTrack(String spotifyId) async {
         final spotifyUrl = 'https://open.spotify.com/track/$spotifyId';
@@ -44,7 +51,7 @@ class PlaylistScreen extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                             _buildRefinementIndicatorForDialog(provider),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: AppConstants.mediumSpacing),
 
                             TextField(
                                 autofocus: true,
@@ -114,7 +121,7 @@ class PlaylistScreen extends StatelessWidget {
                                 onChanged: (value) => playlistName = value,
                             ),
 
-                            const SizedBox(height: 16),
+                            const SizedBox(height: AppConstants.mediumSpacing),
                             TextField(
                                 maxLines: 2,
                                 textAlignVertical: TextAlignVertical.top,
@@ -151,9 +158,7 @@ class PlaylistScreen extends StatelessWidget {
 
                                         if (context.mounted) {
                                             Navigator.of(context).pop();
-                                            MessageService.showSuccess(context, isUpdate 
-                                                ? 'Playlist updated on Spotify successfully!' 
-                                                : 'Playlist added to Spotify successfully!');
+                                            MessageService.showSuccess(context, isUpdate ? 'Playlist updated on Spotify successfully!' : 'Playlist added to Spotify successfully!');
                                         }
                                     }
 
@@ -213,7 +218,7 @@ class PlaylistScreen extends StatelessWidget {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                     CircularProgressIndicator(),
-                                    SizedBox(height: 16),
+                                    SizedBox(height: AppConstants.mediumSpacing),
                                     Text('Generating your playlist...'),
                                 ],
                             ),
@@ -225,8 +230,8 @@ class PlaylistScreen extends StatelessWidget {
                             child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                    const Icon(Icons.error, size: 64, color: AppColors.errorIcon),
-                                    const SizedBox(height: 16),
+                                    const Icon(Icons.error, size: AppConstants.largeIconSize, color: AppColors.errorIcon),
+                                    const SizedBox(height: AppConstants.mediumSpacing),
 
                                     Text(
                                         'Error: ${provider.error}',
@@ -234,7 +239,7 @@ class PlaylistScreen extends StatelessWidget {
                                         style: const TextStyle(color: AppColors.errorIcon),
                                     ),
 
-                                    const SizedBox(height: 16),
+                                    const SizedBox(height: AppConstants.mediumSpacing),
                                     FilledButton(
                                         onPressed: () => Navigator.pop(context),
                                         child: const Text('Go Back'),
@@ -249,8 +254,8 @@ class PlaylistScreen extends StatelessWidget {
                             child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                    Icon(Icons.music_note, size: 64, color: AppColors.grey),
-                                    SizedBox(height: 16),
+                                    Icon(Icons.music_note, size: AppConstants.largeIconSize, color: AppColors.grey),
+                                    SizedBox(height: AppConstants.mediumSpacing),
 
                                     Text(
                                         'No playlist generated yet',
@@ -278,12 +283,12 @@ class PlaylistScreen extends StatelessWidget {
             children: [
                 if (provider.currentPrompt.isNotEmpty) Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    margin: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(AppConstants.mediumSpacing),
+                    margin: const EdgeInsets.all(AppConstants.mediumSpacing),
 
                     decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppConstants.mediumRadius),
 
                         border: Border.all(
                             color: AppColors.surfaceVariant,  
@@ -298,11 +303,11 @@ class PlaylistScreen extends StatelessWidget {
                                 'Generated for:',
                                 style: TextStyle(
                                     color: AppColors.textSecondary,
-                                    fontSize: 12,
+                                    fontSize: AppConstants.smallFontSize,
                                 ),
                             ),
 
-                            const SizedBox(height: 4),
+                            const SizedBox(height: AppConstants.tinySpacing),
                             Text(
                                 provider.currentPrompt,
                                 style: const TextStyle(
@@ -339,12 +344,23 @@ class PlaylistScreen extends StatelessWidget {
                                         style: const TextStyle(color: AppColors.textSecondary),
                                     ),
 
-                                    trailing: song.spotifyId != null ? IconButton(
-                                        icon: const Icon(Icons.open_in_new),
-                                        onPressed: () => _openSpotifyTrack(song.spotifyId!),
-                                    )
+                                    trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                            IconButton(
+                                                icon: const Icon(Icons.delete, color: Colors.red),
+                                                onPressed: () => _removeSong(context, index),
+                                                tooltip: 'Remove song',
+                                            ),
 
-                                    : null,
+                                            if (song.spotifyId != null)
+                                                IconButton(
+                                                    icon: const Icon(Icons.open_in_new),
+                                                    onPressed: () => _openSpotifyTrack(song.spotifyId!),
+                                                    tooltip: 'Open in Spotify',
+                                                ),
+                                        ],
+                                    ),
                                 ),
                             );
                         },
@@ -387,7 +403,7 @@ class PlaylistScreen extends StatelessWidget {
                             ),
                         ),
 
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppConstants.smallSpacing),
 
                         if (provider.canRefine) Expanded(
                             child: FilledButton(
@@ -443,7 +459,7 @@ class PlaylistScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
                 color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppConstants.mediumRadius),
 
                 border: Border.all(
                     color: AppColors.surfaceVariant, 
@@ -458,21 +474,21 @@ class PlaylistScreen extends StatelessWidget {
                         refinementsUsed >= maxRefinements ? 'Refinement limit reached' : 'Refinements Used: $refinementsUsed/$maxRefinements',
                         style: TextStyle(
                             color: progressColor,
-                            fontSize: 12,
+                            fontSize: AppConstants.smallFontSize,
                             fontWeight: FontWeight.bold,
                         ),
                     ),
 
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppConstants.tinySpacing),
                     Container(
                         height: 4,
                         decoration: BoxDecoration(
                             color: const Color(0xFF2A2A2A),
-                            borderRadius: BorderRadius.circular(2),
+                            borderRadius: BorderRadius.circular(AppConstants.tinyRadius),
                         ),
 
                         child: ClipRRect(
-                            borderRadius: BorderRadius.circular(2),
+                            borderRadius: BorderRadius.circular(AppConstants.tinyRadius),
                             child: LinearProgressIndicator(
                                 value: progress,
                                 backgroundColor: Colors.transparent,
@@ -483,5 +499,49 @@ class PlaylistScreen extends StatelessWidget {
                 ],
             ),
         );
+    }
+
+    Future<void> _removeSong(BuildContext context, int index) async {
+        final provider = Provider.of<PlaylistProvider>(context, listen: false);
+        final currentPlaylist = provider.currentPlaylist;
+        
+        if (currentPlaylist.isEmpty || index >= currentPlaylist.length) return;
+        final song = currentPlaylist[index];
+
+        final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+                backgroundColor: AppColors.surface,
+                title: const Text(
+                    'Remove Song',
+                    style: TextStyle(color: AppColors.textPrimary),
+                ),
+
+                content: Text(
+                    'Remove "${song.title}" from the playlist?',
+                    style: const TextStyle(color: AppColors.textSecondary),
+                ),
+
+                actions: [
+                    TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('Cancel'),
+                    ),
+
+                    TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: const Text(
+                            'Remove',
+                            style: TextStyle(color: Colors.red),
+                        ),
+                    ),
+                ],
+            ),
+        );
+
+        if (confirmed == true) {
+            provider.removeSong(song);
+            MessageService.showSuccess(context, 'Song removed from playlist');
+        }
     }
 }

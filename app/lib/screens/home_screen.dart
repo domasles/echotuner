@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../providers/playlist_provider.dart';
 import '../widgets/info_message_widget.dart';
 import '../config/app_constants.dart';
-import '../utils/responsive_layout.dart';
+import '../config/app_colors.dart';
 
 import 'playlist_screen.dart';
 import 'settings_screen.dart';
@@ -18,7 +18,7 @@ class HomeScreen extends StatefulWidget {
     State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final TextEditingController _promptController = TextEditingController();
 
     int _selectedIndex = 0;
@@ -42,9 +42,9 @@ class _HomeScreenState extends State<HomeScreen> {
     @override
     void initState() {
         super.initState();
+        WidgetsBinding.instance.addObserver(this);
         _promptController.addListener(_onTextChanged);
-        
-        // Refresh daily playlist limit when visiting home screen
+
         WidgetsBinding.instance.addPostFrameCallback((_) {
             _refreshDailyLimit();
         });
@@ -63,10 +63,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
     @override
     void dispose() {
+        WidgetsBinding.instance.removeObserver(this);
+
         _promptController.removeListener(_onTextChanged);
         _promptController.dispose();
 
         super.dispose();
+    }
+
+    @override
+    void didChangeAppLifecycleState(AppLifecycleState state) {
+        super.didChangeAppLifecycleState(state);
+
+        if (state == AppLifecycleState.resumed) {
+            _refreshDailyLimit();
+
+            if (_selectedIndex == 2) {
+                setState(() {
+                    _libraryKey = UniqueKey();
+                });
+            }
+        }
     }
 
     @override
@@ -85,8 +102,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                 },
 
-                backgroundColor: const Color(0xFF8B5CF6),
-                foregroundColor: Colors.white,
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.textPrimary,
                 child: const Icon(Icons.settings_rounded),
             ),
         );
@@ -118,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Expanded(
                                     child: SingleChildScrollView(
                                         child: Padding(
-                                            padding: ResponsiveLayout.getResponsivePadding(context),
+                                            padding: const EdgeInsets.all(AppConstants.largePadding),
                                             child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
@@ -163,7 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                     ),
                 ),
 
@@ -172,7 +189,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     'Create a custom music playlist with the help of AI and natural language processing',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontSize: 16,
-                        color: Colors.white70,
+                        color: AppColors.textSecondary,
                         height: 1.4,
                     ),
                 ),
@@ -188,12 +205,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     controller: _promptController,
                     maxLines: null,
                     minLines: 3,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
 
                     decoration: InputDecoration(
                         hintText: 'Describe your ideal playlist...',
-                        hintStyle: TextStyle(
-                            color: Colors.white.withValues(alpha: 255 * 0.6),
+                        hintStyle: const TextStyle(
+                            color: AppColors.textTertiary,
                             fontSize: 16,
                             height: 1.4,
                         ),
@@ -208,10 +225,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: FilledButton(
                         onPressed: (provider.isLoading || !_hasText) ? null : () => _generatePlaylist(provider),
                         style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF8B5CF6),
-                            foregroundColor: Colors.white,
-                            disabledBackgroundColor: const Color(0xFF1A1625),
-                            disabledForegroundColor: Colors.white54,
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.textPrimary,
+                            disabledBackgroundColor: AppColors.disabled,
+                            disabledForegroundColor: AppColors.textTertiary,
                         ),
 
                         child: provider.isLoading ? const Row(
@@ -223,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                     child: CircularProgressIndicator(
                                         strokeWidth: 2.5,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.textPrimary),
                                     ),
                                 ),
 
@@ -266,15 +283,15 @@ class _HomeScreenState extends State<HomeScreen> {
         Color progressColor;
 
         if (progress <= 0.5) {
-            progressColor = Colors.green;
+            progressColor = AppColors.progressGreen;
         }
 
         else if (progress <= 0.8) {
-            progressColor = Colors.orange;
+            progressColor = AppColors.progressOrange;
         }
 
         else {
-            progressColor = Colors.red;
+            progressColor = AppColors.progressRed;
         }
 
         return Positioned(
@@ -284,9 +301,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
             child: Container(
                 height: 56,
-                padding: EdgeInsets.symmetric(
-                    horizontal: ResponsiveLayout.getResponsiveSpacing(context, SpacingSize.medium), 
-                    vertical: ResponsiveLayout.getResponsiveSpacing(context, SpacingSize.small)
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppConstants.mediumPadding, 
+                    vertical: AppConstants.smallPadding
                 ),
 
                 decoration: BoxDecoration(
@@ -325,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 borderRadius: BorderRadius.circular(2),
                                 child: LinearProgressIndicator(
                                     value: progress,
-                                    backgroundColor: Colors.transparent,
+                                    backgroundColor: AppColors.transparent,
                                     valueColor: AlwaysStoppedAnimation<Color>(progressColor),
                                 ),
                             ),
@@ -411,7 +428,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
 
                             elevation: 0,
-                            shadowColor: Colors.transparent,
+                            shadowColor: AppColors.transparent,
                         );
                     }).toList(),
                 ),

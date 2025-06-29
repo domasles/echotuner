@@ -3,15 +3,11 @@ import logging
 import json
 import os
 
+import ujson as json_lib
+
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Any
 from functools import lru_cache
-
-try:
-    import ujson as json_lib
-
-except ImportError:
-    import json as json_lib
 
 logger = logging.getLogger(__name__)
 

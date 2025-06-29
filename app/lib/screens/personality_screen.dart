@@ -1,13 +1,13 @@
-import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../config/app_constants.dart';
-import '../models/user_context.dart';
+import 'package:flutter/material.dart';
+
 import '../services/personality_service.dart';
+import '../providers/playlist_provider.dart';
+import '../services/message_service.dart';
 import '../services/config_service.dart';
 import '../services/auth_service.dart';
-import '../services/message_service.dart';
-import '../providers/playlist_provider.dart';
-import '../utils/responsive_layout.dart';
+import '../config/app_constants.dart';
+import '../models/user_context.dart';
 
 class PersonalityScreen extends StatefulWidget {
     const PersonalityScreen({super.key});
@@ -22,28 +22,32 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
     UserContext? _userContext;
     List<SpotifyArtist> _followedArtists = [];
     bool _isLoading = true;
-    bool _isSaving = false;
-    bool _isLoadingArtists = false;
 
-    // Configuration limits from backend
+    final bool _isSaving = false;
+
     int _maxFavoriteArtists = 12;
     int _maxDislikedArtists = 20;
     int _maxFavoriteGenres = 10;
 
-    // Form data
     List<String> _selectedGenres = [];
-    List<String> _selectedArtists = []; // Custom artists only - not Spotify followed
+    List<String> _likedArtists = [];
     List<String> _dislikedArtists = [];
     List<String> _selectedDecades = [];
     Map<String, String> _personalityAnswers = {};
-    
-    // Spotify integration
-    bool _includeSpotifyArtists = true; // Toggle for Spotify artists
+
+    bool _includeSpotifyArtists = true;
 
     @override
     void initState() {
         super.initState();
         _tabController = TabController(length: 4, vsync: this);
+
+        _tabController.addListener(() {
+            if (!_tabController.indexIsChanging) {
+                _refreshCurrentTab();
+            }
+        });
+        
         _loadPersonalityData();
     }
 
@@ -53,35 +57,54 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
         super.dispose();
     }
 
+    void _refreshCurrentTab() {
+        if (!mounted) return;
+        
+        switch (_tabController.index) {
+            case 0: // Basic info - no refresh needed
+                break;
+            case 1: // Music preferences - refresh spotify artists if needed
+                if (_includeSpotifyArtists && _followedArtists.isEmpty) {
+                    _loadFollowedArtists();
+                }
+                break;
+            case 2: // Personality - no refresh needed
+                break;
+            case 3: // Advanced - no refresh needed
+                break;
+        }
+    }
+
     Future<void> _loadPersonalityData() async {
         setState(() => _isLoading = true);
 
         try {
             final personalityService = context.read<PersonalityService>();
             final configService = context.read<ConfigService>();
-
-            // Load configuration limits
             final personalityConfig = await configService.getPersonalityConfig();
+
             _maxFavoriteArtists = personalityConfig.maxFavoriteArtists;
             _maxDislikedArtists = personalityConfig.maxDislikedArtists;
             _maxFavoriteGenres = personalityConfig.maxFavoriteGenres;
 
-            // Load existing user context
             final existingContext = await personalityService.loadUserContext();
-            
+
             if (existingContext != null) {
                 _userContext = existingContext;
                 _populateFormFromContext(existingContext);
             }
 
-            // Load followed artists if needed
             await _loadFollowedArtists();
 
-        } catch (e) {
+        }
+
+        catch (e) {
             if (mounted) {
                 MessageService.showError(context, 'Failed to load personality data');
             }
-        } finally {
+        }
+
+        finally {
             if (mounted) {
                 setState(() => _isLoading = false);
             }
@@ -92,33 +115,22 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
         final authService = context.read<AuthService>();
         if (authService.sessionId == null) return;
 
-        if (mounted) {
-            setState(() => _isLoadingArtists = true);
-        }
-
         try {
             final personalityService = context.read<PersonalityService>();
-            _followedArtists = await personalityService.fetchFollowedArtists(
-                sessionId: authService.sessionId
-            );
+            _followedArtists = await personalityService.fetchFollowedArtists(sessionId: authService.sessionId);
 
-            // If user context is null, create default with followed artists
             if (_userContext == null) {
-                final defaultContext = await personalityService.getDefaultPersonalityContext(
-                    sessionId: authService.sessionId
-                );
+                final defaultContext = await personalityService.getDefaultPersonalityContext(sessionId: authService.sessionId);
                 _userContext = defaultContext;
                 _populateFormFromContext(defaultContext);
             }
 
             await personalityService.markArtistsSynced();
-        } catch (e) {
+        }
+
+        catch (e) {
             if (mounted) {
                 MessageService.showError(context, 'Failed to load followed artists');
-            }
-        } finally {
-            if (mounted) {
-                setState(() => _isLoadingArtists = false);
             }
         }
     }
@@ -126,17 +138,16 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
     void _populateFormFromContext(UserContext context) {
         setState(() {
             _selectedGenres = List.from(context.favoriteGenres ?? []);
-            // Only load custom artists - Spotify artists are handled separately via _followedArtists
-            // The backend's favorite_artists should only contain manually added custom artists
+
             final allFavoriteArtists = context.favoriteArtists ?? [];
             final followedArtistNames = _followedArtists.map((a) => a.name).toSet();
-            // Filter out any Spotify followed artists from the saved favorites
-            _selectedArtists = allFavoriteArtists.where((artist) => !followedArtistNames.contains(artist)).toList();
+
+            _likedArtists = allFavoriteArtists.where((artist) => !followedArtistNames.contains(artist)).toList();
             _dislikedArtists = List.from(context.dislikedArtists ?? []);
-            // Don't auto-fill decades - let user choose
-            _selectedDecades = []; // Remove auto-fill
-            _includeSpotifyArtists = context.includeSpotifyArtists ?? true; // Load toggle state
-            
+
+            _selectedDecades = [];
+            _includeSpotifyArtists = context.includeSpotifyArtists ?? true;
+
             _personalityAnswers = {
                 'happy_music_preference': context.happyMusicPreference ?? '',
                 'sad_music_preference': context.sadMusicPreference ?? '',
@@ -151,13 +162,11 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
         });
     }
 
-    Future<void> _savePersonality() async {
-        setState(() => _isSaving = true);
-
+    Future<void> _autoSavePersonality() async {
         try {
             final updatedContext = (_userContext ?? UserContext()).copyWith(
                 favoriteGenres: _selectedGenres,
-                favoriteArtists: _selectedArtists,
+                favoriteArtists: _likedArtists,
                 dislikedArtists: _dislikedArtists,
                 decadePreference: _selectedDecades,
                 includeSpotifyArtists: _includeSpotifyArtists,
@@ -173,51 +182,14 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
             );
 
             await context.read<PersonalityService>().saveUserContext(updatedContext);
-            
-            // Update playlist provider with new context
+
             if (mounted) {
                 context.read<PlaylistProvider>().updateUserContext(updatedContext);
-                MessageService.showSuccess(context, 'Personality settings saved successfully!');
-            }
-        } catch (e) {
-            if (mounted) {
-                MessageService.showError(context, 'Failed to save personality settings');
-            }
-        } finally {
-            if (mounted) {
-                setState(() => _isSaving = false);
             }
         }
-    }
-
-    Future<void> _autoSavePersonality() async {
-        // Silent auto-save without showing snackbar
-        try {
-            final updatedContext = (_userContext ?? UserContext()).copyWith(
-                favoriteGenres: _selectedGenres,
-                favoriteArtists: _selectedArtists,
-                dislikedArtists: _dislikedArtists,
-                decadePreference: _selectedDecades,
-                includeSpotifyArtists: _includeSpotifyArtists,
-                happyMusicPreference: _personalityAnswers['happy_music_preference'],
-                sadMusicPreference: _personalityAnswers['sad_music_preference'],
-                workoutMusicPreference: _personalityAnswers['workout_music_preference'],
-                focusMusicPreference: _personalityAnswers['focus_music_preference'],
-                relaxationMusicPreference: _personalityAnswers['relaxation_music_preference'],
-                partyMusicPreference: _personalityAnswers['party_music_preference'],
-                discoveryOpenness: _personalityAnswers['discovery_openness'],
-                explicitContentPreference: _personalityAnswers['explicit_content_preference'],
-                instrumentalPreference: _personalityAnswers['instrumental_preference'],
-            );
-
-            await context.read<PersonalityService>().saveUserContext(updatedContext);
-            
-            // Update playlist provider with new context
-            if (mounted) {
-                context.read<PlaylistProvider>().updateUserContext(updatedContext);
-            }
-        } catch (e) {
-            // Silent save - don't show error messages
+        
+        catch (e) {
+            // Silent - don't show error messages
         }
     }
 
@@ -230,10 +202,6 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
             return;
         }
 
-        if (mounted) {
-            setState(() => _isLoadingArtists = true);
-        }
-
         try {
             final personalityService = context.read<PersonalityService>();
             _followedArtists = await personalityService.fetchFollowedArtists(
@@ -244,13 +212,11 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
             if (mounted) {
                 MessageService.showSuccess(context, 'Synced ${_followedArtists.length} followed artists from Spotify');
             }
-        } catch (e) {
+        }
+        
+        catch (e) {
             if (mounted) {
                 MessageService.showError(context, 'Failed to sync followed artists');
-            }
-        } finally {
-            if (mounted) {
-                setState(() => _isLoadingArtists = false);
             }
         }
     }
@@ -263,12 +229,13 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                 bottom: TabBar(
                     controller: _tabController,
                     tabs: const [
-                        Tab(text: 'Preferences', icon: Icon(Icons.favorite_rounded)),
+                        Tab(text: 'Taste', icon: Icon(Icons.favorite_rounded)),
                         Tab(text: 'Artists', icon: Icon(Icons.person_rounded)),
-                        Tab(text: 'Questions', icon: Icon(Icons.quiz_rounded)),
+                        Tab(text: 'Quiz', icon: Icon(Icons.quiz_rounded)),
                         Tab(text: 'Settings', icon: Icon(Icons.tune_rounded)),
                     ],
                 ),
+
                 actions: [
                     if (_isSaving)
                         const Padding(
@@ -281,31 +248,24 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                                 ),
                             ),
                         )
-                    else
-                        IconButton(
-                            onPressed: _savePersonality,
-                            icon: const Icon(Icons.save_rounded),
-                            tooltip: 'Save Personality',
-                        ),
                 ],
             ),
-            body: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : TabBarView(
-                    controller: _tabController,
-                    children: [
-                        _buildPreferencesTab(),
-                        _buildArtistsTab(),
-                        _buildQuestionsTab(),
-                        _buildSettingsTab(),
-                    ],
-                ),
+
+            body: _isLoading ? const Center(child: CircularProgressIndicator()) : TabBarView(
+                controller: _tabController,
+                children: [
+                    _buildPreferencesTab(),
+                    _buildArtistsTab(),
+                    _buildQuestionsTab(),
+                    _buildSettingsTab(),
+                ],
+            ),
         );
     }
 
     Widget _buildPreferencesTab() {
         return SingleChildScrollView(
-            padding: ResponsiveLayout.getResponsivePadding(context),
+            padding: const EdgeInsets.all(AppConstants.largePadding),
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -324,14 +284,13 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
 
     Widget _buildArtistsTab() {
         return SingleChildScrollView(
-            padding: ResponsiveLayout.getResponsivePadding(context),
+            padding: const EdgeInsets.all(AppConstants.largePadding),
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                    // Spotify followed artists section
                     Card(
                         child: Padding(
-                            padding: EdgeInsets.all(ResponsiveLayout.getResponsiveSpacing(context, SpacingSize.medium)),
+                            padding: const EdgeInsets.all(AppConstants.mediumPadding),
                             child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -347,6 +306,7 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                                                                 fontWeight: FontWeight.bold,
                                                             ),
                                                         ),
+
                                                         Text(
                                                             'Artists you follow on Spotify',
                                                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -356,17 +316,20 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                                                     ],
                                                 ),
                                             ),
+
                                             Switch(
                                                 value: _includeSpotifyArtists,
                                                 onChanged: (value) {
                                                     setState(() {
                                                         _includeSpotifyArtists = value;
                                                     });
-                                                    _autoSavePersonality(); // Auto-save on toggle change
+
+                                                    _autoSavePersonality();
                                                 },
                                             ),
                                         ],
                                     ),
+
                                     if (_includeSpotifyArtists) ...[
                                         const SizedBox(height: AppConstants.mediumSpacing),
                                         Row(
@@ -377,53 +340,34 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                                                         style: Theme.of(context).textTheme.bodySmall,
                                                     ),
                                                 ),
-                                                if (_isLoadingArtists)
-                                                    const SizedBox(
-                                                        width: 20,
-                                                        height: 20,
-                                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                                    )
-                                                else
-                                                    TextButton.icon(
-                                                        onPressed: _syncSpotifyArtists,
-                                                        icon: const Icon(Icons.sync_rounded, size: 16),
-                                                        label: const Text('Sync'),
-                                                        style: TextButton.styleFrom(
-                                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                        ),
-                                                    ),
+
+                                                TextButton.icon(
+                                                    onPressed: _syncSpotifyArtists,
+                                                    icon: const Icon(Icons.sync_rounded, size: AppConstants.smallIconSize),
+                                                    label: const Text('Sync'),
+                                                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: AppConstants.mediumPadding, vertical: AppConstants.tinyPadding)),
+                                                ),
                                             ],
                                         ),
+
                                         if (_followedArtists.isNotEmpty) ...[
                                             const SizedBox(height: AppConstants.smallSpacing),
                                             Wrap(
                                                 spacing: AppConstants.smallSpacing,
                                                 runSpacing: AppConstants.smallSpacing,
-                                                children: _followedArtists.take(10).map((artist) => 
-                                                    Chip(
+                                                children: _followedArtists.take(10).map(
+                                                    (artist) => Chip(
                                                         label: Text(artist.name),
                                                         avatar: CircleAvatar(
-                                                            backgroundImage: artist.imageUrl != null 
-                                                                ? NetworkImage(artist.imageUrl!) 
-                                                                : null,
-                                                            child: artist.imageUrl == null 
-                                                                ? const Icon(Icons.person, size: 16) 
-                                                                : null,
+                                                            backgroundImage: artist.imageUrl != null ? NetworkImage(artist.imageUrl!) : null,
+                                                            child: artist.imageUrl == null ? const Icon(Icons.person, size: 16) : null,
                                                         ),
                                                     )
                                                 ).toList(),
                                             ),
-                                            if (_followedArtists.length > 10)
-                                                Padding(
-                                                    padding: const EdgeInsets.only(top: AppConstants.smallSpacing),
-                                                    child: Text(
-                                                        'and ${_followedArtists.length - 10} more...',
-                                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                            color: Colors.white54,
-                                                        ),
-                                                    ),
-                                                ),
-                                        ] else ...[
+                                        ]
+
+                                        else ...[
                                             const SizedBox(height: AppConstants.smallSpacing),
                                             Text(
                                                 'No followed artists found. Make sure you follow artists on Spotify.',
@@ -437,17 +381,18 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                             ),
                         ),
                     ),
-                    
+
                     const SizedBox(height: AppConstants.largeSpacing),
-                    
-                    // Custom favorite artists section
-                    _buildSectionHeader('Custom Favorite Artists', 'Artists you love'),
-                    const SizedBox(height: AppConstants.mediumSpacing),
-                    _buildArtistSelection(),
+
+                    _buildSectionHeader('Custom Favorite Artists', 'Artists you love (${_likedArtists.length}/$_maxFavoriteArtists)'),
+                    const SizedBox(height: AppConstants.smallSpacing),
+
+                    _buildLikedArtistSelection(),
                     const SizedBox(height: AppConstants.extraLargeSpacing),
-                    
-                    _buildSectionHeader('Disliked Artists', 'Artists to exclude from playlists'),
-                    const SizedBox(height: AppConstants.mediumSpacing),
+
+                    _buildSectionHeader('Disliked Artists', 'Artists to exclude from playlists(${_dislikedArtists.length}/$_maxDislikedArtists)'),
+                    const SizedBox(height: AppConstants.smallSpacing),
+
                     _buildDislikedArtistSelection(),
                 ],
             ),
@@ -456,15 +401,15 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
 
     Widget _buildQuestionsTab() {
         final questions = context.read<PersonalityService>().getPersonalityQuestions();
-        
+
         return SingleChildScrollView(
-            padding: ResponsiveLayout.getResponsivePadding(context),
+            padding: const EdgeInsets.all(AppConstants.largePadding),
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                     _buildSectionHeader('Personality Questions', 'Help us understand your music taste better'),
                     const SizedBox(height: AppConstants.largeSpacing),
-                    
+
                     ...questions.entries.map((entry) => _buildPersonalityQuestion(
                         key: entry.key,
                         question: entry.value['question'],
@@ -477,32 +422,18 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
 
     Widget _buildSettingsTab() {
         return SingleChildScrollView(
-            padding: ResponsiveLayout.getResponsivePadding(context),
+            padding: const EdgeInsets.all(AppConstants.largePadding),
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                    _buildSectionHeader('Advanced Settings', 'Fine-tune your music recommendations'),
-                    SizedBox(height: ResponsiveLayout.getResponsiveSpacing(context, SpacingSize.large)),
-                    
+                    _buildSectionHeader('Advanced Settings', 'Settings for power users'),
+                    const SizedBox(height: AppConstants.largeSpacing),
+
                     Card(
                         child: Padding(
-                            padding: EdgeInsets.all(ResponsiveLayout.getResponsiveSpacing(context, SpacingSize.medium)),
+                            padding: const EdgeInsets.all(AppConstants.mediumPadding),
                             child: Column(
                                 children: [
-                                    ListTile(
-                                        leading: const Icon(Icons.refresh_rounded),
-                                        title: const Text('Sync Followed Artists'),
-                                        subtitle: const Text('Update your favorite artists from Spotify'),
-                                        trailing: _isLoadingArtists 
-                                            ? const SizedBox(
-                                                width: AppConstants.mediumIconSize,
-                                                height: AppConstants.mediumIconSize,
-                                                child: CircularProgressIndicator(strokeWidth: 2),
-                                            )
-                                            : const Icon(Icons.arrow_forward_ios_rounded),
-                                        onTap: _isLoadingArtists ? null : _loadFollowedArtists,
-                                    ),
-                                    const Divider(),
                                     ListTile(
                                         leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
                                         title: const Text('Reset Personality', style: TextStyle(color: Colors.red)),
@@ -529,6 +460,7 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                         fontWeight: FontWeight.bold,
                     ),
                 ),
+
                 const SizedBox(height: AppConstants.smallSpacing),
                 Text(
                     subtitle,
@@ -542,10 +474,11 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
 
     Widget _buildGenreSelection() {
         final availableGenres = context.read<PersonalityService>().getAvailableGenres();
-        
+
         return Wrap(
             spacing: AppConstants.smallSpacing,
             runSpacing: AppConstants.smallSpacing,
+
             children: availableGenres.map((genre) {
                 final isSelected = _selectedGenres.contains(genre);
                 return FilterChip(
@@ -555,21 +488,27 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                         setState(() {
                             if (selected && _selectedGenres.length < _maxFavoriteGenres) {
                                 _selectedGenres.add(genre);
-                            } else if (!selected) {
+                            }
+
+                            else if (!selected) {
                                 _selectedGenres.remove(genre);
                             }
                         });
-                        _autoSavePersonality(); // Auto-save on change
+
+                        _autoSavePersonality();
                     },
+
                     backgroundColor: const Color(0xFF1A1625),
                     selectedColor: const Color(0xFF8B5CF6),
                     checkmarkColor: Colors.white,
                     elevation: isSelected ? 2 : 0,
                     shadowColor: isSelected ? Colors.black26 : null,
+
                     labelStyle: TextStyle(
                         color: isSelected ? Colors.white : Colors.white70,
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                     ),
+
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
@@ -585,10 +524,11 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
 
     Widget _buildDecadeSelection() {
         final availableDecades = context.read<PersonalityService>().getAvailableDecades();
-        
+
         return Wrap(
             spacing: AppConstants.smallSpacing,
             runSpacing: AppConstants.smallSpacing,
+
             children: availableDecades.map((decade) {
                 final isSelected = _selectedDecades.contains(decade);
                 return FilterChip(
@@ -598,21 +538,27 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                         setState(() {
                             if (selected) {
                                 _selectedDecades.add(decade);
-                            } else {
+                            }
+
+                            else {
                                 _selectedDecades.remove(decade);
                             }
                         });
-                        _autoSavePersonality(); // Auto-save on change
+
+                        _autoSavePersonality();
                     },
+
                     backgroundColor: const Color(0xFF1A1625),
                     selectedColor: const Color(0xFF8B5CF6),
                     checkmarkColor: Colors.white,
                     elevation: isSelected ? 2 : 0,
                     shadowColor: isSelected ? Colors.black26 : null,
+
                     labelStyle: TextStyle(
                         color: isSelected ? Colors.white : Colors.white70,
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                     ),
+
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
@@ -626,57 +572,44 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
         );
     }
 
-    Widget _buildArtistSelection() {
+    Widget _buildLikedArtistSelection() {
         return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-                // Custom artists section (editable)
-                Row(
-                    children: [
-                        Text(
-                            'Custom Artists:',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.white70,
-                                fontWeight: FontWeight.w500,
-                            ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                            '${_selectedArtists.length}/$_maxFavoriteArtists',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.white54,
-                            ),
-                        ),
-                    ],
-                ),
                 const SizedBox(height: AppConstants.smallSpacing),
-                
-                if (_selectedArtists.isNotEmpty) ...[
+
+                if (_likedArtists.isNotEmpty) ...[
                     Wrap(
                         spacing: AppConstants.smallSpacing,
                         runSpacing: AppConstants.smallSpacing,
-                        children: _selectedArtists.map((artist) {
+                        children: _likedArtists.map((artist) {
                             return Chip(
                                 label: Text(artist),
                                 onDeleted: () {
                                     setState(() {
-                                        _selectedArtists.remove(artist);
+                                        _likedArtists.remove(artist);
                                     });
-                                    _autoSavePersonality(); // Auto-save on change
+
+                                    _autoSavePersonality();
                                 },
+
                                 deleteIcon: const Icon(Icons.close_rounded, size: AppConstants.smallIconSize),
                                 backgroundColor: const Color(0xFF8B5CF6),
+
                                 labelStyle: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w500,
                                 ),
+
                                 deleteIconColor: Colors.white,
                                 elevation: 2,
                                 shadowColor: Colors.black26,
+
                                 shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20),
                                     side: BorderSide.none,
                                 ),
+
                                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             );
@@ -684,17 +617,12 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                     ),
                     const SizedBox(height: AppConstants.smallSpacing),
                 ],
-                
-                // Add custom artist button
+
                 OutlinedButton.icon(
                     onPressed: _showAddArtistDialog,
                     icon: const Icon(Icons.add_rounded),
                     label: const Text('Add Custom Artist'),
-                    style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.buttonRadius),
-                        ),
-                    ),
+                    style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.buttonRadius))),
                 ),
             ],
         );
@@ -704,26 +632,8 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
         return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-                Row(
-                    children: [
-                        Text(
-                            'Disliked Artists:',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.white70,
-                                fontWeight: FontWeight.w500,
-                            ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                            '${_dislikedArtists.length}/$_maxDislikedArtists',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.white54,
-                            ),
-                        ),
-                    ],
-                ),
                 const SizedBox(height: AppConstants.smallSpacing),
-                
+
                 if (_dislikedArtists.isNotEmpty) ...[
                     Wrap(
                         spacing: AppConstants.smallSpacing,
@@ -735,33 +645,41 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                                     setState(() {
                                         _dislikedArtists.remove(artist);
                                     });
-                                    _autoSavePersonality(); // Auto-save on change
+
+                                    _autoSavePersonality();
                                 },
+
                                 deleteIcon: const Icon(Icons.close_rounded, size: AppConstants.smallIconSize),
                                 backgroundColor: Colors.red.withValues(alpha: 0.1),
+
                                 labelStyle: const TextStyle(
                                     color: Colors.red,
                                     fontWeight: FontWeight.w500,
                                 ),
+
                                 deleteIconColor: Colors.red,
                                 elevation: 1,
                                 shadowColor: Colors.red.withValues(alpha: 0.2),
+
                                 shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20),
                                     side: BorderSide(color: Colors.red.withValues(alpha: 0.3), width: 1),
                                 ),
+
                                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             );
                         }).toList(),
                     ),
+
                     const SizedBox(height: AppConstants.smallSpacing),
                 ],
-                
+
                 OutlinedButton.icon(
                     onPressed: _showAddDislikedArtistDialog,
                     icon: const Icon(Icons.add_rounded),
                     label: const Text('Add Disliked Artist'),
+
                     style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
                         side: const BorderSide(color: Colors.red),
@@ -774,17 +692,13 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
         );
     }
 
-    Widget _buildPersonalityQuestion({
-        required String key,
-        required String question,
-        required List<String> options,
-    }) {
+    Widget _buildPersonalityQuestion({required String key, required String question, required List<String> options}) {
         final currentAnswer = _personalityAnswers[key] ?? '';
-        
+
         return Card(
             margin: const EdgeInsets.only(bottom: AppConstants.mediumSpacing),
             child: Padding(
-                padding: EdgeInsets.all(ResponsiveLayout.getResponsiveSpacing(context, SpacingSize.medium)),
+                padding: const EdgeInsets.all(AppConstants.mediumPadding),
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -794,6 +708,7 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                                 fontWeight: FontWeight.w600,
                             ),
                         ),
+
                         const SizedBox(height: AppConstants.mediumSpacing),
                         ...options.map((option) {
                             final isSelected = currentAnswer == option;
@@ -804,44 +719,39 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                                         setState(() {
                                             _personalityAnswers[key] = option;
                                         });
-                                        _autoSavePersonality(); // Auto-save on change
+
+                                        _autoSavePersonality();
                                     },
+
                                     borderRadius: BorderRadius.circular(AppConstants.mediumRadius),
                                     child: Container(
                                         width: double.infinity,
-                                        padding: EdgeInsets.all(ResponsiveLayout.getResponsiveSpacing(context, SpacingSize.medium)),
+                                        padding: const EdgeInsets.all(AppConstants.mediumPadding),
+
                                         decoration: BoxDecoration(
-                                            color: isSelected 
-                                                ? const Color(0xFF8B5CF6).withValues(alpha: 0.2)
-                                                : Colors.transparent,
+                                            color: isSelected ? const Color(0xFF8B5CF6).withValues(alpha: 0.2) : Colors.transparent,
                                             borderRadius: BorderRadius.circular(AppConstants.mediumRadius),
                                             border: Border.all(
-                                                color: isSelected 
-                                                    ? const Color(0xFF8B5CF6)
-                                                    : const Color(0xFF2A2A2A),
+                                                color: isSelected ? const Color(0xFF8B5CF6) : const Color(0xFF2A2A2A),
                                                 width: 1,
                                             ),
                                         ),
+
                                         child: Row(
                                             children: [
                                                 Icon(
-                                                    isSelected 
-                                                        ? Icons.radio_button_checked_rounded
-                                                        : Icons.radio_button_unchecked_rounded,
-                                                    color: isSelected 
-                                                        ? const Color(0xFF8B5CF6)
-                                                        : Colors.white54,
+                                                    isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
+                                                    color: isSelected ? const Color(0xFF8B5CF6) : Colors.white54,
                                                     size: AppConstants.mediumIconSize,
                                                 ),
+
                                                 const SizedBox(width: AppConstants.mediumSpacing),
                                                 Expanded(
                                                     child: Text(
                                                         option,
                                                         style: TextStyle(
                                                             color: isSelected ? Colors.white : Colors.white70,
-                                                            fontWeight: isSelected 
-                                                                ? FontWeight.w500 
-                                                                : FontWeight.normal,
+                                                            fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
                                                         ),
                                                     ),
                                                 ),
@@ -863,12 +773,12 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
             builder: (context) => _ArtistSearchDialog(
                 personalityService: context.read<PersonalityService>(),
                 onArtistSelected: (artist) {
-                    if (!_selectedArtists.contains(artist.name) &&
-                        _selectedArtists.length < _maxFavoriteArtists) {
+                    if (!_likedArtists.contains(artist.name) && _likedArtists.length < _maxFavoriteArtists) {
                         setState(() {
-                            _selectedArtists.add(artist.name);
+                            _likedArtists.add(artist.name);
                         });
-                        _autoSavePersonality(); // Auto-save on change
+
+                        _autoSavePersonality();
                     }
                 },
             ),
@@ -883,10 +793,12 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                 onArtistSelected: (artist) {
                     if (!_dislikedArtists.contains(artist.name) &&
                         _dislikedArtists.length < _maxDislikedArtists) {
+
                         setState(() {
                             _dislikedArtists.add(artist.name);
                         });
-                        _autoSavePersonality(); // Auto-save on change
+
+                        _autoSavePersonality();
                     }
                 },
             ),
@@ -901,40 +813,47 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                 content: const Text(
                     'This will clear all your saved preferences, including favorite artists, genres, and personality answers. This action cannot be undone.',
                 ),
+
                 actions: [
                     TextButton(
                         onPressed: () => Navigator.of(dialogContext).pop(),
                         child: const Text('Cancel'),
                     ),
+
                     FilledButton(
                         onPressed: () async {
                             final navigator = Navigator.of(dialogContext);
                             final personalityService = context.read<PersonalityService>();
                             final playlistProvider = context.read<PlaylistProvider>();
                             
-                            navigator.pop(); // Close dialog first
-                            
+                            navigator.pop();
+
                             try {
                                 await personalityService.clearUserContext();
+
                                 if (mounted) {
                                     playlistProvider.updateUserContext(null);
-                                    // Reset all local state
+
                                     setState(() {
                                         _selectedGenres.clear();
-                                        _selectedArtists.clear();
+                                        _likedArtists.clear();
                                         _dislikedArtists.clear();
                                         _selectedDecades.clear();
                                         _personalityAnswers.clear();
                                         _includeSpotifyArtists = true;
                                     });
+
                                     MessageService.showSuccess(context, 'Personality settings reset successfully');
                                 }
-                            } catch (e) {
+                            }
+
+                            catch (e) {
                                 if (mounted) {
                                     MessageService.showError(context, 'Failed to reset personality settings');
                                 }
                             }
                         },
+
                         style: FilledButton.styleFrom(backgroundColor: Colors.red),
                         child: const Text('Reset'),
                     ),
@@ -959,6 +878,7 @@ class _ArtistSearchDialog extends StatefulWidget {
 
 class _ArtistSearchDialogState extends State<_ArtistSearchDialog> {
     final TextEditingController _searchController = TextEditingController();
+
     List<SpotifyArtist> _searchResults = [];
     bool _isSearching = false;
     String _lastQuery = '';
@@ -971,7 +891,7 @@ class _ArtistSearchDialogState extends State<_ArtistSearchDialog> {
 
     Future<void> _searchArtists(String query) async {
         if (query.isEmpty || query == _lastQuery) return;
-        
+
         setState(() {
             _isSearching = true;
             _lastQuery = query;
@@ -979,18 +899,22 @@ class _ArtistSearchDialogState extends State<_ArtistSearchDialog> {
 
         try {
             final results = await widget.personalityService.searchArtists(query);
+
             if (mounted && query == _lastQuery) {
                 setState(() {
                     _searchResults = results;
                     _isSearching = false;
                 });
             }
-        } catch (e) {
+        }
+
+        catch (e) {
             if (mounted) {
                 setState(() {
                     _searchResults = [];
                     _isSearching = false;
                 });
+
                 ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Failed to search artists: $e')),
                 );
@@ -1002,9 +926,10 @@ class _ArtistSearchDialogState extends State<_ArtistSearchDialog> {
     Widget build(BuildContext context) {
         return Dialog(
             child: Container(
-                width: ResponsiveLayout.getDialogWidth(context),
+                width: AppConstants.dialogWidth,
                 height: MediaQuery.of(context).size.height * 0.7,
-                padding: EdgeInsets.all(ResponsiveLayout.getResponsiveSpacing(context, SpacingSize.medium)),
+                padding: const EdgeInsets.all(AppConstants.mediumPadding),
+
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1014,6 +939,7 @@ class _ArtistSearchDialogState extends State<_ArtistSearchDialog> {
                                 fontWeight: FontWeight.bold,
                             ),
                         ),
+
                         const SizedBox(height: AppConstants.mediumSpacing),
                         
                         TextField(
@@ -1021,74 +947,76 @@ class _ArtistSearchDialogState extends State<_ArtistSearchDialog> {
                             decoration: InputDecoration(
                                 hintText: 'Type artist name...',
                                 prefixIcon: const Icon(Icons.search_rounded),
-                                suffixIcon: _isSearching 
-                                    ? Container(
-                                        width: AppConstants.mediumIconSize,
-                                        height: AppConstants.mediumIconSize,
-                                        padding: EdgeInsets.all(ResponsiveLayout.getResponsiveSpacing(context, SpacingSize.small)),
-                                        child: const CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                    : null,
+
+                                suffixIcon: _isSearching ? Container(
+                                    width: AppConstants.mediumIconSize,
+                                    height: AppConstants.mediumIconSize,
+                                    padding: const EdgeInsets.all(AppConstants.smallMediumPadding),
+                                    child: const CircularProgressIndicator(strokeWidth: 3),
+                                )
+
+                                : null,
                             ),
+
                             onChanged: (value) {
-                                // Debounce search
                                 Future.delayed(const Duration(milliseconds: 500), () {
                                     if (_searchController.text == value) {
                                         _searchArtists(value);
                                     }
                                 });
                             },
+
                             autofocus: true,
                         ),
-                        
+
                         const SizedBox(height: AppConstants.mediumSpacing),
-                        
+
                         Expanded(
-                            child: _searchResults.isEmpty && !_isSearching
-                                ? const Center(
-                                    child: Text(
-                                        'Start typing to search for artists',
-                                        style: TextStyle(color: Colors.white54),
-                                    ),
-                                )
-                                : ListView.builder(
-                                    itemCount: _searchResults.length,
-                                    itemBuilder: (context, index) {
-                                        final artist = _searchResults[index];
-                                        return ListTile(
-                                            leading: artist.imageUrl != null
-                                                ? CircleAvatar(
-                                                    backgroundImage: NetworkImage(artist.imageUrl!),
-                                                    onBackgroundImageError: (_, __) {},
-                                                    child: artist.imageUrl == null 
-                                                        ? const Icon(Icons.person_rounded)
-                                                        : null,
-                                                )
-                                                : const CircleAvatar(
-                                                    child: Icon(Icons.person_rounded),
-                                                ),
-                                            title: Text(artist.name),
-                                            subtitle: artist.genres?.isNotEmpty == true
-                                                ? Text(
-                                                    artist.genres!.take(2).join(', '),
-                                                    style: const TextStyle(color: Colors.white54),
-                                                )
-                                                : null,
-                                            trailing: Text(
-                                                '${artist.popularity}%',
-                                                style: const TextStyle(color: Colors.white54),
-                                            ),
-                                            onTap: () {
-                                                widget.onArtistSelected(artist);
-                                                Navigator.of(context).pop();
-                                            },
-                                        );
-                                    },
+                            child: _searchResults.isEmpty && !_isSearching ? const Center(
+                                child: Text(
+                                    'Start typing to search for artists',
+                                    style: TextStyle(color: Colors.white54),
                                 ),
+                            )
+
+                            : ListView.builder(
+                                itemCount: _searchResults.length,
+                                itemBuilder: (context, index) {
+                                    final artist = _searchResults[index];
+                                    return ListTile(
+                                        leading: artist.imageUrl != null ? CircleAvatar(
+                                            backgroundImage: NetworkImage(artist.imageUrl!),
+                                            onBackgroundImageError: (_, __) {},
+                                            child: artist.imageUrl == null ? const Icon(Icons.person_rounded) : null,
+                                        )
+
+                                        : const CircleAvatar(
+                                            child: Icon(Icons.person_rounded),
+                                        ),
+
+                                        title: Text(artist.name),
+                                        subtitle: artist.genres?.isNotEmpty == true ? Text(
+                                            artist.genres!.take(2).join(', '),
+                                            style: const TextStyle(color: Colors.white54),
+                                        )
+
+                                        : null,
+                                        trailing: Text(
+                                            '${artist.popularity}%',
+                                            style: const TextStyle(color: Colors.white54),
+                                        ),
+
+                                        onTap: () {
+                                            widget.onArtistSelected(artist);
+                                            Navigator.of(context).pop();
+                                        },
+                                    );
+                                },
+                            ),
                         ),
-                        
+
                         const SizedBox(height: AppConstants.mediumSpacing),
-                        
+
                         Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [

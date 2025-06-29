@@ -135,6 +135,7 @@ class PlaylistGeneratorService:
                 mood_keywords=search_strategy["mood_keywords"],
                 genres=search_strategy.get("genres"),
                 energy_level=search_strategy.get("energy_level"),
+                user_context=user_context,
                 count=count
             )
 
@@ -148,33 +149,32 @@ class PlaylistGeneratorService:
                 songs.extend(additional_songs)
 
             songs = songs[:count]
-            
-            # Filter out disliked artists if user context provided
+
             if user_context and user_context.disliked_artists:
                 disliked_artists_lower = [artist.lower() for artist in user_context.disliked_artists]
                 filtered_songs = []
+
                 for song in songs:
                     if not any(disliked.lower() in song.artist.lower() for disliked in disliked_artists_lower):
                         filtered_songs.append(song)
-                
-                # If we filtered out too many songs, get more
-                if len(filtered_songs) < count * 0.8:  # If we lost more than 20% of songs
+
+                if len(filtered_songs) < count * 0.8:
                     additional_needed = count - len(filtered_songs)
                     additional_songs = await self._get_additional_songs(
                         existing_songs=songs, 
                         target_count=additional_needed,
                         search_strategy=search_strategy
                     )
-                    
-                    # Filter the additional songs too
+
                     for song in additional_songs:
                         if not any(disliked.lower() in song.artist.lower() for disliked in disliked_artists_lower):
                             filtered_songs.append(song)
+
                             if len(filtered_songs) >= count:
                                 break
-                
+
                 songs = filtered_songs[:count]
-            
+
             random.shuffle(songs)
 
             logger.info(f"Generated {len(songs)} songs using AI + Spotify search")
@@ -207,46 +207,51 @@ class PlaylistGeneratorService:
                 if user_context.favorite_genres:
                     context += f"User's favorite genres: {', '.join(user_context.favorite_genres)}\n"
 
-                # Use favorite_artists directly (already merged by PersonalityService if needed)
                 if user_context.favorite_artists:
                     context += f"User's favorite artists: {', '.join(user_context.favorite_artists)}\n"
                 
                 if user_context.disliked_artists:
-                    context += f"AVOID these artists (user dislikes): {', '.join(user_context.disliked_artists)}\n"
+                    context += f"CRITICAL: NEVER include songs by these artists (user explicitly dislikes them): {', '.join(user_context.disliked_artists)}\n"
+                    context += f"Double-check every song recommendation to ensure none are by: {', '.join(user_context.disliked_artists)}\n"
 
                 if user_context.energy_preference:
                     context += f"Energy preference: {user_context.energy_preference}\n"
-                
+
                 if user_context.decade_preference:
                     context += f"Preferred decades: {', '.join(user_context.decade_preference)}\n"
-                
-                # Add mood-based preferences
+
                 mood_preferences = []
+
                 if user_context.happy_music_preference:
                     mood_preferences.append(f"When happy: {user_context.happy_music_preference}")
+
                 if user_context.sad_music_preference:
                     mood_preferences.append(f"When sad: {user_context.sad_music_preference}")
+
                 if user_context.workout_music_preference:
                     mood_preferences.append(f"For workouts: {user_context.workout_music_preference}")
+
                 if user_context.focus_music_preference:
                     mood_preferences.append(f"For focus: {user_context.focus_music_preference}")
+
                 if user_context.relaxation_music_preference:
                     mood_preferences.append(f"For relaxation: {user_context.relaxation_music_preference}")
+
                 if user_context.party_music_preference:
                     mood_preferences.append(f"For parties: {user_context.party_music_preference}")
-                
+
                 if mood_preferences:
                     context += f"User's mood preferences: {'; '.join(mood_preferences)}\n"
-                
-                # Add other preferences
+
+
                 if user_context.discovery_openness:
                     context += f"Discovery openness: {user_context.discovery_openness}\n"
-                
+
                 if user_context.explicit_content_preference:
                     context += f"Explicit content preference: {user_context.explicit_content_preference}\n"
-                
+
                 if user_context.instrumental_preference:
-                    context += f"Instrumental music preference: {user_context.instrumental_preference}\n"   
+                    context += f"Instrumental music preference: {user_context.instrumental_preference}\n"
 
             genre_patterns = data_loader.get_genre_patterns()
             genre_artists = data_loader.get_genre_artists()
@@ -272,9 +277,9 @@ class PlaylistGeneratorService:
                     genre_examples[genre] = genre
 
             ai_prompt = f"""
-                You are a music playlist assistant. Your job is to deeply understand a user's music request and extract highly relevant search parameters to help find songs that match the user's intent — musically, emotionally, and stylistically.
+                You are an expert music curator and recommendation AI with deep knowledge of artists, genres, and musical styles. Your primary goal is to deeply understand the user's musical intent and provide recommendations that perfectly match their request, preferences, and personality.
 
-                Request to analyze:
+                User Request to analyze:
                 {context}
 
                 You have access to the following predefined options:
@@ -284,70 +289,60 @@ class PlaylistGeneratorService:
                 - Activity-to-energy mappings: {activity_energies}
                 - Available moods: {', '.join(available_moods)}
 
-                Instructions:
+                CRITICAL INSTRUCTIONS:
 
-                Analyze the user's text and determine their musical intention, mood, genre preferences, and energy needs. Pay close attention to genre accuracy - use the artist examples to understand what each genre truly represents. 
-                
-                **IMPORTANT USER PREFERENCES:**
-                - STRICTLY RESPECT user's favorite genres and artists mentioned in their profile
-                - ABSOLUTELY AVOID any artists mentioned in the "AVOID these artists" list
-                - Consider the user's mood preferences for different situations
-                - Respect their discovery openness level
-                - Consider their decade preferences when applicable
-                - Honor their explicit content and instrumental music preferences
+                1. **GENRE ACCURACY IS PARAMOUNT**: 
+                   - Use the artist examples to understand what each genre truly represents
+                   - Hip hop/rap requests should ONLY get hip hop, trap, or rap-related genres
+                   - Pop requests should ONLY get pop, dance pop, or mainstream genres
+                   - Rock requests should ONLY get rock, alternative, metal, etc.
+                   - NEVER mix incompatible genres (e.g., don't suggest pop artists for rap requests)
 
-                **CRITICAL**: Never suggest pop artists (like Demi Lovato, Taylor Swift, Ariana Grande) for rap/hip-hop requests, or rap artists for pop requests. Use the genre-artist mappings to ensure accuracy.
+                2. **ARTIST RECOGNITION**: 
+                   - All artist names mentioned in user requests are music-related by definition
+                   - If a user mentions ANY artist name, treat it as a valid music reference
+                   - Use the artist examples to identify which genre each artist belongs to
+                   - Respect the user's artist preferences completely
 
-                Return the following:
+                3. **USER PERSONALITY INTEGRATION**:
+                   - STRICTLY RESPECT user's favorite genres and artists mentioned in their profile
+                   - ABSOLUTELY AVOID any artists mentioned in the "AVOID these artists" list
+                   - Consider the user's mood preferences for different situations
+                   - Respect their discovery openness level (1-10 scale)
+                   - Consider their decade preferences when applicable
+                   - Honor their explicit content and instrumental music preferences
+                   - Factor in their listening context preferences
 
-                1. **mood_keywords**: 3 to 5 strong emotional or stylistic keywords that capture the feeling of the request (e.g., "dark", "motivational", "nostalgic", "gritty").
-                2. **genres**: 2 to 3 genres strictly from the provided genre list that most closely match the request. **Use the artist examples to guide your choice and prioritize user's favorite genres when relevant.**
-                3. **energy_level**: Pick one of "low", "medium", or "high", based on the request and the activity-to-energy mapping.
-                4. **explanation**: A short but clear explanation (1-2 sentences) of how you interpreted the request in terms of mood and style, considering user preferences.
+                4. **ENERGY AND MOOD MAPPING**:
+                   - Match energy levels precisely to the request and user activity
+                   - Consider the emotional context deeply
+                   - Factor in time of day, activity, and user's current state
+
+                Return the following analysis in JSON format:
+
+                1. **mood_keywords**: 3 to 5 strong emotional or stylistic keywords that capture the feeling of the request
+                2. **genres**: 2 to 3 genres STRICTLY from the provided genre list that most accurately match the request and user preferences
+                3. **energy_level**: "low", "medium", or "high" based on request, activity mapping, and user context
+                4. **explanation**: Clear explanation (2-3 sentences) of your analysis, including how user preferences influenced your choices
 
                 Format your response in valid JSON:
                 {{
                     "mood_keywords": ["keyword1", "keyword2", "keyword3"],
                     "genres": ["genre1", "genre2"],
                     "energy_level": "medium",
-                    "explanation": "Brief explanation here"
+                    "explanation": "Detailed explanation here including user preference considerations"
                 }}
 
-                Examples:
+                EXAMPLES OF CORRECT GENRE MAPPING:
 
-                - "I'm feeling sad and nostalgic" →
-                {{
-                    "mood_keywords": ["sad", "melancholy", "nostalgic"],
-                    "genres": ["indie", "folk"],
-                    "energy_level": "low",
-                    "explanation": "The request expresses sadness and a longing for the past, indicating a slow tempo and melancholic tone."
-                }}
+                - "I want some rap music" → genres: ["hip hop", "trap"] (NOT pop or other genres)
+                - "Play some Taylor Swift vibes" → genres: ["pop", "indie pop"] (NOT hip hop)
+                - "Heavy metal for working out" → genres: ["metal", "rock"] (NOT electronic)
+                - "Chill indie songs" → genres: ["indie", "alternative"] (NOT hip hop or pop)
+                - "90s gangsta rap" → genres: ["90s rap", "hip hop"] (NOT alternative rock)
+                - "Electronic dance music" → genres: ["electronic", "dance"] (NOT rock or folk)
 
-                - "Need pump up music for gym" →
-                {{
-                    "mood_keywords": ["energetic", "intense", "motivational"],
-                    "genres": ["hip hop", "rock"],
-                    "energy_level": "high",
-                    "explanation": "The user wants high-energy music for physical exertion, suggesting loud and fast-paced tracks."
-                }}
-
-                - "I need some rap songs to get pumped up" →
-                {{
-                    "mood_keywords": ["energetic", "confident", "intense", "motivational"],
-                    "genres": ["hip hop", "trap"],
-                    "energy_level": "high",
-                    "explanation": "User specifically requested rap music for motivation, which aligns with hip hop and trap genres featuring artists like Eminem, Travis Scott, and Future."
-                }}
-
-                - "Play some 90s gangsta rap classics" →
-                {{
-                    "mood_keywords": ["gritty", "retro", "urban", "confident", "hardcore"],
-                    "genres": ["90s rap", "hip hop"],
-                    "energy_level": "medium",
-                    "explanation": "Request specifically mentions 90s gangsta rap, which corresponds to classic hip hop artists like Tupac, Nas, and N.W.A from that era."
-                }}
-
-                Only use genres from the provided list. Use the artist examples to ensure you're choosing the right genre for the musical style requested. Stay true to the cultural context and actual musical characteristics of each genre.
+                Remember: The user's request is the primary guide, but their saved preferences should strongly influence your final recommendations.
             """
 
             response = await asyncio.to_thread(
@@ -513,6 +508,14 @@ class PlaylistGeneratorService:
             )
 
             filtered_new_songs = [s for s in new_songs if s not in kept_songs]
+
+            if user_context and user_context.disliked_artists:
+                disliked_artists_lower = [artist.lower() for artist in user_context.disliked_artists]
+                filtered_new_songs = [
+                    song for song in filtered_new_songs 
+                    if not any(disliked.lower() in song.artist.lower() for disliked in disliked_artists_lower)
+                ]
+
             final_songs = kept_songs + filtered_new_songs[:new_count]
 
             if len(final_songs) < count:

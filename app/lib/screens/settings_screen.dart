@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/message_service.dart';
 import '../services/auth_service.dart';
 import '../config/app_constants.dart';
+import '../config/app_colors.dart';
 import '../utils/app_logger.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -41,12 +42,6 @@ class SettingsScreen extends StatelessWidget {
 
                     const SizedBox(height: 24),
                     const SectionHeader(title: 'Preferences'),
-
-                    SettingsTile(
-                        icon: Icons.tune,
-                        title: 'Music Preferences',
-                        subtitle: 'Set your favorite genres and artists',
-                    ),
 
                     SettingsTile(
                         icon: Icons.notifications,
@@ -87,11 +82,12 @@ class SettingsScreen extends StatelessWidget {
                                 child: ElevatedButton(
                                     onPressed: () => _showLogoutDialog(context, authService),
                                     style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
+                                        backgroundColor: Colors.red.shade600,
                                         foregroundColor: Colors.white,
-                                        side: const BorderSide(color: Color(0xFF2A2A2A), width: 0.5),
-                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        side: BorderSide(color: Colors.red.shade700, width: 1),
+                                        padding: const EdgeInsets.symmetric(vertical: 20),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        elevation: 4,
                                     ),
 
                                     child: const Text(
@@ -116,15 +112,15 @@ class SettingsScreen extends StatelessWidget {
         showDialog(
             context: context,
             builder: (context) => AlertDialog(
-                backgroundColor: const Color(0xFF1A1625),
+                backgroundColor: AppColors.surface,
                 title: const Text(
                     'Logout',
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(color: AppColors.textPrimary),
                 ),
 
                 content: const Text(
                     'Are you sure you want to logout? You\'ll need to reconnect your Spotify account to use the app.',
-                    style: TextStyle(color: Colors.white70),
+                    style: TextStyle(color: AppColors.textSecondary),
                 ),
 
                 actions: [
@@ -132,7 +128,7 @@ class SettingsScreen extends StatelessWidget {
                         onPressed: () => Navigator.of(context).pop(),
                         child: const Text(
                             'Cancel',
-                            style: TextStyle(color: Colors.white54),
+                            style: TextStyle(color: AppColors.textTertiary),
                         ),
                     ),
 
@@ -157,7 +153,7 @@ class SettingsScreen extends StatelessWidget {
 
                         child: const Text(
                             'Logout',
-                            style: TextStyle(color: Colors.red),
+                            style: TextStyle(color: AppColors.errorIcon),
                         ),
                     ),
                 ],
@@ -201,25 +197,25 @@ class SettingsTile extends StatelessWidget {
             child: ListTile(
                 leading: Icon(
                     icon,
-                    color: const Color(0xFF8B5CF6),
+                    color: AppColors.primary,
                 ),
 
                 title: Text(
                     title,
                     style: const TextStyle(
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         fontWeight: FontWeight.w500,
                     ),
                 ),
 
                 subtitle: Text(
                     subtitle,
-                    style: const TextStyle(color: Colors.white70),
+                    style: const TextStyle(color: AppColors.textSecondary),
                 ),
 
                 trailing: const Icon(
                     Icons.chevron_right,
-                    color: Colors.white54,
+                    color: AppColors.textTertiary,
                 ),
 
                 onTap: onTap ?? () {
