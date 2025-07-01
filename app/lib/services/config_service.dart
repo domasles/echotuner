@@ -33,6 +33,7 @@ class ConfigService {
                 maxFavoriteArtists: 12,
                 maxDislikedArtists: 20,
                 maxFavoriteGenres: 10,
+                maxPreferredDecades: 5,
             ),
 
             playlists: PlaylistConfig(

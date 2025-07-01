@@ -4,16 +4,19 @@
 
 EchoTuner is a production-ready platform that generates personalized music playlists using artificial intelligence and natural language processing. The platform features a flexible AI model system supporting both local (Ollama) and cloud-based AI providers (OpenAI, Anthropic Claude), combined with Spotify Web API integration for intelligent music recommendations.
 
-The platform consists of a RESTful API service and a cross-platform Flutter application for music discovery and playlist creation.
+The platform consists of a modular RESTful API service and a cross-platform Flutter application for music discovery and playlist creation.
+
+**Current Version: 1.6.0**
 
 ## Project Status
 
 EchoTuner is now feature-complete with both API backend and user application ready for production deployment.
 
 **Platform Components:**
-- **API Backend**: Complete and production-ready ✅
-- **Flutter Application**: Complete cross-platform app (Android, iOS, Web, Desktop) ✅
-- **AI Model System**: Flexible support for multiple AI providers ✅
+- **API Backend**: Complete and production-ready with modular architecture
+- **Flutter Application**: Complete cross-platform app (Android, iOS, Web, Desktop)
+- **AI Model System**: Flexible support for multiple AI providers
+- **Database Layer**: Centralized, modular database service
 
 **Key Features:**
 - **Flexible AI Models**: Support for Ollama (local), OpenAI, Anthropic Claude, and custom endpoints
@@ -21,9 +24,25 @@ EchoTuner is now feature-complete with both API backend and user application rea
 - **User Personality System**: Comprehensive user preference learning and application
 - **Cross-Platform Support**: Single codebase for all major platforms
 - **Production Hardened**: Comprehensive error handling with graceful failures
+- **Modular Architecture**: Clean separation of concerns with reusable services
 - **Integration Ready**: RESTful API designed for both internal app and external integration
 
 ## Architecture Overview
+
+### Modular Backend Design
+
+**Database Service**
+- Centralized database operations with async support
+- Consistent error handling and connection management
+- Modular operations for auth, personality, playlists, and rate limiting
+- Clean separation between business logic and data access
+
+**Service Layer**
+- Auth Service: OAuth2 authentication and session management
+- Personality Service: User preference learning and Spotify integration  
+- Playlist Generator: AI-powered playlist creation with discovery strategies
+- Rate Limiter: Request throttling and usage analytics
+- Spotify Services: Search, playlist management, and artist recommendations
 
 ### AI Model Support
 
@@ -67,13 +86,68 @@ EchoTuner is now feature-complete with both API backend and user application rea
 
 ## Quick Start Guide
 
-EchoTuner consists of two main components, each with dedicated setup instructions:
+### Prerequisites
 
-### API Backend Setup
-For complete API backend installation and configuration, see the **[API Setup Guide](api/README.md)**.
+Before setting up EchoTuner, ensure you have:
 
-### Mobile Application Setup
-For Flutter app installation and development setup, see the **[App Setup Guide](app/README.md)**.
+1. **Python 3.8+** for the API backend
+2. **Dart SDK** (latest stable) for the Flutter app
+3. **AI Model Provider** - Choose one:
+   - **Ollama** (local, free) from [https://ollama.ai](https://ollama.ai)
+   - **OpenAI API Key** (cloud, paid) from [https://platform.openai.com](https://platform.openai.com)
+   - **Anthropic API Key** (cloud, paid) from [https://console.anthropic.com](https://console.anthropic.com)
+4. **Spotify Developer Account** and API credentials from [https://developer.spotify.com/dashboard](https://developer.spotify.com/dashboard)
+
+### Installation
+
+#### 1. Clone the Repository
+```bash
+git clone https://github.com/your-repo/echotuner.git
+cd echotuner
+```
+
+#### 2. API Backend Setup
+```bash
+cd api
+
+# Create and activate virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment
+cp .env.sample .env
+# Edit .env with your configuration (see API Setup section below)
+
+# Run the API
+python main.py
+```
+
+#### 3. Flutter App Setup
+```bash
+cd ../app
+
+# Install dependencies
+dart pub get
+
+# Generate JSON serialization code
+dart run build_runner build --delete-conflicting-outputs
+
+# Configure environment
+cp .env.sample .env
+# Edit .env with your API host configuration
+
+# Run the app
+dart run
+```
+
+### Detailed Setup Guides
+
+For comprehensive setup instructions including AI model configuration:
+- **[API Backend Setup](api/README.md)** - Detailed API installation and configuration
+- **[Flutter App Setup](app/README.md)** - Mobile and desktop app development setup
 
 ## Features
 
@@ -101,52 +175,89 @@ For Flutter app installation and development setup, see the **[App Setup Guide](
 
 ## AI Model Configuration
 
-EchoTuner supports multiple AI providers with automatic model selection and fallback capabilities.
+EchoTuner supports multiple AI providers with automatic model selection and flexible configuration. This allows users to choose between cost-effective local models or powerful cloud-based AI services.
 
 ### Supported AI Models
 
 #### Ollama (Local AI - Default)
-- **Model**: `llama3.2:3b` (configurable)
+- **Models**: `phi3:mini` for generation, `nomic-embed-text` for embeddings
 - **Benefits**: No API costs, complete privacy, offline capability
 - **Requirements**: Local Ollama installation and model download
-- **Configuration**: Set `DEFAULT_AI_MODEL=ollama` (default)
+- **Cost**: Free (after initial hardware investment)
 
+**Setup:**
+
+Install and start Ollama
 ```bash
-# Install and start Ollama
-curl -fsSL https://ollama.ai/install.sh | sh
-ollama serve
-ollama pull llama3.2:3b
+ollama pull phi3:mini
+ollama pull nomic-embed-text
 ```
 
 #### OpenAI (Cloud AI)
-- **Model**: `gpt-4o-mini` (configurable)
-- **Benefits**: Fast responses, powerful reasoning, no local resources
-- **Requirements**: OpenAI API key
-- **Configuration**: Set `OPENAI_API_KEY` in environment variables
+- **Model**: `gpt-4o-mini` for fast, intelligent responses
+- **Benefits**: Fast responses, powerful reasoning, no local resources required
+- **Requirements**: OpenAI API key with credits
+- **Cost**: ~$0.15-0.60 per 1000 requests
 
+**Setup:**
 ```env
-DEFAULT_AI_MODEL=openai
+DEFAULT_AI_PROVIDER=openai
 OPENAI_API_KEY=sk-your-openai-api-key-here
 ```
 
 #### Anthropic Claude (Cloud AI)
-- **Model**: `claude-3-5-sonnet-20241022` (configurable)
+- **Model**: `claude-3-5-sonnet-20241022` for sophisticated analysis
+- **Benefits**: Advanced reasoning, creative responses, reliable performance  
+- **Requirements**: Anthropic API key with credits
+- **Cost**: ~$3-15 per 1000 requests
+
+**Setup:**
+```env
+DEFAULT_AI_PROVIDER=anthropic
+ANTHROPIC_API_KEY=your-anthropic-api-key-here
+```
+
+#### Custom AI Providers
+The system supports any REST API-based AI service. See the [API documentation](api/README.md#setting-up-a-new-ai-model) for details on adding new providers.
+
+### Why Multiple AI Providers?
+
+**For Individual Users:**
+- **Local Ollama**: Perfect for privacy-conscious users or those wanting to avoid ongoing costs
+- **Cloud APIs**: Ideal for users who prefer convenience and don't mind pay-per-use pricing
+
+**For Organizations:**
+- **Cost Control**: Choose between upfront hardware costs (Ollama) vs. operational API costs
+- **Compliance**: Local processing ensures data never leaves your infrastructure
+- **Scalability**: Cloud APIs handle traffic spikes without infrastructure management
+
+**For Open Source Projects:**
+- **Accessibility**: Users can choose their preferred cost/convenience balance
+- **No Lock-in**: Easy switching between providers based on needs
+- **Development Flexibility**: Contributors can use different models for testing
 - **Benefits**: Sophisticated analysis, strong reasoning capabilities
 - **Requirements**: Anthropic API key
 - **Configuration**: Set `ANTHROPIC_API_KEY` in environment variables
 
 ```env
-DEFAULT_AI_MODEL=anthropic
+DEFAULT_AI_PROVIDER=anthropic
 ANTHROPIC_API_KEY=your-anthropic-api-key-here
 ```
 
 #### Custom AI Models
-- Support for any REST API-based AI service
-- Configurable endpoints, headers, and authentication
-- Extensible architecture for future AI providers
+EchoTuner supports any REST API-based AI service through its extensible architecture. You can add new AI providers by:
+
+1. **Environment Configuration**: Add API keys and endpoints to `.env`
+2. **Model Registration**: Register the provider in `config/ai_models.py`
+3. **Service Implementation**: Add generation logic in `services/ai_service.py`
+4. **Testing**: Use debug endpoints to validate integration
+
+Common patterns include OpenAI-compatible APIs, custom response formats, and provider-specific authentication. The system handles automatic fallback, error handling, and secure API key management.
+
+For detailed implementation instructions, see the [API README](./api/README.md#4-custom-ai-providers).
 
 ### Model Selection Logic
-1. Uses model specified in `DEFAULT_AI_MODEL` environment variable
+1. Uses model specified in `DEFAULT_AI_PROVIDER` environment variable
 2. Falls back to Ollama if default model is unavailable
 3. Automatic failover between available models
 4. Graceful error handling with informative messages
@@ -236,7 +347,7 @@ Service health and dependency status.
 ```json
 {
     "status": "healthy",
-    "version": "1.4.0",
+    "version": "1.6.0",
     "services": {
         "prompt_validator": true,
         "playlist_generator": true,

@@ -2,13 +2,13 @@ import 'package:flutter/foundation.dart' show kIsWeb, ChangeNotifier;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:http/http.dart' as http;
-import 'dart:developer' as developer;
 import 'dart:io' show Platform;
 import 'dart:convert';
 
 import '../config/app_constants.dart';
 import '../models/auth_models.dart';
 import '../config/settings.dart';
+import '../utils/app_logger.dart';
 
 class AuthService extends ChangeNotifier {
     static const String _sessionIdKey = 'session_id';
@@ -38,11 +38,11 @@ class AuthService extends ChangeNotifier {
                 try {
                     _deviceId = await _registerDeviceWithServer();
                     await prefs.setString(_deviceIdKey, _deviceId!);
-                    developer.log('Registered new device with server: $_deviceId');
+                    AppLogger.debug('Registered new device with server: $_deviceId');
                 }
 
                 catch (e) {
-                    developer.log('Failed to register device with server: $e');
+                    AppLogger.debug('Failed to register device with server: $e');
                     _deviceId = await _generateDeviceId();
 
                     await prefs.setString(_deviceIdKey, _deviceId!);
@@ -50,6 +50,7 @@ class AuthService extends ChangeNotifier {
             }
 
             _sessionId = prefs.getString(_sessionIdKey);
+            AppLogger.debug('Auth initialization - Device ID: ${_deviceId?.substring(0, 20)}..., Session ID: ${_sessionId?.substring(0, 20)}...');
 
             if (_sessionId != null) {
                 _isAuthenticated = await _validateSession();
@@ -60,9 +61,8 @@ class AuthService extends ChangeNotifier {
         }
 
         catch (e, stackTrace) {
-            developer.log(
+            AppLogger.error(
                 'Auth initialization error: $e',
-                name: 'AuthService',
                 error: e,
                 stackTrace: stackTrace,
             );
@@ -166,9 +166,8 @@ class AuthService extends ChangeNotifier {
             }
 
             catch (e, stackTrace) {
-                developer.log(
+                AppLogger.error(
                     'Polling error: $e',
-                    name: 'AuthService.completeAuth',
                     error: e,
                     stackTrace: stackTrace,
                 );
@@ -204,9 +203,8 @@ class AuthService extends ChangeNotifier {
         }
 
         catch (e, stackTrace) {
-            developer.log(
+            AppLogger.error(
                 'Session validation error: $e',
-                name: 'AuthService._validateSession',
                 error: e,
                 stackTrace: stackTrace,
             );
@@ -231,17 +229,46 @@ class AuthService extends ChangeNotifier {
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove(_sessionIdKey);
-        await prefs.remove('device_id');
-        await prefs.remove('user_id');
-        await prefs.clear();
 
         notifyListeners();
     }
 
     Future<void> logout() async {
-        developer.log('Starting logout process...');
+        AppLogger.debug('Starting logout process...');
+
+        try {
+            if (_sessionId != null && _deviceId != null) {
+                AppLogger.debug('Clearing personality data from API...');
+
+                final response = await http.post(
+                    Uri.parse('${AppConfig.apiBaseUrl}/personality/clear'),
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session-id': _sessionId!,
+                        'device-id': _deviceId!,
+                    },
+                    body: jsonEncode({
+                        'session_id': _sessionId,
+                        'device_id': _deviceId,
+                    }),
+                );
+
+                if (response.statusCode == 200) {
+                    AppLogger.debug('Personality data cleared from API successfully');
+                }
+
+				else {
+                    AppLogger.debug('Failed to clear personality data: ${response.body}');
+                }
+            }
+        }
+
+		catch (e) {
+            AppLogger.debug('Error clearing personality data: $e');
+        }
+
         await _clearSession();
-        developer.log('Logout completed. isAuthenticated: $_isAuthenticated');
+        AppLogger.debug('Logout completed. isAuthenticated: $_isAuthenticated');
     }
 
     Future<bool> checkAuthStatus() async {
@@ -289,7 +316,7 @@ class AuthService extends ChangeNotifier {
         }
 
         catch (e) {
-            developer.log('Device registration failed: $e');
+            AppLogger.error('Device registration failed: $e');
             rethrow;
         }
     }

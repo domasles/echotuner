@@ -57,4 +57,8 @@ class AppLogger {
     static void api(String message, {Object? error, StackTrace? stackTrace}) {
         debug(message, name: 'API', error: error, stackTrace: stackTrace);
     }
+
+    static void personality(String message, {Object? error, StackTrace? stackTrace}) {
+        debug(message, name: 'Personality', error: error, stackTrace: stackTrace);
+    }
 }

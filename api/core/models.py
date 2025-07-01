@@ -28,11 +28,9 @@ class UserContext(BaseModel):
     favorite_artists: Optional[List[str]] = []
     disliked_artists: Optional[List[str]] = []
     recent_listening_history: Optional[List[str]] = []
-    music_discovery_preference: Optional[str] = "balanced"
-    energy_preference: Optional[str] = "medium"
+    music_discovery_preference: Optional[str] = None
+    energy_preference: Optional[str] = None
     include_spotify_artists: Optional[bool] = True
-    
-    # Personality questions responses
     happy_music_preference: Optional[str] = None
     sad_music_preference: Optional[str] = None
     workout_music_preference: Optional[str] = None
@@ -43,6 +41,9 @@ class UserContext(BaseModel):
     explicit_content_preference: Optional[str] = None
     instrumental_preference: Optional[str] = None
     decade_preference: Optional[List[str]] = []
+    music_activity_preference: Optional[str] = None
+    vocal_preference: Optional[str] = None
+    genre_openness: Optional[str] = None
 
 class SpotifyArtist(BaseModel):
     id: str
@@ -59,6 +60,7 @@ class PlaylistRequest(BaseModel):
     current_songs: Optional[List[Song]] = None
     count: Optional[int] = 30
     playlist_id: Optional[str] = None
+    discovery_strategy: Optional[str] = "balanced"
 
 class PlaylistResponse(BaseModel):
     songs: List[Song]
@@ -154,6 +156,10 @@ class UserPersonalityRequest(BaseModel):
     session_id: str
     device_id: str
     user_context: UserContext
+
+class UserPersonalityClearRequest(BaseModel):
+    session_id: str
+    device_id: str
 
 class UserPersonalityResponse(BaseModel):
     success: bool

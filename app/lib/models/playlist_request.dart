@@ -24,6 +24,9 @@ class PlaylistRequest {
     @JsonKey(name: 'playlist_id')
     final String? playlistId;
 
+    @JsonKey(name: 'discovery_strategy')
+    final String? discoveryStrategy;
+
     PlaylistRequest({
         required this.prompt,
         required this.deviceId,
@@ -32,6 +35,7 @@ class PlaylistRequest {
         this.userContext,
         this.currentSongs,
         this.playlistId,
+        this.discoveryStrategy,
     });
 
     factory PlaylistRequest.fromJson(Map<String, dynamic> json) => _$PlaylistRequestFromJson(json);

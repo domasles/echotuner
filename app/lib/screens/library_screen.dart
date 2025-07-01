@@ -2,6 +2,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
+import '../systems/library_management_system.dart';
+import '../systems/tab_management_system.dart';
 import '../models/playlist_draft_models.dart';
 import '../providers/playlist_provider.dart';
 import '../services/message_service.dart';
@@ -18,26 +20,28 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
-    List<PlaylistDraft> _drafts = [];
-    List<SpotifyPlaylistInfo> _spotifyPlaylists = [];
-
-    bool _isLoading = true;
-    String? _error;
-
-    late TabController _tabController;
+    final TabManagementSystem _tabSystem = TabManagementSystem();
+    final LibraryManagementSystem _librarySystem = LibraryManagementSystem();
+    
+    TabController? get tabController => _tabSystem.tabController;
+    
+    List<PlaylistDraft> get drafts => _librarySystem.drafts;
+    List<SpotifyPlaylistInfo> get spotifyPlaylists => _librarySystem.spotifyPlaylists;
+    bool get isLibraryLoading => _librarySystem.isLoading;
+    String? get libraryError => _librarySystem.error;
 
     @override
     void initState() {
         super.initState();
-        _tabController = TabController(length: 2, vsync: this);
-
-        _tabController.addListener(() {
-            if (!_tabController.indexIsChanging) {
-                _silentRefreshCurrentTab();
-            }
-        });
         
-        _loadLibraryData();
+        _tabSystem.initialize(
+            tabCount: 2,
+            vsync: this,
+            onTabChanged: _silentRefreshCurrentTab,
+            showTabsDuringLoading: true,
+        );
+        
+        loadLibraryData();
     }
 
     @override
@@ -47,57 +51,31 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
     @override
     void dispose() {
-        _tabController.dispose();
+        _tabSystem.dispose();
         super.dispose();
+    }
+
+    Future<void> loadLibraryData() async {
+        await _librarySystem.loadLibraryData(context);
+        if (mounted) {
+            setState(() {});
+        }
+    }
+
+    Future<void> silentRefreshLibrary() async {
+        await _librarySystem.silentRefresh(context);
+        if (mounted) {
+            setState(() {});
+        }
     }
 
     Future<void> _silentRefreshCurrentTab() async {
         if (!mounted) return;
-        
-        try {
-            final provider = Provider.of<PlaylistProvider>(context, listen: false);
-            final response = await provider.refreshLibraryPlaylists();
-
-            if (mounted) {
-                setState(() {
-                    _drafts = response.drafts;
-                    _spotifyPlaylists = response.spotifyPlaylists;
-                    if (_error != null) _error = null;
-                });
-            }
-        }
-        catch (e) {
-            // Silent refresh - intentionally ignore errors to avoid disrupting UI
-        }
+        await silentRefreshLibrary();
     }
 
-    Future<void> _loadLibraryData() async {
-        setState(() {
-            _isLoading = true;
-            _error = null;
-        });
-
-        try {
-            final provider = Provider.of<PlaylistProvider>(context, listen: false);
-            final response = await provider.getLibraryPlaylists();
-
-            if (mounted) {
-                setState(() {
-                    _drafts = response.drafts;
-                    _spotifyPlaylists = response.spotifyPlaylists;
-                    _isLoading = false;
-                    if (_error != null) _error = null;
-                });
-            }
-        }
-        catch (e) {
-            if (mounted) {
-                setState(() {
-                    _error = e.toString();
-                    _isLoading = false;
-                });
-            }
-        }
+    void refreshCurrentTab() {
+        _silentRefreshCurrentTab();
     }
 
     Future<void> _openDraft(PlaylistDraft draft) async {
@@ -220,42 +198,14 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
             onPopInvokedWithResult: (didPop, result) {
                 if (!didPop) _silentRefreshCurrentTab();
             },
+
             child: Scaffold(
                 appBar: AppBar(
                     title: const Text('Your Library'),
                     centerTitle: true,
-
-                    actions: [
-                        IconButton(
-                            icon: const Icon(Icons.refresh),
-                            onPressed: () => _silentRefreshCurrentTab(),
-                        ),
-                    ],
                 ),
 
-                body: _isLoading ? const Center(child: CircularProgressIndicator()) : _error != null ? Center(
-                    child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                            const Icon(Icons.error, size: 64, color: Colors.red),
-                            const SizedBox(height: 16),
-
-                            Text(
-                                'Error: $_error',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.red),
-                            ),
-
-                            const SizedBox(height: 16),
-                            FilledButton(
-                                onPressed: () => _silentRefreshCurrentTab(),
-                                child: const Text('Retry'),
-                            ),
-                        ],
-                    ),
-                )
-
-                : _buildLibraryContent(),
+                body: _buildLibraryContent(),
             ),
         );
     }
@@ -264,16 +214,31 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
         return Column(
             children: [
                 TabBar(
-                    controller: _tabController,
-                    tabs: const [
-                        Tab(text: 'Drafts'),
-                        Tab(text: 'Spotify'),
+                    controller: tabController,
+                    tabs: [
+                        const Tab(
+                            icon: Icon(Icons.edit_note),
+                            text: 'Drafts',
+                        ),
+
+                        Tab(
+                            icon: Image.asset(
+                                'assets/logos/SpotifyLogo.png',
+                                width: 24,
+                                height: 24,
+                                errorBuilder: (context, error, stackTrace) {
+                                    return const Icon(Icons.music_note);
+                                },
+                            ),
+
+                            text: 'Spotify',
+                        ),
                     ],
                 ),
 
                 Expanded(
                     child: TabBarView(
-                        controller: _tabController,
+                        controller: tabController,
                         children: [
                             _buildDraftsTab(),
                             _buildSpotifyTab(),
@@ -285,7 +250,35 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
     }
 
     Widget _buildDraftsTab() {
-        if (_drafts.isEmpty) {
+        if (libraryError != null) {
+            return Center(
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                        const Icon(Icons.error, size: 48, color: Colors.red),
+                        const SizedBox(height: 16),
+
+                        Text(
+                            'Error: $libraryError',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.red),
+                        ),
+
+                        const SizedBox(height: 16),
+                        FilledButton(
+                            onPressed: () => _silentRefreshCurrentTab(),
+                            child: const Text('Retry'),
+                        ),
+                    ],
+                ),
+            );
+        }
+        
+        if (isLibraryLoading) {
+            return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (drafts.isEmpty) {
             return const Center(
                 child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -311,10 +304,10 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
         return ListView.builder(
             padding: const EdgeInsets.all(AppConstants.largePadding),
-            itemCount: _drafts.length,
+            itemCount: drafts.length,
 
             itemBuilder: (context, index) {
-                final draft = _drafts[index];
+                final draft = drafts[index];
                 return _buildDraftCard(draft);
             },
         );
@@ -401,7 +394,35 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
     }
 
     Widget _buildSpotifyTab() {
-        if (_spotifyPlaylists.isEmpty) {
+        if (libraryError != null) {
+            return Center(
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                        const Icon(Icons.error, size: 48, color: Colors.red),
+                        const SizedBox(height: 16),
+
+                        Text(
+                            'Error: $libraryError',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.red),
+                        ),
+
+                        const SizedBox(height: 16),
+                        FilledButton(
+                            onPressed: () => _silentRefreshCurrentTab(),
+                            child: const Text('Retry'),
+                        ),
+                    ],
+                ),
+            );
+        }
+
+        if (isLibraryLoading) {
+            return const Center(child: CircularProgressIndicator());
+        }
+
+        if (spotifyPlaylists.isEmpty) {
             return const Center(
                 child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -427,10 +448,10 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
         return ListView.builder(
             padding: const EdgeInsets.all(AppConstants.largePadding),
-            itemCount: _spotifyPlaylists.length,
+            itemCount: spotifyPlaylists.length,
 
             itemBuilder: (context, index) {
-                final playlist = _spotifyPlaylists[index];
+                final playlist = spotifyPlaylists[index];
                 return _buildSpotifyCard(playlist);
             },
         );
@@ -482,7 +503,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                     ],
                 ),
 
-                onTap: null, // No tap action for Spotify playlists
+                onTap: null,
             ),
         );
     }

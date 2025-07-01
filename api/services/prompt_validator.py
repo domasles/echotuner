@@ -5,21 +5,25 @@ import httpx
 from services.data_loader import data_loader
 from config.settings import settings
 from config.ai_models import ai_model_manager
+from core.singleton import SingletonServiceBase
 
 logger = logging.getLogger(__name__)
 
-class PromptValidatorService:
+class PromptValidatorService(SingletonServiceBase):
     """Lightweight model to validate if user input is music/mood related."""
 
-    def __init__(self):
-        self.model_config = ai_model_manager.get_model()
-        
+    def _setup_service(self):
+        """Initialize the PromptValidatorService."""
+        self.model_config = ai_model_manager.get_provider()
         self.prompt_validation_threshold = settings.PROMPT_VALIDATION_THRESHOLD
         self.prompt_validation_timeout = settings.PROMPT_VALIDATION_TIMEOUT
-
         self.music_reference_embeddings = None
         self.initialized = False
         self.http_client = None
+        self._log_initialization("Prompt validator service initialized successfully", logger)
+
+    def __init__(self):
+        super().__init__()
 
     async def initialize(self):
         """Initialize the model asynchronously"""
@@ -63,11 +67,10 @@ class PromptValidatorService:
         """Ensure the model is available"""
 
         try:
-            # Only check for Ollama models that need to be pulled
             if self.model_config.name.lower() != "ollama":
                 logger.info(f"Using external AI model: {self.model_config.name}")
                 return
-                
+
             response = await self.http_client.get(f"{self.model_config.endpoint}/api/tags")
 
             if response.status_code == 200:
@@ -84,6 +87,7 @@ class PromptValidatorService:
 
                     if pull_response.status_code == 200:
                         logger.info(f"Embedding model {self.model_config.embedding_model} pulled successfully")
+
                     else:
                         logger.error(f"Failed to pull embedding model: {pull_response.text}")
                         raise RuntimeError(f"Failed to pull embedding model {self.model_config.embedding_model}")
@@ -199,11 +203,9 @@ class PromptValidatorService:
                     raise RuntimeError("Failed to get prompt embedding")
 
                 prompt_embedding = self._normalize(prompt_embedding)
-
                 similarities = np.dot(self.music_reference_embeddings, prompt_embedding)
                 max_similarity = np.max(similarities)
                 is_similar = max_similarity > self.prompt_validation_threshold
-
                 logger.info(f"Semantic similarity: {max_similarity:.3f}, threshold: {self.prompt_validation_threshold}, valid: {is_similar}")
 
                 return is_similar
@@ -250,3 +252,5 @@ class PromptValidatorService:
 
         except:
             pass
+
+prompt_validator_service = PromptValidatorService()

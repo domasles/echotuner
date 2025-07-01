@@ -9,14 +9,20 @@ from typing import List, Dict, Any, Optional, Tuple
 from config.settings import settings
 from config.app_constants import AppConstants
 from core.models import Song
+from core.singleton import SingletonServiceBase
 
 logger = logging.getLogger(__name__)
 
-class SpotifyPlaylistService:
+class SpotifyPlaylistService(SingletonServiceBase):
     """Service for creating playlists in Spotify."""
 
-    def __init__(self):
+    def _setup_service(self):
+        """Initialize the SpotifyPlaylistService."""
         self._initialized = False
+        self._log_initialization("Spotify playlist service initialized successfully", logger)
+
+    def __init__(self):
+        super().__init__()
 
     async def initialize(self):
         """Initialize the Spotify playlist service."""
@@ -295,7 +301,6 @@ class SpotifyPlaylistService:
         try:
             async with aiohttp.ClientSession() as session:
                 headers = {'Authorization': f'Bearer {access_token}'}
-
                 url = f'https://api.spotify.com/v1/playlists/{playlist_id}'
                 params = {'fields': 'id,name,description,tracks.total,external_urls,images'}
 
@@ -335,6 +340,7 @@ class SpotifyPlaylistService:
                     if response.status in [200, 201]:
                         logger.info(f"Successfully removed track from playlist {playlist_id}")
                         return True
+
                     else:
                         logger.error(f"Failed to remove track: {response.status}")
                         return False
@@ -345,4 +351,7 @@ class SpotifyPlaylistService:
 
     def is_ready(self) -> bool:
         """Check if the service is ready."""
+
         return self._initialized and settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET
+
+spotify_playlist_service = SpotifyPlaylistService()

@@ -5,6 +5,7 @@ import '../providers/playlist_provider.dart';
 import '../widgets/info_message_widget.dart';
 import '../config/app_constants.dart';
 import '../config/app_colors.dart';
+import '../systems/discovery_system.dart';
 
 import 'playlist_screen.dart';
 import 'settings_screen.dart';
@@ -18,7 +19,7 @@ class HomeScreen extends StatefulWidget {
     State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, DiscoveryMixin {
     final TextEditingController _promptController = TextEditingController();
 
     int _selectedIndex = 0;
@@ -47,6 +48,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
             _refreshDailyLimit();
+            initializeDiscovery();
         });
     }
 
@@ -215,6 +217,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             height: 1.4,
                         ),
                     ),
+                ),
+
+                const SizedBox(height: 16),
+                buildDiscoverySwitch(
+                    label: "Do you want to discover new music?",
                 ),
 
                 const SizedBox(height: 24),
@@ -443,16 +450,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 setState(() {
                     _selectedIndex = index;
                 });
-                
-                // Refresh daily limit when visiting home screen
+
                 if (index == 0) {
                     _refreshDailyLimit();
                 }
-                
-                // Refresh library when visiting library screen
+
                 if (index == 2) {
                     setState(() {
-                        _libraryKey = UniqueKey(); // Force library rebuild
+                        _libraryKey = UniqueKey();
                     });
                 }
             },
@@ -478,9 +483,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     void _generatePlaylist(PlaylistProvider provider) async {
         final prompt = _promptController.text.trim();
+        final strategy = getGenerationStrategy();
 
         try {
-            await provider.generatePlaylist(prompt);
+            await provider.generatePlaylist(prompt, discoveryStrategy: strategy);
             if (!mounted) return;
 
             if (provider.error != null) {

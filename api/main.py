@@ -5,10 +5,10 @@ import click
 import sys
 import re
 
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -18,15 +18,22 @@ from core.models import *
 from config.app_constants import AppConstants
 from config.settings import settings
 
-from services.spotify_playlist_service import SpotifyPlaylistService
-from services.playlist_draft_service import PlaylistDraftService
-from services.playlist_generator import PlaylistGeneratorService
-from services.prompt_validator import PromptValidatorService
+from services.spotify_playlist_service import spotify_playlist_service
+from services.playlist_draft_service import playlist_draft_service
+from services.playlist_generator import playlist_generator_service
+from services.prompt_validator import prompt_validator_service
+from services.personality_service import personality_service
+from services.security import validate_production_readiness
 from services.template_service import template_service
-from services.rate_limiter import RateLimiterService
-from services.auth_service import AuthService
+from services.rate_limiter import rate_limiter_service
+from services.auth_middleware import AuthMiddleware
+from services.security import get_security_headers
+from services.database_service import db_service
+from services.auth_service import auth_service
+from config.ai_models import ai_model_manager
 from services.data_loader import data_loader
-from services.personality_service import PersonalityService
+from services.ai_service import ai_service
+from services.security import debug_only
 
 class CustomFormatter(logging.Formatter):
     def format(self, record):
@@ -57,13 +64,7 @@ logger = logging.getLogger(__name__)
 api_dir = Path(__file__).parent
 sys.path.insert(0, str(api_dir))
 
-rate_limiter = RateLimiterService()
-prompt_validator = PromptValidatorService()
-playlist_generator = PlaylistGeneratorService()
-auth_service = AuthService()
-playlist_draft_service = PlaylistDraftService()
-spotify_playlist_service = SpotifyPlaylistService()
-personality_service = PersonalityService()
+auth_middleware = AuthMiddleware(auth_service)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -72,21 +73,23 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {AppConstants.APP_NAME} API...")
     
     try:
+        await db_service.initialize()
+
         init_tasks = [
-            rate_limiter.initialize(),
-            prompt_validator.initialize(),
-            playlist_generator.initialize(),
-            auth_service.initialize(),
+            rate_limiter_service.initialize(),
+            ai_service.initialize(),
+            prompt_validator_service.initialize(),
+            playlist_generator_service.initialize(),
             playlist_draft_service.initialize(),
             spotify_playlist_service.initialize(),
             personality_service.initialize()
         ]
 
         cache_task = asyncio.create_task(preload_data_cache())
-
         await asyncio.gather(*init_tasks)
 
-        logger.info(f"Spotify Search: {'ENABLED' if playlist_generator.spotify_search.is_ready() else 'DISABLED'}")
+        logger.info(f"AI Service: {'ENABLED' if ai_service else 'DISABLED'}")
+        logger.info(f"Spotify Search: {'ENABLED' if playlist_generator_service.spotify_search.is_ready() else 'DISABLED'}")
         logger.info(f"Rate Limiting: {'ENABLED' if settings.PLAYLIST_LIMIT_ENABLED else 'DISABLED'}")
         logger.info(f"Auth Service: {'ENABLED' if auth_service.is_ready() else 'DISABLED'}")
         logger.info(f"Playlist Drafts: {'ENABLED' if playlist_draft_service.is_ready() else 'DISABLED'}")
@@ -112,7 +115,7 @@ async def preload_data_cache():
         ]
 
         await asyncio.gather(*preload_tasks, return_exceptions=True)
-        logger.info("Data cache preloaded successfully!")
+        logger.info("Data cache preloaded successfully")
 
     except Exception as e:
         logger.warning(f"Cache preloading failed (non-critical): {e}")
@@ -124,8 +127,19 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Security middleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Add security headers to all responses."""
+
+    response = await call_next(request)
+    headers = get_security_headers()
+    
+    for header, value in headers.items():
+        response.headers[header] = value
+
+    return response
 
 app.add_middleware(
     CORSMiddleware,
@@ -171,7 +185,8 @@ async def root():
         "description": "AI-powered playlist generation with real-time song search",
         "endpoints": {
             "generate": "/generate-playlist",
-            "refine": "/refine-playlist", 
+            "refine": "/refine-playlist",
+            "update_draft": "/update-playlist-draft",
             "health": "/health",
             "rate_limit": "/rate-limit-status/{device_id}",
             "auth_init": "/auth/init",
@@ -273,8 +288,6 @@ async def check_session(device_id: str):
         return {"session_id": None}
 
 async def require_auth(request: PlaylistRequest):
-    """Middleware function to check authentication and return user info"""
-
     if not settings.AUTH_REQUIRED:
         return None
 
@@ -284,12 +297,16 @@ async def require_auth(request: PlaylistRequest):
     if not hasattr(request, 'session_id') or not request.session_id:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
+    try:
+        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
+        return user_info
 
-    if not user_info:
-        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    except HTTPException:
+        raise
 
-    return user_info
+    except Exception as e:
+        logger.error(f"Authentication error: {e}")
+        raise HTTPException(status_code=401, detail="Authentication failed")
 
 @app.get("/health")
 async def health_check():
@@ -300,12 +317,12 @@ async def health_check():
             "status": "healthy",
             "version": AppConstants.API_VERSION, 
             "services": {
-                "prompt_validator": prompt_validator.is_ready(),
-                "playlist_generator": playlist_generator.is_ready(),
-                "rate_limiter": rate_limiter.is_ready()
+                "prompt_validator": prompt_validator_service.is_ready(),
+                "playlist_generator": playlist_generator_service.is_ready(),
+                "rate_limiter": rate_limiter_service.is_ready()
             },
             "features": {
-                "spotify_search": playlist_generator.spotify_search.is_ready(),
+                "spotify_search": playlist_generator_service.spotify_search.is_ready(),
                 "ai_generation": True,  # AI generation is always available when configured
                 "rate_limiting": settings.PLAYLIST_LIMIT_ENABLED
             }
@@ -323,6 +340,7 @@ async def get_config():
             "max_favorite_artists": settings.MAX_FAVORITE_ARTISTS,
             "max_disliked_artists": settings.MAX_DISLIKED_ARTISTS,
             "max_favorite_genres": settings.MAX_FAVORITE_GENRES,
+            "max_preferred_decades": settings.MAX_PREFERRED_DECADES,
         },
         "playlists": {
             "max_songs_per_playlist": settings.MAX_SONGS_PER_PLAYLIST,
@@ -337,26 +355,21 @@ async def get_config():
     }
 
 @app.post("/reload-config")
+@debug_only
 async def reload_config():
-    """Reload JSON configuration files without restarting the server"""
+    """Reload JSON configuration files without restarting the server (Debug mode only)"""
+    try:
+        data_loader.reload_cache()
+        logger.info("Configuration files reloaded successfully")
 
-    if settings.DEBUG:
-        try:
-            data_loader.reload_cache()
-            logger.info("Configuration files reloaded successfully")
+        return {
+            "message": "Configuration reloaded successfully",
+            "status": "success"
+        }
 
-            return {
-                "message": "Configuration reloaded successfully",
-                "status": "success"
-            }
-
-        except Exception as e:
-            logger.error(f"Failed to reload configuration: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to reload configuration: {str(e)}")
-
-    else:
-        logger.warning("Configuration reload is disabled in production mode")
-        raise HTTPException(status_code=403, detail="Configuration reload is disabled in production mode")
+    except Exception as e:
+        logger.error(f"Failed to reload configuration: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to reload configuration: {str(e)}")
 
 @app.post("/generate-playlist", response_model=PlaylistResponse)
 async def generate_playlist(request: PlaylistRequest):
@@ -371,13 +384,13 @@ async def generate_playlist(request: PlaylistRequest):
         user_info = await require_auth(request)
         rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
 
-        if settings.PLAYLIST_LIMIT_ENABLED and not await rate_limiter.can_make_request(rate_limit_key):
+        if settings.PLAYLIST_LIMIT_ENABLED and not await rate_limiter_service.can_make_request(rate_limit_key):
             raise HTTPException(
                 status_code=429,
                 detail=f"Daily limit of {settings.MAX_PLAYLISTS_PER_DAY} playlists reached. Try again tomorrow."
             )
 
-        is_valid_prompt = await prompt_validator.validate_prompt(sanitized_prompt)
+        is_valid_prompt = await prompt_validator_service.validate_prompt(sanitized_prompt)
 
         if not is_valid_prompt:
             raise HTTPException(
@@ -397,7 +410,6 @@ async def generate_playlist(request: PlaylistRequest):
             except Exception as e:
                 logger.warning(f"Failed to load user personality: {e}")
 
-        # Merge Spotify artists with custom artists if personality is available
         if user_context and request.session_id:
             try:
                 merged_artists = await personality_service.get_merged_favorite_artists(
@@ -405,15 +417,17 @@ async def generate_playlist(request: PlaylistRequest):
                     device_id=request.device_id,
                     user_context=user_context
                 )
-                # Update user_context with merged artists
+
                 user_context.favorite_artists = merged_artists
+
             except Exception as e:
                 logger.warning(f"Failed to merge favorite artists: {e}")
 
-        songs = await playlist_generator.generate_playlist(
+        songs = await playlist_generator_service.generate_playlist(
             prompt=sanitized_prompt,
             user_context=user_context,
-            count=request.count if settings.DEBUG else settings.MAX_SONGS_PER_PLAYLIST
+            count=request.count if settings.DEBUG else settings.MAX_SONGS_PER_PLAYLIST,
+            discovery_strategy=request.discovery_strategy or "balanced"
         )
 
         playlist_id = await playlist_draft_service.save_draft(
@@ -425,7 +439,7 @@ async def generate_playlist(request: PlaylistRequest):
         )
 
         if settings.PLAYLIST_LIMIT_ENABLED:
-            await rate_limiter.record_request(rate_limit_key)
+            await rate_limiter_service.record_request(rate_limit_key)
 
         return PlaylistResponse(
             songs=songs,
@@ -454,6 +468,7 @@ async def refine_playlist(request: PlaylistRequest):
 
         if playlist_id:
             draft = await playlist_draft_service.get_draft(playlist_id)
+
             if draft:
                 current_songs = draft.songs
                 refinements_used = draft.refinements_used
@@ -468,13 +483,13 @@ async def refine_playlist(request: PlaylistRequest):
                 logger.warning(f"Draft playlist {playlist_id} not found, using provided songs")
 
         else:
-            if settings.REFINEMENT_LIMIT_ENABLED and not await rate_limiter.can_refine_playlist(rate_limit_key):
+            if settings.REFINEMENT_LIMIT_ENABLED and not await rate_limiter_service.can_refine_playlist(rate_limit_key):
                 raise HTTPException(
                     status_code=429,
                     detail=f"Maximum daily refinements reached."
                 )
 
-        is_valid_prompt = await prompt_validator.validate_prompt(request.prompt)
+        is_valid_prompt = await prompt_validator_service.validate_prompt(request.prompt)
 
         if not is_valid_prompt:
             raise HTTPException(
@@ -507,11 +522,12 @@ async def refine_playlist(request: PlaylistRequest):
             except Exception as e:
                 logger.warning(f"Failed to merge favorite artists: {e}")
 
-        songs = await playlist_generator.refine_playlist(
+        songs = await playlist_generator_service.refine_playlist(
             original_songs=current_songs,
             refinement_prompt=request.prompt,
             user_context=user_context,
-            count=request.count or 30
+            count=request.count or 30,
+            discovery_strategy=request.discovery_strategy or "balanced"
         )
 
         if playlist_id:
@@ -531,7 +547,7 @@ async def refine_playlist(request: PlaylistRequest):
             )
 
         if settings.REFINEMENT_LIMIT_ENABLED:
-            await rate_limiter.record_refinement(rate_limit_key)
+            await rate_limiter_service.record_refinement(rate_limit_key)
 
         return PlaylistResponse(
             songs=songs,
@@ -547,6 +563,47 @@ async def refine_playlist(request: PlaylistRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error refining playlist: {str(e)}")
 
+@app.post("/update-playlist-draft", response_model=PlaylistResponse)
+async def update_playlist_draft(request: PlaylistRequest):
+    """Update an existing playlist draft without AI refinement (no refinement count increase)"""
+    
+    try:
+        user_info = await require_auth(request)
+        playlist_id = request.playlist_id
+        current_songs = request.current_songs or []
+        
+        if not playlist_id:
+            raise HTTPException(status_code=400, detail="Playlist ID is required for updates")
+
+        draft = await playlist_draft_service.get_draft(playlist_id)
+
+        if not draft:
+            raise HTTPException(status_code=404, detail="Draft playlist not found")
+
+        success = await playlist_draft_service.update_draft(
+            playlist_id=playlist_id,
+            songs=current_songs,
+            refinements_used=draft.refinements_used,
+            prompt=request.prompt or draft.prompt
+        )
+
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update draft playlist")
+
+        return PlaylistResponse(
+            songs=current_songs,
+            generated_from=request.prompt or draft.prompt,
+            total_count=len(current_songs),
+            is_refinement=False,
+            playlist_id=playlist_id
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating playlist draft: {str(e)}")
+
 @app.get("/rate-limit-status/{device_id}", response_model=RateLimitStatus)
 async def get_rate_limit_status(device_id: str):
     """Get current rate limit status for a device (legacy endpoint - insecure)"""
@@ -554,29 +611,24 @@ async def get_rate_limit_status(device_id: str):
     logger.warning(f"Using insecure rate limit endpoint for device: {device_id}")
 
     try:
-        return await rate_limiter.get_status(device_id)
+        return await rate_limiter_service.get_status(device_id)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error checking rate limit: {str(e)}")
 
 @app.post("/auth/rate-limit-status", response_model=RateLimitStatus)
 async def get_authenticated_rate_limit_status(request: SessionValidationRequest):
-    """Get current rate limit status using authenticated session"""
-
     try:
-        user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
-
-        if not user_info:
-            raise HTTPException(status_code=401, detail="Invalid or expired session")
-
+        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
         rate_limit_key = user_info["spotify_user_id"]
 
-        return await rate_limiter.get_status(rate_limit_key)
+        return await rate_limiter_service.get_status(rate_limit_key)
 
     except HTTPException:
         raise
 
     except Exception as e:
+        logger.error(f"Rate limit status error: {e}")
         raise HTTPException(status_code=500, detail=f"Error checking rate limit: {str(e)}")
 
 @app.post("/auth/register-device", response_model=DeviceRegistrationResponse)
@@ -679,14 +731,8 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
 
 @app.post("/library/playlists", response_model=LibraryPlaylistsResponse)
 async def get_library_playlists(request: LibraryPlaylistsRequest):
-    """Get user's playlist library including drafts and Spotify playlists."""
-
     try:
-        user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
-
-        if not user_info:
-            raise HTTPException(status_code=401, detail="Invalid or expired session")
-
+        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
         spotify_user_id = user_info.get("spotify_user_id")
         drafts = []
 
@@ -902,7 +948,10 @@ async def delete_spotify_playlist(playlist_id: str, session_id: str = None, devi
 @app.post("/personality/save", response_model=UserPersonalityResponse)
 async def save_user_personality(request: UserPersonalityRequest):
     """Save user personality preferences"""
+
     try:
+        logger.info(f"Saving personality for session {request.session_id}")
+
         success = await personality_service.save_user_personality(
             session_id=request.session_id,
             device_id=request.device_id,
@@ -910,9 +959,11 @@ async def save_user_personality(request: UserPersonalityRequest):
         )
 
         if success:
+            logger.info("Personality saved successfully")
             return UserPersonalityResponse(success=True, message="Personality saved successfully")
 
         else:
+            logger.error("Personality save failed")
             raise HTTPException(status_code=500, detail="Failed to save personality")
 
     except Exception as e:
@@ -921,14 +972,11 @@ async def save_user_personality(request: UserPersonalityRequest):
 
 @app.get("/personality/load")
 async def load_user_personality(request: Request):
-    """Load user personality preferences"""
-
     try:
+        user_info = await auth_middleware.validate_session_from_headers(request)
+        
         session_id = request.headers.get('session-id')
         device_id = request.headers.get('device-id')
-
-        if not session_id or not device_id:
-            raise HTTPException(status_code=422, detail="Missing session-id or device-id headers")
 
         user_context = await personality_service.get_user_personality(
             session_id=session_id,
@@ -937,13 +985,41 @@ async def load_user_personality(request: Request):
 
         if user_context:
             return {"user_context": user_context.model_dump()}
-
         else:
             return {"user_context": None}
+
+    except HTTPException:
+        raise
 
     except Exception as e:
         logger.error(f"Failed to load user personality: {e}")
         raise HTTPException(status_code=500, detail="Failed to load personality")
+
+@app.post("/personality/clear")
+async def clear_user_personality(request: UserPersonalityClearRequest):
+    """Clear user personality preferences"""
+
+    try:
+        user_info = await auth_service.get_user_from_session(request.session_id)
+        
+        if not user_info:
+            raise HTTPException(status_code=401, detail="Invalid session")
+
+        spotify_user_id = user_info.get('spotify_user_id')
+
+        success = await db_service.execute_query(
+            "DELETE FROM user_personalities WHERE user_id = ?",
+            (spotify_user_id,)
+        )
+
+        return {"success": True, "message": "Personality cleared successfully"}
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(f"Failed to clear user personality: {e}")
+        raise HTTPException(status_code=500, detail="Failed to clear personality")
 
 @app.get("/user/followed-artists", response_model=FollowedArtistsResponse)
 async def get_followed_artists(request: Request, limit: int = 50):
@@ -963,7 +1039,7 @@ async def get_followed_artists(request: Request, limit: int = 50):
         )
 
         return FollowedArtistsResponse(artists=artists)
-        
+
     except Exception as e:
         logger.warning(f"Failed to get followed artists: {e}")
         return FollowedArtistsResponse(artists=[])
@@ -1000,9 +1076,10 @@ async def remove_track_from_spotify_playlist(playlist_id: str, track_uri: str, s
             raise HTTPException(status_code=401, detail="No valid access token")
 
         success = await spotify_playlist_service.remove_track_from_playlist(access_token, playlist_id, track_uri)
-        
+
         if success:
             return {"message": "Track removed successfully"}
+
         else:
             raise HTTPException(status_code=500, detail="Failed to remove track from Spotify")
 
@@ -1013,6 +1090,67 @@ async def remove_track_from_spotify_playlist(playlist_id: str, track_uri: str, s
         logger.error(f"Failed to remove track from Spotify playlist {playlist_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to remove track from playlist")
     
+@app.get("/ai/models")
+@debug_only
+async def get_ai_models():
+    """Get available AI models and their configurations (Debug mode only)."""
+
+    models = {}
+
+    for model_id in ai_service.list_available_models():
+        try:
+            model_info = ai_service.get_model_info(model_id)
+            models[model_id] = model_info
+
+        except Exception as e:
+            models[model_id] = {"error": str(e)}
+    
+    return {
+        "available_models": models,
+        "default_model": ai_model_manager.get_default_model()
+    }
+
+@app.post("/ai/test")
+@debug_only
+async def test_ai_model(request: Request):
+    """Test AI model with a simple prompt (Debug mode only)."""
+
+    try:
+        data = await request.json()
+        model_id = data.get("model_id")
+        prompt = data.get("prompt", "Hello, this is a test.")
+        response = await ai_service.generate_text(prompt, model_id=model_id)
+
+        return {
+            "success": True,
+            "model_used": ai_service.get_model_info(model_id),
+            "response": response
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI test failed: {str(e)}")
+
+@app.get("/production-check")
+@debug_only
+async def production_readiness_check():
+    """Check if the API is ready for production deployment (Debug mode only)."""
+
+    issues = validate_production_readiness()
+
+    return {
+        "production_ready": len(issues) == 0,
+        "issues": issues,
+        "recommendations": [
+            "Set DEBUG=false in production",
+            "Enable AUTH_REQUIRED=true",
+            "Enable SECURE_HEADERS=true",
+            "Configure rate limiting",
+            "Use HTTPS in production",
+            "Set up proper logging",
+            "Configure monitoring"
+        ]
+    }
+
 if __name__ == "__main__":
     logger.info(AppConstants.STARTUP_MESSAGE)
 

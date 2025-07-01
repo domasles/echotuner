@@ -32,7 +32,13 @@ class DataLoader:
 
             with open(file_path, 'r', encoding='utf-8') as file:
                 data = json_lib.load(file)
-                logger.info(f"Loaded configuration from {filename}")
+
+                if filename not in getattr(self, '_loaded_files', set()):
+                    if not hasattr(self, '_loaded_files'):
+                        self._loaded_files = set()
+
+                    self._loaded_files.add(filename)
+                    logger.info(f"Loaded configuration from {filename}")
 
                 return data
 

@@ -1,11 +1,13 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/user_context.dart';
-import '../services/auth_service.dart';
+
 import '../services/config_service.dart';
+import '../services/auth_service.dart';
+import '../models/user_context.dart';
+import '../utils/app_logger.dart';
+
 import 'api_service.dart';
 
 class PersonalityService {
-    static const String _userContextKey = 'user_context';
     static const String _lastSyncKey = 'last_artist_sync';
 
     final ApiService _apiService;
@@ -15,50 +17,52 @@ class PersonalityService {
     PersonalityService({required ApiService apiService, required AuthService authService, required ConfigService configService}) : _apiService = apiService, _authService = authService, _configService = configService;
 
     Future<void> saveUserContext(UserContext context) async {
-        try {
-            final response = await _apiService.post('/personality/save', body: {
-                'session_id': await _getSessionId(),
-                'device_id': await _getDeviceId(),
-                'user_context': context.toJson(),
-            });
+        AppLogger.personality('Saving context to API ONLY...');
+        AppLogger.personality('Context data: ${context.toJson()}');
 
-            if (!response['success']) {
-                throw Exception(response['message'] ?? 'Failed to save personality');
-            }
+        final response = await _apiService.post('/personality/save', body: {
+            'session_id': await _getSessionId(),                              
+            'device_id': await _getDeviceId(),
+            'user_context': context.toJson(),
+        });
+
+        AppLogger.personality('API response: $response');
+
+        if (!response['success']) {
+            throw Exception(response['message'] ?? 'Failed to save personality to server');
         }
 
-        catch (e) {
-            throw Exception('Failed to save personality: $e');
-        }
+        AppLogger.personality('API save successful');
     }
 
     Future<UserContext?> loadUserContext() async {
-        try {
-            final response = await _apiService.get('/personality/load', headers: {
-                'session-id': await _getSessionId() ?? '',
-                'device-id': await _getDeviceId() ?? '',
-            });
+        AppLogger.personality('Loading context from API ONLY...');
 
-            final userContextData = response['user_context'];
+        final response = await _apiService.get('/personality/load', headers: {
+            'session-id': await _getSessionId() ?? '',
+            'device-id': await _getDeviceId() ?? '',
+        });
 
-            if (userContextData != null) {
-                return UserContext.fromJson(userContextData);
-            }
+        final userContextData = response['user_context'];
 
-            return null;
-
+        if (userContextData != null) {
+            AppLogger.personality('Loaded context from API: $userContextData');
+            return UserContext.fromJson(userContextData);
         }
 
-        catch (e) {
-            return null;
-        }
+        AppLogger.personality('No context found in API');
+        return null;
     }
 
     Future<void> clearUserContext() async {
-        final prefs = await SharedPreferences.getInstance();
+        AppLogger.personality('Clearing context from API ONLY...');
 
-        await prefs.remove(_userContextKey);
-        await prefs.remove(_lastSyncKey);
+        await _apiService.post('/personality/clear', body: {
+            'session_id': await _getSessionId(),
+            'device_id': await _getDeviceId(),
+        });
+
+        AppLogger.personality('Context cleared from API');
     }
 
     Future<List<SpotifyArtist>> fetchFollowedArtists({String? sessionId}) async {
@@ -144,12 +148,12 @@ class PersonalityService {
             favoriteArtists: followedArtists.map((artist) => artist.name).toList(),
             favoriteGenres: [],
             dislikedArtists: [],
-            musicDiscoveryPreference: 'balanced',
-            energyPreference: 'medium',
-            discoveryOpenness: 'moderate',
-            explicitContentPreference: 'allow',
-            instrumentalPreference: 'mixed',
-            decadePreference: ['2010s', '2020s'],
+            musicDiscoveryPreference: null,
+            energyPreference: null,
+            discoveryOpenness: null,
+            explicitContentPreference: null,
+            instrumentalPreference: null,
+            decadePreference: [], // Empty by default
         );
     }
 
@@ -173,79 +177,45 @@ class PersonalityService {
 
     Map<String, Map<String, dynamic>> getPersonalityQuestions() {
         return {
-            'happy_music_preference': {
-                'question': 'What do you like to listen to when you\'re happy?',
+            'music_activity_preference': {
+                'question': 'When do you listen to music most?',
                 'options': [
-                    'Upbeat pop and dance music',
-                    'Feel-good rock and indie',
-                    'Energetic hip-hop and rap',
-                    'Cheerful acoustic and folk',
-                    'Electronic and EDM'
+                    'While working or studying',
+                    'During workouts and exercise',
+                    'For relaxation and downtime',
+                    'At parties and social events',
+                    'When feeling emotional'
                 ],
                 'type': 'single_choice'
             },
-            'sad_music_preference': {
-                'question': 'What comforts you when you\'re feeling down?',
+            'energy_preference': {
+                'question': 'What energy level do you prefer in music?',
                 'options': [
-                    'Melancholic indie and alternative',
-                    'Emotional ballads and slow songs',
-                    'Classical and instrumental',
-                    'R&B and soul',
-                    'I prefer uplifting music to cheer me up'
+                    'High energy and upbeat',
+                    'Moderate and balanced',
+                    'Low energy and calm',
+                    'Depends on my mood'
                 ],
                 'type': 'single_choice'
             },
-            'workout_music_preference': {
-                'question': 'What gets you pumped during workouts?',
+            'genre_openness': {
+                'question': 'How would you describe your music taste?',
                 'options': [
-                    'High-energy electronic and EDM',
-                    'Aggressive rock and metal',
-                    'Motivational hip-hop and rap',
-                    'Fast-paced pop hits',
-                    'I don\'t listen to music while working out'
+                    'I stick to a few favorite genres',
+                    'I enjoy a wide variety of genres',
+                    'I like mixing familiar and new styles',
+                    'I prefer what\'s currently popular'
                 ],
                 'type': 'single_choice'
             },
-            'focus_music_preference': {
-                'question': 'What helps you concentrate while studying or working?',
+            'vocal_preference': {
+                'question': 'Do you prefer music with or without vocals?',
                 'options': [
-                    'Instrumental and ambient',
-                    'Lo-fi hip-hop and chillhop',
-                    'Classical music',
-                    'Nature sounds and white noise',
-                    'Complete silence'
-                ],
-                'type': 'single_choice'
-            },
-            'relaxation_music_preference': {
-                'question': 'What do you listen to when you want to relax?',
-                'options': [
-                    'Chill acoustic and indie',
-                    'Ambient and new age',
-                    'Jazz and blues',
-                    'Soft rock and easy listening',
-                    'Classical and orchestral'
-                ],
-                'type': 'single_choice'
-            },
-            'party_music_preference': {
-                'question': 'What\'s your go-to for parties and social gatherings?',
-                'options': [
-                    'Dance and electronic hits',
-                    'Hip-hop and rap',
-                    'Pop chart-toppers',
-                    'Classic rock anthems',
-                    'Latin and reggaeton'
-                ],
-                'type': 'single_choice'
-            },
-            'discovery_openness': {
-                'question': 'How open are you to discovering new music?',
-                'options': [
-                    'Very open - I love exploring new artists and genres',
-                    'Moderately open - I like some new music mixed in',
-                    'Somewhat cautious - I prefer familiar sounds',
-                    'Conservative - I mostly stick to what I know'
+                    'Always with vocals and lyrics',
+                    'Usually with vocals',
+                    'Good mix of both',
+                    'Often instrumental',
+                    'Depends on the situation'
                 ],
                 'type': 'single_choice'
             },
@@ -258,13 +228,34 @@ class PersonalityService {
                 ],
                 'type': 'single_choice'
             },
-            'instrumental_preference': {
-                'question': 'What\'s your preference for instrumental vs vocal music?',
+            'discovery_openness': {
+                'question': 'How open are you to discovering new music?',
                 'options': [
-                    'Mostly vocal music with lyrics',
-                    'Good mix of both',
-                    'Mostly instrumental music',
-                    'Depends on my mood/activity'
+                    'I love discovering new artists',
+                    'I enjoy some new music',
+                    'I prefer familiar songs',
+                    'I stick to what I know'
+                ],
+                'type': 'single_choice'
+            },
+            'instrumental_preference': {
+                'question': 'How do you feel about instrumental music?',
+                'options': [
+                    'I love instrumental music',
+                    'I enjoy it sometimes',
+                    'I prefer music with vocals',
+                    'I rarely listen to instrumental'
+                ],
+                'type': 'single_choice'
+            },
+            'music_discovery_preference': {
+                'question': 'How do you prefer to discover music?',
+                'options': [
+                    'Through recommendations',
+                    'By exploring similar artists',
+                    'Through popular charts',
+                    'By genre exploration',
+                    'Random discovery'
                 ],
                 'type': 'single_choice'
             }

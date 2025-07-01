@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:developer' as developer;
 
 import '../models/playlist_draft_models.dart';
 import '../models/rate_limit_models.dart';
@@ -121,9 +120,9 @@ class PlaylistProvider extends ChangeNotifier {
         notifyListeners();
     }
 
-    Future<void> generatePlaylist(String prompt) async {
+    Future<void> generatePlaylist(String prompt, {String? discoveryStrategy}) async {
         if (_deviceId == null) {
-        await _initializeDeviceId();
+            await _initializeDeviceId();
         }
 
         _isLoading = true;
@@ -136,6 +135,9 @@ class PlaylistProvider extends ChangeNotifier {
 
         try {
             final sessionId = _authService.sessionId;
+            final deviceId = _authService.deviceId;
+
+            AppLogger.debug('Generating playlist with session: ${sessionId?.substring(0, 20)}... device: ${deviceId?.substring(0, 20)}...');
 
             if (sessionId == null) {
                 throw Exception('Not authenticated');
@@ -146,6 +148,7 @@ class PlaylistProvider extends ChangeNotifier {
                 deviceId: _deviceId!,
                 sessionId: sessionId,
                 userContext: _userContext,
+                discoveryStrategy: discoveryStrategy ?? 'balanced',
             );
 
             final response = await _apiService.generatePlaylist(request);
@@ -270,22 +273,58 @@ class PlaylistProvider extends ChangeNotifier {
         }
     }
 
-    void removeSong(Song song) {
+    void removeSong(Song song) async {
         _currentPlaylist.removeWhere((s) => s == song);
+
+        if (_currentPlaylistId != null) {
+            await _updateDraftPlaylist();
+        }
+
         notifyListeners();
+    }
+
+    Future<void> _updateDraftPlaylist() async {
+        if (_currentPlaylistId == null || _deviceId == null) return;
+
+        try {
+            final sessionId = _authService.sessionId;
+            if (sessionId == null) return;
+
+            final request = PlaylistRequest(
+                prompt: _currentPrompt.isNotEmpty ? _currentPrompt : 'Updated playlist',
+                deviceId: _deviceId!,
+                sessionId: sessionId,
+                currentSongs: _currentPlaylist,
+                playlistId: _currentPlaylistId,
+            );
+
+            final response = await _apiService.updatePlaylistDraft(request);
+            _currentPlaylistId = response.playlistId;
+        }
+        
+        catch (e) {
+            AppLogger.error('Failed to update draft playlist', error: e);
+        }
     }
 
     Future<bool> removeSongFromSpotifyPlaylist(String playlistId, String trackUri, String sessionId, String deviceId) async {
         try {
             return await _apiService.removeTrackFromSpotifyPlaylist(playlistId, trackUri, sessionId, deviceId);
-        } catch (e) {
+        }
+        
+        catch (e) {
             return false;
         }
     }
 
-    void addSong(Song song) {
+    void addSong(Song song) async {
         if (!_currentPlaylist.contains(song)) {
             _currentPlaylist.add(song);
+
+            if (_currentPlaylistId != null) {
+                await _updateDraftPlaylist();
+            }
+
             notifyListeners();
         }
     }
@@ -319,15 +358,13 @@ class PlaylistProvider extends ChangeNotifier {
         }
 
         catch (e) {
-            developer.log(
+            AppLogger.error(
                 'Failed to load rate limit status: $e',
-                name: 'PlaylistProvider._loadRateLimitStatus',
                 error: e,
             );
         }
     }
 
-    /// Public method to refresh rate limit status (for daily limit refresh)
     Future<void> refreshRateLimitStatus() async {
         await _loadRateLimitStatus();
     }
@@ -414,9 +451,8 @@ class PlaylistProvider extends ChangeNotifier {
             }
 
             catch (e, stackTrace) {
-                developer.log(
+                AppLogger.error(
                     'Authenticated rate limit check failed, falling back: $e',
-                    name: 'PlaylistProvider.getRateLimitStatus',
                     error: e,
                     stackTrace: stackTrace,
                 );

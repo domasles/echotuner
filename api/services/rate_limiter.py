@@ -1,39 +1,42 @@
 import hashlib
 import logging
-import sqlite3
 
-from config.app_constants import AppConstants
+from services.database_service import db_service
+from core.singleton import SingletonServiceBase
 from datetime import datetime, timedelta
 from core.models import RateLimitStatus
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-class RateLimiterService:
+class RateLimiterService(SingletonServiceBase):
     """
     Service to handle rate limiting for playlist generation requests.
     Tracks requests per device and enforces daily limits.
     """
 
-    def __init__(self):
-        self.db_path = AppConstants.DATABASE_FILENAME
-        self.max_refinements = settings.MAX_REFINEMENTS_PER_PLAYLIST
+    def _setup_service(self):
+        """Initialize the RateLimiterService."""
 
+        self.max_refinements = settings.MAX_REFINEMENTS_PER_PLAYLIST
         self.is_rate_limiting_enabled = settings.PLAYLIST_LIMIT_ENABLED
         self.max_requests_per_day = settings.MAX_PLAYLISTS_PER_DAY
+        self._initialized = False
 
-        self.initialized = False
+        self._log_initialization("Rate limiter service initialized successfully", logger)
+
+    def __init__(self):
+        super().__init__()
 
     async def initialize(self):
         """Initialize the database and create tables if needed"""
 
-        try:
-            self._create_tables()
-            logger.info("Rate limiter initialized successfully")
-            self.initialized = True
+        if self._initialized:
+            return
 
-        except RuntimeError:
-            raise
+        try:
+            self._initialized = True
+            logger.info("Rate limiter initialized successfully")
 
         except Exception as e:
             logger.error(f"Error initializing rate limiter: {e}")
@@ -42,25 +45,7 @@ class RateLimiterService:
     def is_ready(self) -> bool:
         """Check if the service is ready"""
 
-        return self.initialized
-
-    def _create_tables(self):
-        """Create database tables for rate limiting"""
-
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS daily_requests (
-                device_id TEXT PRIMARY KEY,
-                request_count INTEGER DEFAULT 0,
-                last_request_date TEXT,
-                refinement_count INTEGER DEFAULT 0
-            )
-        ''')
-
-        conn.commit()
-        conn.close()
+        return self._initialized
 
     def _get_device_hash(self, device_id: str) -> str:
         """Create a hash of the device ID for privacy"""
@@ -69,7 +54,6 @@ class RateLimiterService:
 
     def _is_same_day(self, timestamp: str) -> bool:
         """Check if a timestamp is from the same day as today"""
-
         try:
             request_date = datetime.fromisoformat(timestamp).date()
             today = datetime.now().date()
@@ -85,31 +69,25 @@ class RateLimiterService:
         if not self.is_rate_limiting_enabled:
             return True
 
-        if not self.initialized:
+        if not self._initialized:
             await self.initialize()
 
         try:
             device_hash = self._get_device_hash(device_id)
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+            current_date = datetime.now().date().isoformat()
 
-            cursor.execute(
-                "SELECT request_count, last_request_date FROM daily_requests WHERE device_id = ?",
-                (device_hash,)
-            )
+            rate_data = await db_service.get_rate_limit_status(device_hash, current_date)
 
-            result = cursor.fetchone()
-            conn.close()
-
-            if not result:
+            if not rate_data:
                 return True
 
-            request_count, last_request_date = result
+            requests_count = rate_data.get('requests_count', 0)
+            last_request_date = rate_data.get('last_request_date', '')
 
             if not self._is_same_day(last_request_date):
                 return True
 
-            return request_count < self.max_requests_per_day
+            return requests_count < self.max_requests_per_day
 
         except Exception as e:
             logger.error(f"Error checking rate limit: {e}")
@@ -121,31 +99,25 @@ class RateLimiterService:
         if not settings.REFINEMENT_LIMIT_ENABLED:
             return True
 
-        if not self.initialized:
+        if not self._initialized:
             await self.initialize()
 
         try:
             device_hash = self._get_device_hash(device_id)
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-
-            cursor.execute(
-                "SELECT refinement_count, last_request_date FROM daily_requests WHERE device_id = ?",
-                (device_hash,)
-            )
-
-            result = cursor.fetchone()
-            conn.close()
-
-            if not result:
+            current_date = datetime.now().date().isoformat()
+            
+            rate_data = await db_service.get_rate_limit_status(device_hash, current_date)
+            
+            if not rate_data:
                 return True
 
-            refinement_count, last_request_date = result
+            refinements_count = rate_data.get('refinements_count', 0)
+            last_request_date = rate_data.get('last_request_date', '')
 
             if not self._is_same_day(last_request_date):
                 return True
 
-            return refinement_count < self.max_refinements
+            return refinements_count < self.max_refinements
 
         except Exception as e:
             logger.error(f"Error checking refinement limit: {e}")
@@ -154,44 +126,27 @@ class RateLimiterService:
     async def record_request(self, device_id: str):
         """Record a playlist generation request"""
 
-        if not self.initialized:
+        if not self._initialized:
             await self.initialize()
 
         try:
             device_hash = self._get_device_hash(device_id)
-            current_time = datetime.now().isoformat()
+            current_date = datetime.now().date().isoformat()
 
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+            rate_data = await db_service.get_rate_limit_status(device_hash, current_date)
 
-            cursor.execute(
-                "SELECT request_count, last_request_date FROM daily_requests WHERE device_id = ?",
-                (device_hash,)
-            )
-
-            result = cursor.fetchone()
-
-            if result:
-                request_count, last_request_date = result
+            if rate_data:
+                request_count = rate_data.get('requests_count', 0)
+                last_request_date = rate_data.get('last_request_date', '')
 
                 if not self._is_same_day(last_request_date):
                     request_count = 0
 
                 new_count = request_count + 1
-
-                cursor.execute(
-                    "UPDATE daily_requests SET request_count = ?, last_request_date = ? WHERE device_id = ?",
-                    (new_count, current_time, device_hash)
-                )
+                await db_service.update_rate_limit_requests(device_hash, current_date, new_count)
 
             else:
-                cursor.execute(
-                    "INSERT INTO daily_requests (device_id, request_count, last_request_date, refinement_count) VALUES (?, 1, ?, 0)",
-                    (device_hash, current_time)
-                )
-
-            conn.commit()
-            conn.close()
+                await db_service.update_rate_limit_requests(device_hash, current_date, 1)
 
         except Exception as e:
             logger.error(f"Error recording request: {e}")
@@ -199,44 +154,27 @@ class RateLimiterService:
     async def record_refinement(self, device_id: str):
         """Record a playlist refinement request"""
 
-        if not self.initialized:
+        if not self._initialized:
             await self.initialize()
 
         try:
             device_hash = self._get_device_hash(device_id)
-            current_time = datetime.now().isoformat()
+            current_date = datetime.now().date().isoformat()
 
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+            rate_data = await db_service.get_rate_limit_status(device_hash, current_date)
 
-            cursor.execute(
-                "SELECT refinement_count, last_request_date FROM daily_requests WHERE device_id = ?",
-                (device_hash,)
-            )
-
-            result = cursor.fetchone()
-
-            if result:
-                refinement_count, last_request_date = result
+            if rate_data:
+                refinement_count = rate_data.get('refinements_count', 0)
+                last_request_date = rate_data.get('last_request_date', '')
 
                 if not self._is_same_day(last_request_date):
                     refinement_count = 0
 
                 new_count = refinement_count + 1
-
-                cursor.execute(
-                    "UPDATE daily_requests SET refinement_count = ?, last_request_date = ? WHERE device_id = ?",
-                    (new_count, current_time, device_hash)
-                )
+                await db_service.update_rate_limit_refinements(device_hash, current_date, new_count)
 
             else:
-                cursor.execute(
-                    "INSERT INTO daily_requests (device_id, request_count, last_request_date, refinement_count) VALUES (?, 0, ?, 1)",
-                    (device_hash, current_time)
-                )
-
-            conn.commit()
-            conn.close()
+                await db_service.update_rate_limit_refinements(device_hash, current_date, 1)
 
         except Exception as e:
             logger.error(f"Error recording refinement: {e}")
@@ -246,22 +184,14 @@ class RateLimiterService:
 
         device_hash = self._get_device_hash(device_id)
 
-        if not self.initialized:
+        if not self._initialized:
             await self.initialize()
 
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+            current_date = datetime.now().date().isoformat()
+            rate_data = await db_service.get_rate_limit_status(device_hash, current_date)
 
-            cursor.execute(
-                "SELECT request_count, refinement_count, last_request_date FROM daily_requests WHERE device_id = ?",
-                (device_hash,)
-            )
-
-            result = cursor.fetchone()
-            conn.close()
-
-            if not result:
+            if not rate_data:
                 return RateLimitStatus(
                     device_id=device_id,
                     requests_made_today=0,
@@ -274,7 +204,9 @@ class RateLimiterService:
                     refinement_limit_enabled=settings.REFINEMENT_LIMIT_ENABLED
                 )
 
-            request_count, refinement_count, last_request_date = result
+            request_count = rate_data.get('requests_count', 0)
+            refinement_count = rate_data.get('refinements_count', 0)
+            last_request_date = rate_data.get('last_request_date', '')
 
             if not self._is_same_day(last_request_date):
                 request_count = 0
@@ -314,19 +246,14 @@ class RateLimiterService:
     async def reset_daily_limits(self):
         """Reset all daily limits (for testing purposes)"""
 
-        if not self.initialized:
+        if not self._initialized:
             await self.initialize()
 
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-
-            cursor.execute("DELETE FROM daily_requests")
-
-            conn.commit()
-            conn.close()
-
+            await db_service.delete_record('rate_limits', '1=1')
             logger.info("Daily limits reset successfully")
 
         except Exception as e:
             logger.error(f"Error resetting daily limits: {e}")
+
+rate_limiter_service = RateLimiterService()

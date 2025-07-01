@@ -6,22 +6,29 @@ import json
 
 from typing import List, Dict, Any, Optional
 
-from services.spotify_search_service import SpotifySearchService
 from services.data_loader import data_loader
 from core.models import Song, UserContext
 from config.settings import settings
 from config.ai_models import ai_model_manager
+from core.singleton import SingletonServiceBase
 
 logger = logging.getLogger(__name__)
 
-class PlaylistGeneratorService:
+class PlaylistGeneratorService(SingletonServiceBase):
     """AI service that generates playlists using real-time song search."""
 
-    def __init__(self):
-        self.spotify_search = SpotifySearchService()
-        self.model_config = ai_model_manager.get_model()
+    def _setup_service(self):
+        """Initialize the PlaylistGeneratorService."""
+        # Import here to avoid circular imports
+        from services.spotify_search_service import spotify_search_service
+        self.spotify_search = spotify_search_service
+        self.model_config = ai_model_manager.get_provider()
         self.initialized = False
         self.http_client = None
+        self._log_initialization("Playlist generator service initialized successfully", logger)
+
+    def __init__(self):
+        super().__init__()
 
     async def initialize(self):
         """Initialize the AI model and Spotify search service"""
@@ -114,7 +121,7 @@ class PlaylistGeneratorService:
             logger.error(f"Model pull failed: {e}")
             raise RuntimeError(f"Model pull failed: {e}")
 
-    async def generate_playlist(self, prompt: str, user_context: Optional[UserContext] = None, count: int = 30) -> List[Song]:
+    async def generate_playlist(self, prompt: str, user_context: Optional[UserContext] = None, count: int = 30, discovery_strategy: str = "balanced") -> List[Song]:
         """
         Generate a playlist using AI-powered real-time song search.
 
@@ -122,6 +129,7 @@ class PlaylistGeneratorService:
             prompt: User's mood/context description
             user_context: Additional user preferences
             count: Number of songs to generate
+            discovery_strategy: "new_music", "existing_music", or "balanced"
 
         Returns:
             List of exactly 'count' songs
@@ -131,14 +139,15 @@ class PlaylistGeneratorService:
             await self.initialize()
 
         try:
-            search_strategy = await self._generate_search_strategy(prompt, user_context)
+            search_strategy = await self._generate_search_strategy(prompt, user_context, discovery_strategy)
 
             songs = await self.spotify_search.search_songs_by_mood(
                 mood_keywords=search_strategy["mood_keywords"],
                 genres=search_strategy.get("genres"),
                 energy_level=search_strategy.get("energy_level"),
                 user_context=user_context,
-                count=count
+                count=count,
+                discovery_strategy=discovery_strategy
             )
 
             if len(songs) < count:
@@ -186,7 +195,7 @@ class PlaylistGeneratorService:
             logger.error(f"Playlist generation failed: {e}")
             raise RuntimeError(f"Playlist generation failed: {e}")
 
-    async def _generate_search_strategy(self, prompt: str, user_context: Optional[UserContext] = None) -> Dict[str, Any]:
+    async def _generate_search_strategy(self, prompt: str, user_context: Optional[UserContext] = None, discovery_strategy: str = "balanced") -> Dict[str, Any]:
         """
         Use AI to analyze the prompt and generate a search strategy.
 
@@ -199,7 +208,7 @@ class PlaylistGeneratorService:
 
         return await self._ai_generate_strategy(prompt, user_context)
 
-    async def _ai_generate_strategy(self, prompt: str, user_context: Optional[UserContext] = None) -> Dict[str, Any]:
+    async def _ai_generate_strategy(self, prompt: str, user_context: Optional[UserContext] = None, discovery_strategy: str = "balanced") -> Dict[str, Any]:
         """Generate search strategy using AI model"""
 
         try:
@@ -226,6 +235,16 @@ class PlaylistGeneratorService:
                 if user_context.decade_preference:
                     context += f"Preferred decades: {', '.join(user_context.decade_preference)}\n"
 
+            # Add discovery strategy information and modify search approach
+            context += f"\nDISCOVERY STRATEGY: {discovery_strategy}\n"
+            if discovery_strategy == "new_music":
+                context += "PRIORITIZE discovering new artists and hidden gems. Focus on lesser-known tracks and emerging artists.\n"
+            elif discovery_strategy == "existing_music":
+                context += "PRIORITIZE familiar favorites from user's taste profile. Focus on artists and songs similar to user's preferences.\n"
+            else:  # balanced
+                context += "BALANCE between familiar favorites and new discoveries. Mix popular tracks with some hidden gems.\n"
+
+            if user_context:
                 mood_preferences = []
 
                 if user_context.happy_music_preference:
@@ -488,53 +507,167 @@ class PlaylistGeneratorService:
 
         return additional_songs
 
-    async def refine_playlist(self, original_songs: List[Song], refinement_prompt: str, user_context: Optional[UserContext] = None, count: int = 30) -> List[Song]:
-        """Refine an existing playlist based on user feedback."""
+    async def refine_playlist(self, original_songs: List[Song], refinement_prompt: str, user_context: Optional[UserContext] = None, count: int = 30, discovery_strategy: str = "balanced") -> List[Song]:
+        """Refine an existing playlist based on user feedback with improved accuracy."""
 
         try:
-            search_strategy = await self._generate_search_strategy(refinement_prompt, user_context)
+            search_strategy = await self._generate_search_strategy(refinement_prompt, user_context, discovery_strategy)
+            refinement_type = await self._analyze_refinement_type(refinement_prompt)
+            
+            if refinement_type == "replace_all":
+                return await self._generate_new_playlist(search_strategy, count, user_context)
 
-            keep_count = count // 2
-            new_count = count - keep_count
+            elif refinement_type == "add_similar":
+                return await self._expand_similar_songs(original_songs, search_strategy, count, user_context)
 
-            kept_songs = original_songs[:keep_count] if original_songs else []
+            elif refinement_type == "adjust_mood":
+                return await self._adjust_playlist_mood(original_songs, search_strategy, count, user_context)
 
-            new_songs = await self.spotify_search.search_songs_by_mood(
-                mood_keywords=search_strategy["mood_keywords"],
-                genres=search_strategy.get("genres"),
-                energy_level=search_strategy.get("energy_level"),
-                count=new_count + 10
-            )
-
-            filtered_new_songs = [s for s in new_songs if s not in kept_songs]
-
-            if user_context and user_context.disliked_artists:
-                disliked_artists_lower = [artist.lower() for artist in user_context.disliked_artists]
-                filtered_new_songs = [
-                    song for song in filtered_new_songs 
-                    if not any(disliked.lower() in song.artist.lower() for disliked in disliked_artists_lower)
-                ]
-
-            final_songs = kept_songs + filtered_new_songs[:new_count]
-
-            if len(final_songs) < count:
-                additional_needed = count - len(final_songs)
-                additional_songs = await self._get_additional_songs(
-                    final_songs, count, search_strategy
-                )
-
-                final_songs.extend(additional_songs[:additional_needed])
-
-            random.shuffle(final_songs)
-            return final_songs[:count]
+            else:
+                return await self._smart_mix_refinement(original_songs, search_strategy, count, user_context)
 
         except Exception as e:
             logger.error(f"Playlist refinement failed: {e}")
             raise RuntimeError(f"Playlist refinement failed: {e}")
 
+    async def _analyze_refinement_type(self, refinement_prompt: str) -> str:
+        """Analyze the refinement prompt to determine the best approach."""
+
+        prompt_lower = refinement_prompt.lower()
+        replace_keywords = ["different", "change all", "completely new", "start over", "hate these", "don't like any"]
+
+        if any(keyword in prompt_lower for keyword in replace_keywords):
+            return "replace_all"
+
+        similar_keywords = ["more like this", "similar", "same style", "keep going", "more of the same"]
+
+        if any(keyword in prompt_lower for keyword in similar_keywords):
+            return "add_similar"
+
+        mood_keywords = ["more energetic", "calmer", "happier", "sadder", "more upbeat", "more mellow", "faster", "slower"]
+
+        if any(keyword in prompt_lower for keyword in mood_keywords):
+            return "adjust_mood"
+
+        return "smart_mix"
+
+    async def _generate_new_playlist(self, search_strategy: Dict[str, Any], count: int, user_context: Optional[UserContext]) -> List[Song]:
+        """Generate completely new songs based on refinement."""
+
+        new_songs = await self.spotify_search.search_songs_by_mood(
+            mood_keywords=search_strategy["mood_keywords"],
+            genres=search_strategy.get("genres"),
+            energy_level=search_strategy.get("energy_level"),
+            count=count + 10
+        )
+
+        if user_context and user_context.disliked_artists:
+            disliked_artists_lower = [artist.lower() for artist in user_context.disliked_artists]
+
+            new_songs = [
+                song for song in new_songs 
+                if not any(disliked.lower() in song.artist.lower() for disliked in disliked_artists_lower)
+            ]
+
+        random.shuffle(new_songs)
+        return new_songs[:count]
+
+    async def _expand_similar_songs(self, original_songs: List[Song], search_strategy: Dict[str, Any], count: int, user_context: Optional[UserContext]) -> List[Song]:
+        """Keep most original songs and add similar ones."""
+
+        keep_count = int(count * 0.7)
+        new_count = count - keep_count
+        kept_songs = original_songs[:keep_count] if original_songs else []
+        original_artists = list(set([song.artist for song in kept_songs]))
+        enhanced_strategy = search_strategy.copy()
+        enhanced_strategy["favorite_artists"] = (enhanced_strategy.get("favorite_artists", []) + original_artists)[:10]
+
+        new_songs = await self.spotify_search.search_songs_by_mood(
+            mood_keywords=enhanced_strategy["mood_keywords"],
+            genres=enhanced_strategy.get("genres"),
+            energy_level=enhanced_strategy.get("energy_level"),
+            count=new_count + 10
+        )
+
+        filtered_new_songs = [s for s in new_songs if s not in kept_songs]
+
+        if user_context and user_context.disliked_artists:
+            disliked_artists_lower = [artist.lower() for artist in user_context.disliked_artists]
+            filtered_new_songs = [
+                song for song in filtered_new_songs 
+                if not any(disliked.lower() in song.artist.lower() for disliked in disliked_artists_lower)
+            ]
+
+        final_songs = kept_songs + filtered_new_songs[:new_count]
+        return final_songs[:count]
+
+    async def _adjust_playlist_mood(self, original_songs: List[Song], search_strategy: Dict[str, Any], count: int, user_context: Optional[UserContext]) -> List[Song]:
+        """Adjust the mood/energy while keeping some original songs."""
+
+        keep_count = int(count * 0.4)
+        new_count = count - keep_count
+
+        kept_songs = original_songs[:keep_count] if original_songs else []
+
+        new_songs = await self.spotify_search.search_songs_by_mood(
+            mood_keywords=search_strategy["mood_keywords"],
+            genres=search_strategy.get("genres"),
+            energy_level=search_strategy.get("energy_level"),
+            count=new_count + 10
+        )
+
+        filtered_new_songs = [s for s in new_songs if s not in kept_songs]
+
+        if user_context and user_context.disliked_artists:
+            disliked_artists_lower = [artist.lower() for artist in user_context.disliked_artists]
+            filtered_new_songs = [
+                song for song in filtered_new_songs 
+                if not any(disliked.lower() in song.artist.lower() for disliked in disliked_artists_lower)
+            ]
+
+        final_songs = kept_songs + filtered_new_songs[:new_count]
+
+        random.shuffle(final_songs)
+        return final_songs[:count]
+
+    async def _smart_mix_refinement(self, original_songs: List[Song], search_strategy: Dict[str, Any], count: int, user_context: Optional[UserContext]) -> List[Song]:
+        """Default smart mix approach - balanced refinement."""
+
+        keep_count = count // 2
+        new_count = count - keep_count
+
+        kept_songs = original_songs[:keep_count] if original_songs else []
+
+        new_songs = await self.spotify_search.search_songs_by_mood(
+            mood_keywords=search_strategy["mood_keywords"],
+            genres=search_strategy.get("genres"),
+            energy_level=search_strategy.get("energy_level"),
+            count=new_count + 10
+        )
+
+        filtered_new_songs = [s for s in new_songs if s not in kept_songs]
+
+        if user_context and user_context.disliked_artists:
+            disliked_artists_lower = [artist.lower() for artist in user_context.disliked_artists]
+
+            filtered_new_songs = [
+                song for song in filtered_new_songs 
+                if not any(disliked.lower() in song.artist.lower() for disliked in disliked_artists_lower)
+            ]
+
+        final_songs = kept_songs + filtered_new_songs[:new_count]
+
+        if len(final_songs) < count:
+            additional_needed = count - len(final_songs)
+            additional_songs = await self._get_additional_songs(final_songs, count, search_strategy)
+            final_songs.extend(additional_songs[:additional_needed])
+
+        random.shuffle(final_songs)
+        return final_songs[:count]
+
     async def _call_ai_model(self, prompt: str) -> str:
         """Universal method to call different AI models"""
-        
+
         if self.model_config.name.lower() == "ollama":
             response = await self.http_client.post(
                 f"{self.model_config.endpoint}/api/generate",
@@ -545,51 +678,60 @@ class PlaylistGeneratorService:
                 },
                 timeout=self.model_config.timeout
             )
-            
+
             if response.status_code == 200:
                 return response.json()["response"].strip()
+
             else:
                 raise RuntimeError(f"Ollama API error: {response.status_code}")
-        
+
         elif self.model_config.name.lower() == "openai":
             headers = self.model_config.headers or {}
+
             data = {
                 "model": self.model_config.model_name,
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": self.model_config.max_tokens,
                 "temperature": self.model_config.temperature
             }
-            
+
             response = await self.http_client.post(
                 f"{self.model_config.endpoint}/chat/completions",
                 headers=headers,
                 json=data
             )
+
             if response.status_code == 200:
                 result = response.json()
                 return result["choices"][0]["message"]["content"].strip()
+
             else:
                 raise Exception(f"OpenAI API error: {response.status_code}")
-        
+
         elif self.model_config.name.lower() == "anthropic":
             headers = self.model_config.headers or {}
+
             data = {
                 "model": self.model_config.model_name,
                 "max_tokens": self.model_config.max_tokens,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": self.model_config.temperature
             }
-            
+
             response = await self.http_client.post(
                 f"{self.model_config.endpoint}/messages",
                 headers=headers,
                 json=data
             )
+
             if response.status_code == 200:
                 result = response.json()
                 return result["content"][0]["text"].strip()
+
             else:
                 raise Exception(f"Anthropic API error: {response.status_code}")
-        
+
         else:
             raise Exception(f"Unsupported AI model: {self.model_config.name}")
+
+playlist_generator_service = PlaylistGeneratorService()

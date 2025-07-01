@@ -25,7 +25,6 @@ class UserContext {
     @JsonKey(name: 'energy_preference')
     final String? energyPreference;
 
-    // Personality questions responses
     @JsonKey(name: 'happy_music_preference')
     final String? happyMusicPreference;
 
@@ -53,6 +52,15 @@ class UserContext {
     @JsonKey(name: 'instrumental_preference')
     final String? instrumentalPreference;
 
+    @JsonKey(name: 'music_activity_preference')
+    final String? musicActivityPreference;
+
+    @JsonKey(name: 'vocal_preference')
+    final String? vocalPreference;
+
+    @JsonKey(name: 'genre_openness')
+    final String? genreOpenness;
+
     @JsonKey(name: 'decade_preference')
     final List<String>? decadePreference;
 
@@ -65,8 +73,8 @@ class UserContext {
         this.favoriteArtists,
         this.dislikedArtists,
         this.recentListeningHistory,
-        this.musicDiscoveryPreference = 'balanced',
-        this.energyPreference = 'medium',
+        this.musicDiscoveryPreference,
+        this.energyPreference,
         this.happyMusicPreference,
         this.sadMusicPreference,
         this.workoutMusicPreference,
@@ -76,6 +84,9 @@ class UserContext {
         this.discoveryOpenness,
         this.explicitContentPreference,
         this.instrumentalPreference,
+        this.musicActivityPreference,
+        this.vocalPreference,
+        this.genreOpenness,
         this.decadePreference,
         this.includeSpotifyArtists = true,
     });
@@ -100,6 +111,9 @@ class UserContext {
         String? discoveryOpenness,
         String? explicitContentPreference,
         String? instrumentalPreference,
+        String? musicActivityPreference,
+        String? vocalPreference,
+        String? genreOpenness,
         List<String>? decadePreference,
         bool? includeSpotifyArtists,
     }) {
@@ -120,6 +134,9 @@ class UserContext {
             discoveryOpenness: discoveryOpenness ?? this.discoveryOpenness,
             explicitContentPreference: explicitContentPreference ?? this.explicitContentPreference,
             instrumentalPreference: instrumentalPreference ?? this.instrumentalPreference,
+            musicActivityPreference: musicActivityPreference ?? this.musicActivityPreference,
+            vocalPreference: vocalPreference ?? this.vocalPreference,
+            genreOpenness: genreOpenness ?? this.genreOpenness,
             decadePreference: decadePreference ?? this.decadePreference,
             includeSpotifyArtists: includeSpotifyArtists ?? this.includeSpotifyArtists,
         );

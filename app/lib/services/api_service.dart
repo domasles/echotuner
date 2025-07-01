@@ -5,26 +5,32 @@ import '../models/playlist_draft_models.dart';
 import '../models/rate_limit_models.dart';
 import '../models/playlist_request.dart';
 import '../models/app_config.dart';
+import '../utils/app_logger.dart';
 import '../config/settings.dart';
 
 class ApiService {
     final http.Client _client = http.Client();
 
     Future<Map<String, dynamic>> get(String endpoint, {Map<String, String>? headers}) async {
+        AppLogger.api('GET $endpoint');
+        
         final response = await _client.get(
             Uri.parse(AppConfig.apiUrl(endpoint)),
             headers: headers,
         );
 
         if (response.statusCode == 200) {
+            AppLogger.api('GET $endpoint - Success');
             return jsonDecode(response.body);
         }
 
         else if (response.statusCode == 401) {
+            AppLogger.api('GET $endpoint - 401 Unauthorized');
             throw ApiException('Authentication required');
         }
 
         else if (response.statusCode == 404) {
+            AppLogger.api('GET $endpoint - 404 Not Found');
             throw ApiException('Resource not found');
         }
 
@@ -34,6 +40,8 @@ class ApiService {
     }
 
     Future<Map<String, dynamic>> post(String endpoint, {Map<String, dynamic>? body, Map<String, String>? headers}) async {
+        AppLogger.api('POST $endpoint');
+        
         final defaultHeaders = {'Content-Type': 'application/json'};
         final mergedHeaders = headers != null ? {...defaultHeaders, ...headers} : defaultHeaders;
 
@@ -44,18 +52,22 @@ class ApiService {
         );
 
         if (response.statusCode == 200) {
+            AppLogger.api('POST $endpoint - Success');
             return jsonDecode(response.body);
         }
 
         else if (response.statusCode == 401) {
+            AppLogger.api('POST $endpoint - 401 Unauthorized');
             throw ApiException('Authentication required');
         }
 
         else if (response.statusCode == 404) {
+            AppLogger.api('POST $endpoint - 404 Not Found');
             throw ApiException('Resource not found');
         }
 
         else {
+            AppLogger.api('POST $endpoint - ${response.statusCode} Error');
             throw ApiException('Request failed with status ${response.statusCode}');
         }
     }
@@ -158,11 +170,18 @@ class ApiService {
 
     Future<bool> checkApiHealth() async {
         try {
+            AppLogger.api('Checking API health');
+
             final response = await _client.get(Uri.parse(AppConfig.apiUrl('/health'))).timeout(const Duration(seconds: 5));
-            return response.statusCode == 200;
+            final isHealthy = response.statusCode == 200;
+
+            AppLogger.api('API health check: ${isHealthy ? 'Healthy' : 'Unhealthy'}');
+
+            return isHealthy;
         }
 
         catch (e) {
+            AppLogger.api('API health check failed', error: e);
             return false;
         }
     }
@@ -321,6 +340,33 @@ class ApiService {
 
         else {
             throw ApiException('Failed to refine Spotify playlist. Please try again.');
+        }
+    }
+
+    Future<PlaylistResponse> updatePlaylistDraft(PlaylistRequest request) async {
+        final response = await _client.post(
+            Uri.parse(AppConfig.apiUrl('/update-playlist-draft')),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: jsonEncode(request.toJson()),
+        );
+
+        if (response.statusCode == 200) {
+            return PlaylistResponse.fromJson(jsonDecode(response.body));
+        }
+
+		else if (response.statusCode == 404) {
+            throw ApiException('Draft playlist not found.');
+        }
+
+		else if (response.statusCode == 400) {
+            final error = jsonDecode(response.body);
+            throw ApiException(error['detail'] ?? 'Invalid update request');
+        }
+
+		else {
+            throw ApiException('Failed to update draft playlist. Please try again.');
         }
     }
 

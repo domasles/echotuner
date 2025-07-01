@@ -19,8 +19,16 @@ class Settings:
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
+    DEFAULT_AI_PROVIDER: str = os.getenv("DEFAULT_AI_PROVIDER", "ollama")
+
+    AI_ENDPOINT: str = os.getenv("AI_ENDPOINT", "http://localhost:11434")
+    AI_GENERATION_MODEL: str = os.getenv("AI_GENERATION_MODEL", "phi3:mini")
+    AI_EMBEDDING_MODEL: str = os.getenv("AI_EMBEDDING_MODEL", "nomic-embed-text:latest")
     AI_TIMEOUT: int = int(os.getenv("AI_TIMEOUT", 30))
     AI_MODEL_PULL_TIMEOUT: int = int(os.getenv("AI_MODEL_PULL_TIMEOUT", 300))
+
+    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
+    ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
 
     PROMPT_VALIDATION_THRESHOLD: float = float(os.getenv("PROMPT_VALIDATION_THRESHOLD", 0.6))
     PROMPT_VALIDATION_TIMEOUT: int = int(os.getenv("PROMPT_VALIDATION_TIMEOUT", 30))
@@ -40,27 +48,18 @@ class Settings:
 
     SESSION_TIMEOUT: int = int(os.getenv("SESSION_TIMEOUT", 24))
 
-    DRAFT_STORAGE_TIMEOUT: int = int(os.getenv("DRAFT_STORAGE_DAYS", 7))
-    DRAFT_CLEANUP_INTERVAL: int = int(os.getenv("DRAFT_CLEANUP_INTERVAL_HOURS", 24))
+    DRAFT_STORAGE_TIMEOUT: int = int(os.getenv("DRAFT_STORAGE_TIMEOUT", 7))
+    DRAFT_CLEANUP_INTERVAL: int = int(os.getenv("DRAFT_CLEANUP_INTERVAL", 24))
 
     CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "true").lower() == "true"
 
     MAX_FAVORITE_ARTISTS: int = int(os.getenv("MAX_FAVORITE_ARTISTS", 12))
     MAX_DISLIKED_ARTISTS: int = int(os.getenv("MAX_DISLIKED_ARTISTS", 20))
     MAX_FAVORITE_GENRES: int = int(os.getenv("MAX_FAVORITE_GENRES", 10))
+    MAX_PREFERRED_DECADES: int = int(os.getenv("MAX_PREFERRED_DECADES", 5))
 
     MAX_AUTH_ATTEMPTS_PER_IP: int = int(os.getenv("MAX_AUTH_ATTEMPTS_PER_IP", 10))
     AUTH_ATTEMPT_WINDOW_MINUTES: int = int(os.getenv("AUTH_ATTEMPT_WINDOW_MINUTES", 60))
     SECURE_HEADERS: bool = os.getenv("SECURE_HEADERS", "true").lower() == "true"
-
-    # AI Model Configuration
-    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
-    ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
     
-    # Default AI model endpoint and configuration
-    AI_ENDPOINT: str = os.getenv("AI_ENDPOINT", "http://localhost:11434")
-    AI_MODEL_NAME: str = os.getenv("AI_MODEL_NAME", "llama3.2:3b")
-    AI_EMBEDDING_MODEL: str = os.getenv("AI_EMBEDDING_MODEL", "nomic-embed-text:latest")
-    DEFAULT_AI_MODEL: str = os.getenv("DEFAULT_AI_MODEL", "ollama")
-
 settings = Settings()
