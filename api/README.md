@@ -68,14 +68,17 @@ For complete installation and setup instructions, please refer to the [master in
     cp .env.sample .env
     ```
 
-3. **Configure your AI model:**
+3. **Configure Spotify API credentials in `.env` file:**
+   ```env
+   SPOTIFY_CLIENT_ID=your_spotify_client_id
+   SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+   ```
+
+4. **Configure your AI model:**
 
    **For Ollama (Local AI - Default):**
    ```bash
    # Install and start Ollama
-   curl -fsSL https://ollama.ai/install.sh | sh
-   ollama serve
-   
    # Install required models
    ollama pull llama3.2:3b
    ollama pull nomic-embed-text
@@ -93,12 +96,6 @@ For complete installation and setup instructions, please refer to the [master in
    # Edit .env file
    DEFAULT_AI_PROVIDER=anthropic
    ANTHROPIC_API_KEY=your-anthropic-api-key-here
-   ```
-
-4. **Configure Spotify API credentials in `.env` file:**
-   ```env
-   SPOTIFY_CLIENT_ID=your_spotify_client_id
-   SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
    ```
 
 5. **Run automated setup:**

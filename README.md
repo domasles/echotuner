@@ -6,8 +6,6 @@ EchoTuner is a production-ready platform that generates personalized music playl
 
 The platform consists of a modular RESTful API service and a cross-platform Flutter application for music discovery and playlist creation.
 
-**Current Version: 1.6.0**
-
 ## Project Status
 
 EchoTuner is now feature-complete with both API backend and user application ready for production deployment.
@@ -47,7 +45,7 @@ EchoTuner is now feature-complete with both API backend and user application rea
 ### AI Model Support
 
 **Local AI (Ollama)**
-- **Default Model**: `llama3.2:3b` for intelligent playlist generation
+- **Default Model**: `phi3:mini` for intelligent playlist generation
 - **Validation Model**: `nomic-embed-text` for semantic prompt validation
 - **Benefits**: No API costs, privacy, offline capability
 - **Requirements**: Local Ollama installation
@@ -110,37 +108,47 @@ cd echotuner
 ```bash
 cd api
 
+# Copy over .env.sample to .env
+cp .env.sample .env
+# Edit .env with your configuration
+
+# Check if Ollama is installed and models are pulled
+ollama pull phi3:mini
+ollama pull nomic-embed-text
+
 # Create and activate virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
-pip install -r requirements.txt
+# Run automated setup
+python setup.py
 
-# Configure environment
-cp .env.sample .env
-# Edit .env with your configuration (see API Setup section below)
-
-# Run the API
+# Start the API
 python main.py
 ```
 
 #### 3. Flutter App Setup
 ```bash
-cd ../app
+cd app
+
+# Copy over .env.sample to .env
+cp .env.sample .env
+# Edit .env with your API host configuration
+
+# Generate flutter project files
+flutter create .
 
 # Install dependencies
 dart pub get
 
-# Generate JSON serialization code
+# Generate model files
 dart run build_runner build --delete-conflicting-outputs
 
-# Configure environment
-cp .env.sample .env
-# Edit .env with your API host configuration
+# Generate app icons and assets
+dart run flutter_launcher_icons
 
 # Run the app
-dart run
+flutter run
 ```
 
 ### Detailed Setup Guides

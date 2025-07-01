@@ -85,12 +85,23 @@ For complete Flutter installation instructions and required dependencies for bui
    flutter create .
    ```
 
-4. **Generate model files:**
+4. **Install dependencies:**
    ```bash
-   dart run flutter_launcher_icons build_runner build
+   # Install dependencies
+    dart pub get
+    ```
+
+5. **Generate model files:**
+   ```bash
+   dart run build_runner build --delete-conflicting-outputs
    ```
 
-5. **Run the app:**
+6. **Generate app icons and assets:**
+   ```bash
+   dart run flutter_launcher_icons
+   ```
+
+7. **Run the app:**
    ```bash
    flutter run
    ```
