@@ -398,7 +398,7 @@ Service health and dependency status.
 ```json
 {
     "status": "healthy",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "services": {
         "prompt_validator": true,
         "playlist_generator": true,

@@ -14,11 +14,7 @@
 
 **Docker Ready**: Multi-stage builds with API + Flutter web deployment support.
 
----
-
 The EchoTuner API is a production-ready RESTful service that generates personalized music playlists using artificial intelligence and natural language processing. This backend service powers the EchoTuner platform with intelligent music recommendations through flexible AI model support and real-time Spotify integration.
-
-**Current Version: 1.6.0**
 
 ## Overview
 

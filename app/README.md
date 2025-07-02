@@ -4,8 +4,6 @@
 
 The EchoTuner application provides a user-friendly interface for AI-powered playlist generation and music discovery. Built with Flutter, it offers cross-platform compatibility and seamless integration with the EchoTuner API backend for intelligent music recommendations.
 
-**Current Version: 1.6.0-alpha+1**
-
 ## Overview
 
 The EchoTuner app delivers an intuitive experience for creating personalized playlists through natural language prompts. Users can describe their mood, preferences, or activities, and the app leverages AI-powered backend services to generate tailored music recommendations with support for multiple AI providers.
