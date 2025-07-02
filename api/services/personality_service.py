@@ -8,6 +8,7 @@ from core.models import UserContext, SpotifyArtist
 from services.database_service import db_service
 from core.singleton import SingletonServiceBase
 from services.auth_service import auth_service
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,12 @@ class PersonalityService(SingletonServiceBase):
                 return False
 
             spotify_user_id = user_info.get('spotify_user_id')
+            
+            # Check if this is a demo account
+            if settings.DEMO and spotify_user_id.startswith("demo_user_"):
+                logger.info(f"Demo mode: personality not stored server-side for device {device_id}")
+                return True
+            
             user_id = spotify_user_id
             logger.info(f"Saving personality for user {user_id}")
             success = await db_service.save_user_personality(user_id, spotify_user_id, user_context)
@@ -70,6 +77,12 @@ class PersonalityService(SingletonServiceBase):
                 return None
 
             spotify_user_id = user_info.get('spotify_user_id')
+            
+            # Check if this is a demo account
+            if settings.DEMO and spotify_user_id.startswith("demo_user_"):
+                logger.info(f"Demo mode: personality retrieved from client-side for device {device_id}")
+                return None
+            
             user_id = spotify_user_id
 
             user_context_json = await db_service.get_user_personality(user_id)

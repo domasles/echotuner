@@ -65,6 +65,9 @@ class Settings:
     MAX_PROMPT_LENGTH: int = int(os.getenv("MAX_PROMPT_LENGTH", 500))
     MAX_PLAYLIST_NAME_LENGTH: int = int(os.getenv("MAX_PLAYLIST_NAME_LENGTH", 100))
     
+    # Demo Mode
+    DEMO: bool = os.getenv("DEMO", "false").lower() == "true"
+    
     def validate_required_settings(self) -> list[str]:
         """Validate that required settings are configured for production"""
 

@@ -4,6 +4,7 @@ import uvicorn
 import click
 import sys
 import re
+from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.gzip import GZipMiddleware
@@ -222,6 +223,8 @@ async def root():
     return {
         "message": AppConstants.API_WELCOME_MESSAGE,
         "description": "AI-powered playlist generation with real-time song search",
+        "demo_mode": settings.DEMO,
+        "demo_info": "Demo mode uses a shared Spotify account with device-specific experiences" if settings.DEMO else None,
         "endpoints": {
             "generate": "/generate-playlist",
             "refine": "/refine-playlist",
@@ -280,7 +283,12 @@ async def auth_callback(code: str = None, state: str = None, error: str = None):
         if not code or not state:
             raise HTTPException(status_code=400, detail="Missing authorization code or state")
 
-        session_id = await auth_service.handle_spotify_callback(code, state)
+        # Validate state and get device info
+        device_info = await auth_service.validate_auth_state(state)
+        if not device_info:
+            raise HTTPException(status_code=400, detail="Invalid or expired auth state")
+
+        session_id = await auth_service.handle_spotify_callback(code, state, device_info)
 
         if not session_id:
             raise HTTPException(status_code=400, detail="Failed to create session")
@@ -390,7 +398,8 @@ async def get_config():
             "auth_required": settings.AUTH_REQUIRED,
             "playlist_limit_enabled": settings.PLAYLIST_LIMIT_ENABLED,
             "refinement_limit_enabled": settings.REFINEMENT_LIMIT_ENABLED,
-        }
+        },
+        "demo_mode": settings.DEMO,
     }
 
 @app.post("/reload-config")
@@ -1002,8 +1011,8 @@ async def load_user_personality(request: Request):
     try:
         user_info = await auth_middleware.validate_session_from_headers(request)
         
-        session_id = request.headers.get('session-id')
-        device_id = request.headers.get('device-id')
+        session_id = request.headers.get('session_id')
+        device_id = request.headers.get('device_id')
 
         user_context = await personality_service.get_user_personality(
             session_id=session_id,
@@ -1053,11 +1062,11 @@ async def get_followed_artists(request: Request, limit: int = 50):
     """Get user's followed artists from Spotify"""
 
     try:
-        session_id = request.headers.get('session-id')
-        device_id = request.headers.get('device-id')
+        session_id = request.headers.get('session_id')
+        device_id = request.headers.get('device_id')
 
         if not session_id or not device_id:
-            raise HTTPException(status_code=422, detail="Missing session-id or device-id headers")
+            raise HTTPException(status_code=422, detail="Missing session_id or device_id headers")
 
         artists = await personality_service.get_followed_artists(
             session_id=session_id,
@@ -1183,8 +1192,8 @@ async def logout(request: Request):
     """Logout and invalidate session"""
 
     try:
-        session_id = request.headers.get('session-id')
-        device_id = request.headers.get('device-id')
+        session_id = request.headers.get('session_id')
+        device_id = request.headers.get('device_id')
 
         if not session_id:
             return {"message": "No session to logout", "success": False}
@@ -1209,8 +1218,8 @@ async def logout(request: Request):
 async def logout_all(request: Request):
     """Logout from all devices for the current user"""
     try:
-        session_id = request.headers.get('session-id')
-        device_id = request.headers.get('device-id')
+        session_id = request.headers.get('session_id')
+        device_id = request.headers.get('device_id')
         
         if not session_id:
             return {"message": "No session provided", "success": False}
@@ -1245,6 +1254,18 @@ async def cleanup_sessions():
     except Exception as e:
         logger.error(f"Cleanup failed: {e}")
         raise HTTPException(status_code=500, detail="Cleanup failed")
+
+@app.get("/auth/account_type/{session_id}")
+async def get_account_type(session_id: str):
+    """Get account type for a session"""
+    try:
+        account_type = await auth_service.get_account_type(session_id)
+        if account_type is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        return {"account_type": account_type}
+    except Exception as e:
+        logger.error(f"Failed to get account type: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get account type")
 
 if __name__ == "__main__":
     logger.info(AppConstants.STARTUP_MESSAGE)

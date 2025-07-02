@@ -67,6 +67,7 @@ class DatabaseService(SingletonServiceBase):
                         expires_at INTEGER,
                         created_at INTEGER NOT NULL,
                         last_used_at INTEGER NOT NULL,
+                        account_type TEXT DEFAULT 'normal',
                         UNIQUE(device_id)
                     )
                 """)
@@ -308,6 +309,40 @@ class DatabaseService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Get session by device error: {e}")
             return None
+
+    async def get_sessions_by_device(self, device_id: str) -> List[Dict[str, Any]]:
+        """Get all sessions for a device"""
+
+        try:
+            rows = await self.fetch_all(
+                """SELECT session_id, device_id, platform, spotify_user_id, 
+                          access_token, refresh_token, expires_at, created_at, 
+                          last_used_at, account_type 
+                   FROM auth_sessions 
+                   WHERE device_id = ?""",
+                (device_id,)
+            )
+
+            sessions = []
+            for row in rows:
+                sessions.append({
+                    'session_id': row[0],
+                    'device_id': row[1],
+                    'platform': row[2],
+                    'spotify_user_id': row[3],
+                    'access_token': row[4],
+                    'refresh_token': row[5],
+                    'expires_at': row[6],
+                    'created_at': row[7],
+                    'last_used_at': row[8],
+                    'account_type': row[9] if row[9] is not None else 'normal'
+                })
+
+            return sessions
+
+        except Exception as e:
+            logger.error(f"Get sessions by device error: {e}")
+            return []
 
     async def invalidate_session(self, session_id: str) -> bool:
         """Invalidate a session"""
@@ -810,6 +845,7 @@ class DatabaseService(SingletonServiceBase):
 
         try:
             async with aiosqlite.connect(self.db_path) as db:
+                # Migrate playlist_drafts table
                 cursor = await db.execute("PRAGMA table_info(playlist_drafts)")
                 columns = await cursor.fetchall()
                 existing_columns = [col[1] for col in columns]
@@ -826,6 +862,14 @@ class DatabaseService(SingletonServiceBase):
 
                 if 'spotify_playlist_url' not in existing_columns:
                     migrations.append("ALTER TABLE playlist_drafts ADD COLUMN spotify_playlist_url TEXT")
+
+                # Migrate auth_sessions table
+                cursor = await db.execute("PRAGMA table_info(auth_sessions)")
+                columns = await cursor.fetchall()
+                auth_columns = [col[1] for col in columns]
+                
+                if 'account_type' not in auth_columns:
+                    migrations.append("ALTER TABLE auth_sessions ADD COLUMN account_type TEXT DEFAULT 'normal'")
 
                 for migration in migrations:
                     await db.execute(migration)

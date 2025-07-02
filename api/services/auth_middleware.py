@@ -12,11 +12,11 @@ class AuthMiddleware:
         self.auth_service = auth_service
 
     async def validate_session_from_headers(self, request: Request) -> Dict[str, str]:
-        session_id = request.headers.get('session-id')
-        device_id = request.headers.get('device-id')
+        session_id = request.headers.get('session_id')
+        device_id = request.headers.get('device_id')
 
         if not session_id or not device_id:
-            raise HTTPException(status_code=422, detail="Missing session-id or device-id headers")
+            raise HTTPException(status_code=422, detail="Missing session_id or device_id headers")
 
         user_info = await self.auth_service.validate_session_and_get_user(session_id, device_id)
 

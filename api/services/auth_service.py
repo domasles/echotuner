@@ -82,18 +82,13 @@ class AuthService(SingletonServiceBase):
             logger.error(f"Failed to validate auth state: {e}")
             return None
 
-    async def handle_spotify_callback(self, code: str, state: str) -> Optional[str]:
-        """Handle Spotify OAuth callback and create session"""
+    async def handle_spotify_callback(self, code: str, state: str, device_info: Dict) -> Optional[str]:
+        """Handle Spotify OAuth callback"""
 
         try:
-            device_info = await self.validate_auth_state(state)
-
-            if not device_info:
-                logger.warning(f"Invalid or expired auth state: {state}")
-                return None
-
             if not self.spotify_oauth:
-                raise Exception("Spotify OAuth not configured")
+                logger.error("Spotify OAuth not initialized")
+                return None
 
             token_info = self.spotify_oauth.get_access_token(code)
 
@@ -105,14 +100,27 @@ class AuthService(SingletonServiceBase):
             user_info = spotify.current_user()
             session_id = str(uuid.uuid4())
 
+            # Handle demo mode flag switching
+            await self._handle_demo_mode_switch(device_info['device_id'])
+
+            # In demo mode, create demo user instead of using real Spotify user
+            if settings.DEMO:
+                demo_user_id = f"demo_user_{device_info['device_id']}"
+                account_type = "demo"
+                logger.info(f"Demo mode: Creating demo user {demo_user_id} for device {device_info['device_id']}")
+            else:
+                demo_user_id = user_info['id']
+                account_type = "normal"
+
             await self.create_session(
                 session_id=session_id,
                 device_id=device_info['device_id'],
                 platform=device_info['platform'],
-                spotify_user_id=user_info['id'],
+                spotify_user_id=demo_user_id,
                 access_token=token_info['access_token'],
                 refresh_token=token_info.get('refresh_token'),
-                expires_at=int((datetime.now() + timedelta(seconds=token_info['expires_in'])).timestamp())
+                expires_at=int((datetime.now() + timedelta(seconds=token_info['expires_in'])).timestamp()),
+                account_type=account_type
             )
 
             logger.info(f"Created session for Spotify user {user_info['id']} on device {device_info['device_id']}")
@@ -122,7 +130,31 @@ class AuthService(SingletonServiceBase):
             logger.error(f"Failed to handle Spotify callback: {e}")
             return None
 
-    async def create_session(self, session_id: str, device_id: str, platform: str, spotify_user_id: str, access_token: str, refresh_token: Optional[str], expires_at: int):
+    async def _handle_demo_mode_switch(self, device_id: str):
+        """Handle demo mode flag switching by cleaning up conflicting account types"""
+        
+        try:
+            # Get existing sessions for this device
+            existing_sessions = await db_service.get_sessions_by_device(device_id)
+            
+            for session in existing_sessions:
+                session_account_type = session.get('account_type', 'normal')
+                
+                # If DEMO is enabled but device has normal accounts, clean them up
+                if settings.DEMO and session_account_type == 'normal':
+                    logger.info(f"Demo mode enabled: Cleaning up normal account session {session['session_id']} for device {device_id}")
+                    await db_service.invalidate_session(session['session_id'])
+                
+                # If DEMO is disabled but device has demo accounts, clean them up
+                elif not settings.DEMO and session_account_type == 'demo':
+                    logger.info(f"Demo mode disabled: Cleaning up demo account session {session['session_id']} for device {device_id}")
+                    await db_service.invalidate_session(session['session_id'])
+                    
+        except Exception as e:
+            logger.error(f"Failed to handle demo mode switch for device {device_id}: {e}")
+            # Don't raise - this is cleanup, not critical
+
+    async def create_session(self, session_id: str, device_id: str, platform: str, spotify_user_id: str, access_token: str, refresh_token: Optional[str], expires_at: int, account_type: str = "normal"):
         """Create a new auth session"""
 
         try:
@@ -137,7 +169,8 @@ class AuthService(SingletonServiceBase):
                 'refresh_token': refresh_token,
                 'expires_at': expires_at,
                 'created_at': now,
-                'last_used_at': now
+                'last_used_at': now,
+                'account_type': account_type
             }
 
             success = await db_service.create_session(session_data)
@@ -397,5 +430,20 @@ class AuthService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Error getting active sessions count: {e}")
             return 0
+
+    async def get_account_type(self, session_id: str) -> Optional[str]:
+        """Get account type for a session"""
+
+        try:
+            session_info = await db_service.get_session_info(session_id)
+
+            if not session_info:
+                return None
+
+            return session_info.get('account_type', 'normal')
+
+        except Exception as e:
+            logger.error(f"Failed to get account type: {e}")
+            return None
 
 auth_service = AuthService()

@@ -37,3 +37,8 @@ venv/
 
 # Cache
 .cache
+
+# Secrets
+*.crt
+*.key
+*.pem

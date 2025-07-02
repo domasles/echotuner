@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 import '../services/config_service.dart';
 import '../services/auth_service.dart';
@@ -9,6 +10,7 @@ import 'api_service.dart';
 
 class PersonalityService {
     static const String _lastSyncKey = 'last_artist_sync';
+    static const String _demoPersonalityKey = 'demo_personality';
 
     final ApiService _apiService;
     final AuthService _authService;
@@ -16,8 +18,38 @@ class PersonalityService {
 
     PersonalityService({required ApiService apiService, required AuthService authService, required ConfigService configService}) : _apiService = apiService, _authService = authService, _configService = configService;
 
+    Future<bool> _isDemoAccount() async {
+        try {
+            final sessionId = await _getSessionId();
+            if (sessionId == null) return false;
+            
+            final response = await _apiService.get('/auth/account_type/$sessionId');
+            return response['account_type'] == 'demo';
+        } catch (e) {
+            AppLogger.personality('Failed to get account type: $e');
+            
+            // If session not found (404) or unauthorized (401), trigger re-auth
+            if (e.toString().contains('404') || e.toString().contains('401')) {
+                AppLogger.personality('Session invalid, triggering logout for re-authentication');
+                await _authService.logout();
+            }
+            
+            return false;
+        }
+    }
+
     Future<void> saveUserContext(UserContext context) async {
-        AppLogger.personality('Saving context to API ONLY...');
+        final isDemoAccount = await _isDemoAccount();
+        
+        if (isDemoAccount) {
+            AppLogger.personality('Demo account: Saving context locally...');
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString(_demoPersonalityKey, jsonEncode(context.toJson()));
+            AppLogger.personality('Demo account: Context saved locally');
+            return;
+        }
+
+        AppLogger.personality('Saving context to API...');
         AppLogger.personality('Context data: ${context.toJson()}');
 
         final response = await _apiService.post('/personality/save', body: {
@@ -36,22 +68,56 @@ class PersonalityService {
     }
 
     Future<UserContext?> loadUserContext() async {
-        AppLogger.personality('Loading context from API ONLY...');
-
-        final response = await _apiService.get('/personality/load', headers: {
-            'session-id': await _getSessionId() ?? '',
-            'device-id': await _getDeviceId() ?? '',
-        });
-
-        final userContextData = response['user_context'];
-
-        if (userContextData != null) {
-            AppLogger.personality('Loaded context from API: $userContextData');
-            return UserContext.fromJson(userContextData);
+        final isDemoAccount = await _isDemoAccount();
+        
+        if (isDemoAccount) {
+            AppLogger.personality('Demo account: Loading context from local storage...');
+            final prefs = await SharedPreferences.getInstance();
+            final personalityJson = prefs.getString(_demoPersonalityKey);
+            
+            if (personalityJson != null) {
+                try {
+                    final contextData = jsonDecode(personalityJson);
+                    final context = UserContext.fromJson(contextData);
+                    AppLogger.personality('Demo account: Loaded context from local storage');
+                    return context;
+                } catch (e) {
+                    AppLogger.personality('Demo account: Failed to parse local personality: $e');
+                }
+            }
+            
+            AppLogger.personality('Demo account: No local personality found');
+            return null;
         }
 
-        AppLogger.personality('No context found in API');
-        return null;
+        AppLogger.personality('Loading context from API...');
+
+        try {
+            final response = await _apiService.get('/personality/load', headers: {
+                'session_id': await _getSessionId() ?? '',
+                'device_id': await _getDeviceId() ?? '',
+            });
+
+            final userContextData = response['user_context'];
+
+            if (userContextData != null) {
+                AppLogger.personality('Loaded context from API: $userContextData');
+                return UserContext.fromJson(userContextData);
+            }
+
+            AppLogger.personality('No context found in API');
+            return null;
+        } catch (e) {
+            AppLogger.personality('Failed to load context from API: $e');
+            
+            // If unauthorized, trigger re-auth
+            if (e.toString().contains('401') || e.toString().contains('404')) {
+                AppLogger.personality('Session invalid, triggering logout for re-authentication');
+                await _authService.logout();
+            }
+            
+            return null;
+        }
     }
 
     Future<void> clearUserContext() async {
@@ -74,8 +140,8 @@ class PersonalityService {
             }
 
             final response = await _apiService.get('/user/followed-artists', headers: {
-                'session-id': sessionIdToUse,
-                'device-id': await _getDeviceId() ?? '',
+                'session_id': sessionIdToUse,
+                'device_id': await _getDeviceId() ?? '',
             });
 
             final List<dynamic> artistsJson = response['artists'] ?? [];
