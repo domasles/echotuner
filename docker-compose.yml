@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+    # Combined API + Web App
+    echotuner-full:
+        build:
+        context: .
+        dockerfile: Dockerfile
+        target: combined
+
+        ports:
+            - "80:80"       # Flutter web app
+            - "8000:8000"   # API backend
+
+        environment:
+            - DEBUG=false
+            - AUTH_REQUIRED=true
+            - SECURE_HEADERS=true
+            - PLAYLIST_LIMIT_ENABLED=true
+            - REFINEMENT_LIMIT_ENABLED=true
+            - LOG_LEVEL=INFO
+            # Add your environment variables here
+            # - SPOTIFY_CLIENT_ID=your_client_id
+            # - SPOTIFY_CLIENT_SECRET=your_client_secret
+            # - SPOTIFY_REDIRECT_URI=http://localhost:8000/auth/callback
+            # - OPENAI_API_KEY=your_openai_key (optional)
+            # - ANTHROPIC_API_KEY=your_anthropic_key (optional)
+            # - AI_ENDPOINT=http://host.docker.internal:11434 (for local Ollama)
+
+        volumes:
+            - ./data:/app/data
+            - ./logs:/app/logs
+
+        restart: unless-stopped
+        healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+        interval: 30s
+        timeout: 10s
+        retries: 3
+        start_period: 60s
+
+    # API only
+    echotuner-api:
+        build:
+        context: .
+        dockerfile: Dockerfile
+        target: api
+
+        ports:
+            - "8001:8000"
+
+        environment:
+            - DEBUG=false
+            - AUTH_REQUIRED=true
+            - SECURE_HEADERS=true
+            - PLAYLIST_LIMIT_ENABLED=true
+
+        volumes:
+            - ./data:/app/data
+            - ./logs:/app/logs
+
+        restart: unless-stopped
+        profiles: ["api-only"]
+
+    # Web app only
+    echotuner-webapp:
+        build:
+        context: .
+        dockerfile: Dockerfile
+        target: webapp
+
+        ports:
+            - "8080:80"
+
+        restart: unless-stopped
+        profiles: ["webapp-only"]

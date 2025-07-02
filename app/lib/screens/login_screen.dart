@@ -1,11 +1,12 @@
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../config/app_constants.dart';
 import '../models/auth_models.dart';
 import '../utils/app_logger.dart';
-import '../config/app_constants.dart';
 
 class LoginScreen extends StatefulWidget {
     const LoginScreen({super.key});
@@ -71,8 +72,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             boxShadow: null,
                         ),
 
-                        child: Image.asset(
-                            'assets/logos/EchoTunerLogo.png',
+                        child: SvgPicture.asset(
+                            'assets/logos/EchoTunerLogo.svg',
                             width: 50,
                             height: 50,
                             fit: BoxFit.contain,
@@ -211,8 +212,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                        Image.asset(
-                            'assets/logos/SpotifyLogo.png',
+                        SvgPicture.asset(
+                            'assets/logos/SpotifyLogo.svg',
                             width: 32,
                             height: 32,
                         ),

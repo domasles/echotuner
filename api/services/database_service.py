@@ -400,6 +400,65 @@ class DatabaseService(SingletonServiceBase):
             logger.error(f"Failed to update session last used: {e}")
             return False
 
+    async def update_session_expiration(self, session_id: str, expires_at: int) -> bool:
+        """Update session expiration time"""
+
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute("UPDATE auth_sessions SET expires_at = ? WHERE session_id = ?", (expires_at, session_id))
+                await db.commit()
+
+                return True
+
+        except Exception as e:
+            logger.error(f"Failed to update session expiration: {e}")
+            return False
+
+    async def revoke_user_sessions(self, spotify_user_id: str) -> bool:
+        """Revoke all sessions for a specific user"""
+
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute("DELETE FROM auth_sessions WHERE spotify_user_id = ?", (spotify_user_id,))
+                await db.commit()
+
+                return True
+
+        except Exception as e:
+            logger.error(f"Failed to revoke user sessions: {e}")
+            return False
+
+    async def get_user_active_sessions_count(self, spotify_user_id: str) -> int:
+        """Get count of active sessions for a user"""
+
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                current_time = int(datetime.now().timestamp())
+                cursor = await db.execute("SELECT COUNT(*) FROM auth_sessions WHERE spotify_user_id = ? AND expires_at > ?", (spotify_user_id, current_time))
+                row = await cursor.fetchone()
+
+                return row[0] if row else 0
+
+        except Exception as e:
+            logger.error(f"Failed to get active sessions count: {e}")
+            return 0
+
+    async def cleanup_expired_auth_attempts(self) -> bool:
+        """Clean up expired authentication attempts"""
+
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                current_time = int(datetime.now().timestamp())
+
+                await db.execute("DELETE FROM auth_attempts WHERE expires_at < ?", (current_time,))
+                await db.commit()
+
+                return True
+
+        except Exception as e:
+            logger.error(f"Failed to cleanup expired auth attempts: {e}")
+            return False
+
     async def cleanup_expired_sessions(self) -> int:
         """Clean up expired sessions and states"""
 

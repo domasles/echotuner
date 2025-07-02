@@ -71,7 +71,20 @@ async def lifespan(app: FastAPI):
     """Handle startup and shutdown events"""
 
     logger.info(f"Starting {AppConstants.APP_NAME} API...")
-    
+    config_errors = settings.validate_required_settings()
+
+    if config_errors:
+        logger.error("Configuration validation failed:")
+
+        for error in config_errors:
+            logger.error(f"  - {error}")
+
+        if not settings.DEBUG:
+            raise Exception("Production configuration validation failed")
+
+        else:
+            logger.warning("Running in DEBUG mode with configuration issues")
+
     try:
         await db_service.initialize()
 
@@ -156,14 +169,40 @@ def sanitize_user_input(text: str, max_length: int = 500) -> str:
     if not text:
         return ""
 
+    if max_length is None:
+        max_length = settings.MAX_PROMPT_LENGTH
+
     text = text[:max_length]
     text = re.sub(r'\s+', ' ', text).strip()
-    dangerous_chars = ['<script', '</script', '<iframe', '</iframe', 'javascript:', 'vbscript:', 'onload=', 'onclick=']
-
-    for dangerous in dangerous_chars:
-        text = text.replace(dangerous, '')
+  
+    dangerous_patterns = [
+        r'<script[^>]*>.*?</script>',
+        r'<iframe[^>]*>.*?</iframe>',
+        r'javascript:',
+        r'vbscript:',
+        r'on\w+\s*=',
+        r'expression\s*\(',
+        r'eval\s*\(',
+        r'<.*?onerror.*?>',
+        r'<.*?onload.*?>',
+    ]
+    
+    for pattern in dangerous_patterns:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
     
     return text
+
+def sanitize_playlist_name(name: str) -> str:
+    """Sanitize playlist name input"""
+
+    if not name:
+        return ""
+
+    name = name[:settings.MAX_PLAYLIST_NAME_LENGTH]
+    name = re.sub(r'[<>:"/\\|?*]', '', name)
+    name = re.sub(r'\s+', ' ', name).strip()
+    
+    return name
 
 @app.middleware("http")
 async def add_security_headers(request, call_next):
@@ -323,7 +362,6 @@ async def health_check():
             },
             "features": {
                 "spotify_search": playlist_generator_service.spotify_search.is_ready(),
-                "ai_generation": True,  # AI generation is always available when configured
                 "rate_limiting": settings.PLAYLIST_LIMIT_ENABLED
             }
         }
@@ -333,6 +371,7 @@ async def health_check():
         raise HTTPException(status_code=403, detail="API health check is disabled in production mode")
 
 @app.get("/config")
+@debug_only
 async def get_config():
     """Get client configuration values"""
     return {
@@ -376,7 +415,7 @@ async def generate_playlist(request: PlaylistRequest):
     """Generate a playlist using AI-powered real-time song search"""
 
     try:
-        sanitized_prompt = sanitize_user_input(request.prompt, max_length=500)
+        sanitized_prompt = sanitize_user_input(request.prompt)
 
         if not sanitized_prompt:
             raise HTTPException(status_code=400, detail="Invalid or empty prompt")
@@ -603,18 +642,6 @@ async def update_playlist_draft(request: PlaylistRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating playlist draft: {str(e)}")
-
-@app.get("/rate-limit-status/{device_id}", response_model=RateLimitStatus)
-async def get_rate_limit_status(device_id: str):
-    """Get current rate limit status for a device (legacy endpoint - insecure)"""
-
-    logger.warning(f"Using insecure rate limit endpoint for device: {device_id}")
-
-    try:
-        return await rate_limiter_service.get_status(device_id)
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error checking rate limit: {str(e)}")
 
 @app.post("/auth/rate-limit-status", response_model=RateLimitStatus)
 async def get_authenticated_rate_limit_status(request: SessionValidationRequest):
@@ -1150,6 +1177,71 @@ async def production_readiness_check():
             "Configure monitoring"
         ]
     }
+
+@app.post("/auth/logout")
+async def logout(request: Request):
+    """Logout and invalidate session"""
+    try:
+        session_id = request.headers.get('session-id')
+        device_id = request.headers.get('device-id')
+        
+        if not session_id:
+            return {"message": "No session to logout", "success": False}
+        
+        # Validate the session exists before trying to invalidate
+        user_info = await auth_service.validate_session_and_get_user(session_id, device_id or "")
+        
+        if user_info:
+            # Session is valid, invalidate it
+            await auth_service.invalidate_session(session_id)
+            logger.info(f"Successfully logged out session {session_id} for user {user_info.get('spotify_user_id')}")
+            return {"message": "Logged out successfully", "success": True}
+        else:
+            # Session was already invalid
+            logger.info(f"Attempted to logout invalid session {session_id}")
+            return {"message": "Session was already invalid", "success": True}
+    
+    except Exception as e:
+        logger.error(f"Logout failed: {e}")
+        return {"message": "Logout failed", "success": False, "error": str(e)}
+
+@app.post("/auth/logout-all")
+async def logout_all(request: Request):
+    """Logout from all devices for the current user"""
+    try:
+        session_id = request.headers.get('session-id')
+        device_id = request.headers.get('device-id')
+        
+        if not session_id:
+            return {"message": "No session provided", "success": False}
+        
+        # Get user info before invalidating
+        user_info = await auth_service.validate_session_and_get_user(session_id, device_id or "")
+        
+        if user_info:
+            spotify_user_id = user_info.get('spotify_user_id')
+            await auth_service.revoke_all_user_sessions(spotify_user_id)
+            logger.info(f"Logged out all sessions for user {spotify_user_id}")
+            return {"message": "Logged out from all devices successfully", "success": True}
+        else:
+            return {"message": "Invalid session", "success": False}
+    
+    except Exception as e:
+        logger.error(f"Logout all failed: {e}")
+        return {"message": "Logout all failed", "success": False, "error": str(e)}
+
+@app.post("/auth/cleanup")
+@debug_only
+async def cleanup_sessions():
+    """Clean up expired sessions and auth attempts (debug only)"""
+    try:
+        await auth_service.cleanup_expired_sessions()
+        await db_service.cleanup_expired_auth_attempts()
+        return {"message": "Cleanup completed successfully"}
+    
+    except Exception as e:
+        logger.error(f"Cleanup failed: {e}")
+        raise HTTPException(status_code=500, detail="Cleanup failed")
 
 if __name__ == "__main__":
     logger.info(AppConstants.STARTUP_MESSAGE)

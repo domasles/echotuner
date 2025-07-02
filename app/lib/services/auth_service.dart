@@ -238,10 +238,10 @@ class AuthService extends ChangeNotifier {
 
         try {
             if (_sessionId != null && _deviceId != null) {
-                AppLogger.debug('Clearing personality data from API...');
+                AppLogger.debug('Invalidating session on server...');
 
-                final response = await http.post(
-                    Uri.parse('${AppConfig.apiBaseUrl}/personality/clear'),
+                final logoutResponse = await http.post(
+                    Uri.parse(AppConfig.apiUrl('/auth/logout')),
                     headers: {
                         'Content-Type': 'application/json',
                         'session-id': _sessionId!,
@@ -253,18 +253,18 @@ class AuthService extends ChangeNotifier {
                     }),
                 );
 
-                if (response.statusCode == 200) {
-                    AppLogger.debug('Personality data cleared from API successfully');
+                if (logoutResponse.statusCode == 200) {
+                    AppLogger.debug('Session invalidated on server successfully');
                 }
 
 				else {
-                    AppLogger.debug('Failed to clear personality data: ${response.body}');
+                    AppLogger.debug('Failed to invalidate session on server: ${logoutResponse.body}');
                 }
             }
         }
-
+		
 		catch (e) {
-            AppLogger.debug('Error clearing personality data: $e');
+            AppLogger.debug('Error during server logout operations: $e');
         }
 
         await _clearSession();

@@ -98,7 +98,47 @@ Before setting up EchoTuner, ensure you have:
 
 ### Installation
 
-#### 1. Clone the Repository
+#### Docker Deployment (Recommended)
+
+**1. Build Docker Images**
+```bash
+# Build all images (API, Web App, Combined)
+docker build --target api -t echotuner-api .
+docker build --target webapp -t echotuner-webapp .
+docker build --target combined -t echotuner-full .
+
+# Or build specific target
+docker build --target api -t echotuner-api .
+```
+
+**2. Run with Docker Compose**
+```bash
+# Full platform (API + Web App)
+docker-compose up -d
+
+# API only
+docker-compose --profile api-only up -d
+
+# Web app only  
+docker-compose --profile webapp-only up -d
+```
+
+**3. Configure Environment**
+Edit `docker-compose.yml` with your API keys:
+```yaml
+environment:
+  - SPOTIFY_CLIENT_ID=your_client_id
+  - SPOTIFY_CLIENT_SECRET=your_client_secret
+  - OPENAI_API_KEY=your_openai_key  # Optional
+  - ANTHROPIC_API_KEY=your_anthropic_key  # Optional
+```
+
+**4. Access Services**
+- **Web App**: http://localhost:80
+- **API**: http://localhost:8000
+- **API Health**: http://localhost:8000/health
+
+#### Manual Installation
 ```bash
 git clone https://github.com/your-repo/echotuner.git
 cd echotuner
@@ -363,7 +403,6 @@ Service health and dependency status.
     },
     "features": {
         "spotify_search": true,
-        "ai_generation": true,
         "rate_limiting": false
     }
 }

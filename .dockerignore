@@ -1,0 +1,50 @@
+# Development files
+.git
+.gitignore
+README.md
+.env
+.env.local
+.env.example
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*/build/
+*/dist/
+*/.dart_tool/
+*/node_modules/
+
+# Logs
+*.log
+logs/
+*/logs/
+
+# Database files (will be mounted as volume)
+*.db
+*.db-wal
+*.db-shm
+
+# Flutter specific
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.packages
+app/pubspec.lock
+
+# Python specific
+api/__pycache__/
+api/*.pyc
+api/*.pyo
+api/.pytest_cache/
+
+# Docker files (don't include in image)
+docker-compose*.yml
+Dockerfile
+.dockerignore

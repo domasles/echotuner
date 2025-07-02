@@ -1,4 +1,5 @@
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
@@ -222,15 +223,27 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                         ),
 
                         Tab(
-                            icon: Image.asset(
-                                'assets/logos/SpotifyLogo.png',
-                                width: 24,
-                                height: 24,
-                                errorBuilder: (context, error, stackTrace) {
-                                    return const Icon(Icons.music_note);
+                            icon: AnimatedBuilder(
+                                animation: tabController!,
+                                builder: (context, child) {
+                                    final isSpotifyTabSelected = tabController!.index == 1;
+                                    final iconColor = isSpotifyTabSelected ? AppColors.primary : Colors.white70;
+                                    
+                                    return ColorFiltered(
+                                        colorFilter: ColorFilter.mode(
+                                            iconColor,
+                                            BlendMode.srcIn,
+                                        ),
+
+                                        child: SvgPicture.asset(
+                                            'assets/logos/SpotifyLogo.svg',
+                                            width: 24,
+                                            height: 24,
+                                            fit: BoxFit.contain,
+                                        ),
+                                    );
                                 },
                             ),
-
                             text: 'Spotify',
                         ),
                     ],

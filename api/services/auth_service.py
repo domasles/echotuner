@@ -115,7 +115,7 @@ class AuthService(SingletonServiceBase):
                 expires_at=int((datetime.now() + timedelta(seconds=token_info['expires_in'])).timestamp())
             )
 
-            logger.info(f"Created session for user {user_info['id']} on device {device_info['device_id']}")
+            logger.info(f"Created session for Spotify user {user_info['id']} on device {device_info['device_id']}")
             return session_id
 
         except Exception as e:
@@ -351,5 +351,51 @@ class AuthService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Failed to get user from session: {e}")
             return None
+
+    async def is_session_expired(self, session_id: str) -> bool:
+        """Check if a session is expired"""
+
+        try:
+            session_info = await db_service.get_session_info(session_id)
+
+            if not session_info:
+                return True
+
+            return datetime.now().timestamp() > session_info['expires_at']
+
+        except Exception as e:
+            logger.error(f"Error checking session expiration: {e}")
+            return True
+
+    async def extend_session(self, session_id: str, hours: int = 24) -> bool:
+        """Extend session expiration time"""
+
+        try:
+            new_expires_at = int((datetime.now() + timedelta(hours=hours)).timestamp())
+            return await db_service.update_session_expiration(session_id, new_expires_at)
+
+        except Exception as e:
+            logger.error(f"Error extending session: {e}")
+            return False
+
+    async def revoke_all_user_sessions(self, spotify_user_id: str) -> bool:
+        """Revoke all sessions for a specific user"""
+
+        try:
+            return await db_service.revoke_user_sessions(spotify_user_id)
+
+        except Exception as e:
+            logger.error(f"Error revoking user sessions: {e}")
+            return False
+
+    async def get_active_sessions_count(self, spotify_user_id: str) -> int:
+        """Get count of active sessions for a user"""
+
+        try:
+            return await db_service.get_user_active_sessions_count(spotify_user_id)
+
+        except Exception as e:
+            logger.error(f"Error getting active sessions count: {e}")
+            return 0
 
 auth_service = AuthService()

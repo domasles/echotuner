@@ -2,6 +2,20 @@
 
 # EchoTuner API - AI-Powered Playlist Generation Backend
 
+## 🔒 Security & Production Updates
+
+**Latest Security Enhancements:**
+- **Session Management**: Secure OAuth2 with automatic expiration and cleanup
+- **Rate Limiting**: User-based limits (not device-based) for consistent experience across devices
+- **Input Validation**: Enhanced sanitization and length restrictions
+- **CORS Security**: Environment-specific origin restrictions
+- **Security Headers**: OWASP-recommended headers in production mode
+- **Configuration Validation**: Startup validation ensures production readiness
+
+**Docker Ready**: Multi-stage builds with API + Flutter web deployment support.
+
+---
+
 The EchoTuner API is a production-ready RESTful service that generates personalized music playlists using artificial intelligence and natural language processing. This backend service powers the EchoTuner platform with intelligent music recommendations through flexible AI model support and real-time Spotify integration.
 
 **Current Version: 1.6.0**
@@ -474,47 +488,3 @@ async def _generate_custom_provider(self, prompt: str, model_config: AIModelConf
 **Error Handling**: Always include proper error handling for timeouts, connection errors, and API-specific errors.
 
 **Security**: Never log or expose API keys, validate inputs, implement rate limiting, and use timeouts to prevent hanging requests.
-        headers={"Authorization": f"Bearer {settings.YOUR_PROVIDER_API_KEY}"},
-        max_tokens=2000,
-        temperature=0.7
-    )
-```
-
-3. **Implement the provider logic** in `services/ai_service.py`:
-```python
-# Add to AIService.generate_text()
-elif model_config.name.lower() == "your_provider":
-    return await self._generate_your_provider(prompt, model_config, **kwargs)
-```
-
-4. **Set as default** (optional):
-```env
-DEFAULT_AI_PROVIDER=your_provider
-```
-
-### Model Selection Strategy
-
-The system selects AI models in this order:
-1. **Explicit model specified** in API request
-2. **Default model** from `DEFAULT_AI_PROVIDER` environment variable
-3. **Ollama fallback** if available
-4. **Error** if no models are configured
-
-### Testing Your Setup
-
-After configuration, test your AI models:
-
-```bash
-# Test default model
-curl -X POST "http://localhost:8000/ai/test" \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Hello, this is a test."}'
-
-# Test specific model
-curl -X POST "http://localhost:8000/ai/test" \
-  -H "Content-Type: application/json" \
-  -d '{"model_id": "openai", "prompt": "Hello, this is a test."}'
-
-# List available models
-curl "http://localhost:8000/ai/models"
-```
