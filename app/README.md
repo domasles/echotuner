@@ -87,7 +87,6 @@ For complete Flutter installation instructions and required dependencies for bui
 
 4. **Install dependencies:**
    ```bash
-   # Install dependencies
     dart pub get
     ```
 
@@ -101,7 +100,13 @@ For complete Flutter installation instructions and required dependencies for bui
    dart run flutter_launcher_icons
    ```
 
-7. **Run the app:**
+7. **Copy over the AndroidManifest.xml file:**
+   ```bash
+   cp AndroidManifest.xml.sample android/app/src/main/AndroidManifest.xml
+   ```
+   This step is necessary to ensure the app has the correct permissions and configurations for Android.
+
+8. **Run the app:**
    ```bash
    flutter run
    ```

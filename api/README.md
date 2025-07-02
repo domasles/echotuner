@@ -2,7 +2,7 @@
 
 # EchoTuner API - AI-Powered Playlist Generation Backend
 
-## 🔒 Security & Production Updates
+## Security & Production Updates
 
 **Latest Security Enhancements:**
 - **Session Management**: Secure OAuth2 with automatic expiration and cleanup

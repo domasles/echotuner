@@ -267,12 +267,18 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     Future<void> _handleBrowserAuth(AuthInitResponse authResponse) async {
-        if (await canLaunchUrl(Uri.parse(authResponse.authUrl))) {
-            if (!mounted) return;
-            final authService = context.read<AuthService>();
+        if (!mounted) return;
+        final authService = context.read<AuthService>();
+
+        try {
+            final uri = Uri.parse(authResponse.authUrl);
+
+            if (!await canLaunchUrl(uri)) {
+                throw Exception('No application available to handle this URL');
+            }
 
             await launchUrl(
-                Uri.parse(authResponse.authUrl),
+                uri,
                 mode: LaunchMode.externalApplication,
             );
 
@@ -295,6 +301,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     _showErrorDialog(errorMessage);
                 }
+            }
+        }
+
+		catch (e) {
+            if (mounted) {
+                AppLogger.error('Failed to launch browser: $e');
+                _showErrorDialog('Failed to open browser. Please ensure you have a default browser set and try again.');
             }
         }
     }

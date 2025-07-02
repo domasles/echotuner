@@ -1181,26 +1181,26 @@ async def production_readiness_check():
 @app.post("/auth/logout")
 async def logout(request: Request):
     """Logout and invalidate session"""
+
     try:
         session_id = request.headers.get('session-id')
         device_id = request.headers.get('device-id')
-        
+
         if not session_id:
             return {"message": "No session to logout", "success": False}
-        
-        # Validate the session exists before trying to invalidate
+
         user_info = await auth_service.validate_session_and_get_user(session_id, device_id or "")
         
         if user_info:
-            # Session is valid, invalidate it
             await auth_service.invalidate_session(session_id)
             logger.info(f"Successfully logged out session {session_id} for user {user_info.get('spotify_user_id')}")
+
             return {"message": "Logged out successfully", "success": True}
+
         else:
-            # Session was already invalid
             logger.info(f"Attempted to logout invalid session {session_id}")
             return {"message": "Session was already invalid", "success": True}
-    
+
     except Exception as e:
         logger.error(f"Logout failed: {e}")
         return {"message": "Logout failed", "success": False, "error": str(e)}
@@ -1214,18 +1214,19 @@ async def logout_all(request: Request):
         
         if not session_id:
             return {"message": "No session provided", "success": False}
-        
-        # Get user info before invalidating
+
         user_info = await auth_service.validate_session_and_get_user(session_id, device_id or "")
-        
+
         if user_info:
             spotify_user_id = user_info.get('spotify_user_id')
             await auth_service.revoke_all_user_sessions(spotify_user_id)
             logger.info(f"Logged out all sessions for user {spotify_user_id}")
+
             return {"message": "Logged out from all devices successfully", "success": True}
+
         else:
             return {"message": "Invalid session", "success": False}
-    
+
     except Exception as e:
         logger.error(f"Logout all failed: {e}")
         return {"message": "Logout all failed", "success": False, "error": str(e)}
@@ -1234,11 +1235,13 @@ async def logout_all(request: Request):
 @debug_only
 async def cleanup_sessions():
     """Clean up expired sessions and auth attempts (debug only)"""
+
     try:
         await auth_service.cleanup_expired_sessions()
         await db_service.cleanup_expired_auth_attempts()
+
         return {"message": "Cleanup completed successfully"}
-    
+
     except Exception as e:
         logger.error(f"Cleanup failed: {e}")
         raise HTTPException(status_code=500, detail="Cleanup failed")

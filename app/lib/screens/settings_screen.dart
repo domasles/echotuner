@@ -1,3 +1,4 @@
+import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
@@ -62,6 +63,26 @@ class SettingsScreen extends StatelessWidget {
                         icon: Icons.help,
                         title: 'Help & Support',
                         subtitle: 'Get help and contact support',
+                    ),
+
+					SettingsTile(
+                        icon: Icons.code,
+                        title: 'Source Code',
+                        subtitle: 'View on GitHub',
+
+                        onTap: () async {
+                            final url = Uri.parse(AppConstants.githubRepositoryUrl);
+
+                            if (await canLaunchUrl(url)) {
+                                await launchUrl(url, mode: LaunchMode.externalApplication);
+                            }
+
+							else {
+                                if (context.mounted) {
+                                    MessageService.showError(context, 'Could not open GitHub repository');
+                                }
+                            }
+                        },
                     ),
 
                     const SettingsTile(
