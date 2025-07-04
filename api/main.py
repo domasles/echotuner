@@ -574,6 +574,9 @@ async def refine_playlist(request: PlaylistRequest):
                 refinements_used = await db_service.get_demo_playlist_refinements(playlist_id)
                 logger.info(f"Demo playlist {playlist_id} has {refinements_used} refinements used")
                 
+                # For demo accounts, always use current_songs from request (not stored on API)
+                current_songs = request.current_songs or []
+                
                 if settings.REFINEMENT_LIMIT_ENABLED and refinements_used >= settings.MAX_REFINEMENTS_PER_PLAYLIST:
                     raise HTTPException(
                         status_code=429,
@@ -811,12 +814,29 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
         if not spotify_playlist_service.is_ready():
             raise HTTPException(status_code=503, detail="Spotify playlist service not available")
 
-        draft = await playlist_draft_service.get_draft(request.playlist_id)
+        # For demo accounts, don't look up draft on API since they store locally
+        # For normal accounts, get the draft from API
+        if user_info and user_info.get('account_type') == 'demo':
+            # Demo accounts don't store drafts on API, so we use provided songs
+            if not request.songs:
+                raise HTTPException(status_code=400, detail="Songs list required for demo accounts")
+            
+            # Verify the playlist exists in demo_playlists table
+            demo_refinements = await db_service.get_demo_playlist_refinements(request.playlist_id)
+            if demo_refinements < 0:  # This would indicate playlist doesn't exist
+                raise HTTPException(status_code=404, detail="Demo playlist not found")
+            
+            songs = request.songs
+            draft = None  # No draft for demo accounts
+        else:
+            # For normal accounts, get the draft from API
+            draft = await playlist_draft_service.get_draft(request.playlist_id)
+            if not draft:
+                raise HTTPException(status_code=404, detail="Draft playlist not found")
+            songs = draft.songs
 
-        if not draft:
-            raise HTTPException(status_code=404, detail="Draft playlist not found")
-
-        if draft.session_id and draft.session_id != request.session_id:
+        # Only do session validation for normal accounts with drafts
+        if draft and draft.session_id and draft.session_id != request.session_id:
             draft_user_info = await auth_service.get_user_from_session(draft.session_id)
             current_user_spotify_id = user_info.get('spotify_user_id')
             draft_user_spotify_id = draft_user_info.get('spotify_user_id') if draft_user_info else None
@@ -829,7 +849,7 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
                 logger.warning(f"Access denied: draft belongs to user {draft_user_spotify_id}, current user is {current_user_spotify_id}")
                 raise HTTPException(status_code=403, detail="This draft belongs to a different user")
 
-        elif not draft.session_id and draft.device_id != request.device_id:
+        elif draft and not draft.session_id and draft.device_id != request.device_id:
             logger.warning(f"Access denied: draft device {draft.device_id}, current device {request.device_id}")
             raise HTTPException(status_code=403, detail="This draft belongs to a different device")
 
@@ -841,22 +861,24 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
         spotify_playlist_id, playlist_url = await spotify_playlist_service.create_playlist(
             access_token=access_token,
             name=request.name,
-            songs=draft.songs,
+            songs=songs,
             description=request.description,
             public=request.public or False
         )
 
-        await playlist_draft_service.mark_as_added_to_spotify(
-            playlist_id=request.playlist_id,
-            spotify_playlist_id=spotify_playlist_id,
-            spotify_url=playlist_url,
-            user_id=user_info.get('spotify_user_id'),
-            device_id=request.device_id,
-            session_id=request.session_id,
-            playlist_name=request.name
-        )
+        # Only mark draft as added to Spotify for normal accounts (demo accounts handle this locally)
+        if draft:
+            await playlist_draft_service.mark_as_added_to_spotify(
+                playlist_id=request.playlist_id,
+                spotify_playlist_id=spotify_playlist_id,
+                spotify_url=playlist_url,
+                user_id=user_info.get('spotify_user_id'),
+                device_id=request.device_id,
+                session_id=request.session_id,
+                playlist_name=request.name
+            )
 
-        logger.info(f"Created Spotify playlist {spotify_playlist_id} from draft {request.playlist_id}")
+        logger.info(f"Created Spotify playlist {spotify_playlist_id} from {'draft' if draft else 'demo playlist'} {request.playlist_id}")
 
         return SpotifyPlaylistResponse(
             success=True,

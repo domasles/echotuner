@@ -230,6 +230,7 @@ class PlaylistProvider extends ChangeNotifier {
             'songs': _currentPlaylist.map((s) => s.toJson()).toList(),
             'prompt': _currentPrompt,
             'playlist_id': _currentPlaylistId,
+            'is_added_to_spotify': _isPlaylistAddedToSpotify,
             'saved_at': DateTime.now().toIso8601String(),
         };
         // Note: Don't save refinements_used locally - API handles all refinement tracking
@@ -266,7 +267,7 @@ class PlaylistProvider extends ChangeNotifier {
                 .toList();
             _currentPrompt = data['prompt'] ?? '';
             _currentPlaylistId = data['playlist_id'];
-            _isPlaylistAddedToSpotify = false; // Never added to Spotify in demo mode
+            _isPlaylistAddedToSpotify = data['is_added_to_spotify'] ?? false;
             
             AppLogger.playlist('Loaded current playlist from local storage');
         } catch (e) {
@@ -486,13 +487,8 @@ class PlaylistProvider extends ChangeNotifier {
             // Save refined playlist locally for demo accounts and handle refinement counts
             final isDemoAccount = await _isDemoAccount();
             if (isDemoAccount) {
-                // Load demo playlist refinements after refining
+                // For demo accounts, reload refinement count from API after refining
                 await _loadDemoPlaylistRefinements();
-                
-                // If we have a current playlist, increment the local count
-                if (_currentPlaylistId != null && _demoPlaylistRefinements != null) {
-                    _demoPlaylistRefinements = _demoPlaylistRefinements! + 1;
-                }
                 
                 await _saveCurrentPlaylistLocally();
                 
@@ -532,9 +528,14 @@ class PlaylistProvider extends ChangeNotifier {
                     }
                 }
             } else {
-                // For normal accounts, increment the current playlist refinement count
-                if (_currentPlaylistRefinements != null) {
-                    _currentPlaylistRefinements = _currentPlaylistRefinements! + 1;
+                // For normal accounts, reload refinement count from draft API after refining
+                // The API increments the draft's refinement count, so we need to get the updated value
+                if (_currentPlaylistId != null) {
+                    // We could reload the draft here, but for now just increment locally
+                    // since the draft service handles the increment on the API side
+                    if (_currentPlaylistRefinements != null) {
+                        _currentPlaylistRefinements = _currentPlaylistRefinements! + 1;
+                    }
                 }
             }
             
@@ -724,6 +725,7 @@ class PlaylistProvider extends ChangeNotifier {
                 name: playlistName,
                 description: description,
                 public: false, // Keep default behavior
+                songs: isDemoAccount ? _currentPlaylist : null, // Provide current songs for demo accounts
             );
 
             final response = await _apiService.createSpotifyPlaylist(request);
@@ -876,13 +878,13 @@ class PlaylistProvider extends ChangeNotifier {
         _currentPrompt = draft.prompt;
         _currentPlaylistId = draft.id;
         
-        // In demo mode, playlists are never added to Spotify
-        final isDemoAccount = await _isDemoAccount();
-        _isPlaylistAddedToSpotify = isDemoAccount ? false : draft.isAddedToSpotify;
+        // Demo accounts can also add playlists to Spotify
+        _isPlaylistAddedToSpotify = draft.isAddedToSpotify;
         
         _spotifyPlaylistInfo = null;
         _error = null;
 
+        final isDemoAccount = await _isDemoAccount();
         if (isDemoAccount) {
             // Load demo playlist refinements for demo accounts
             await _loadDemoPlaylistRefinements();

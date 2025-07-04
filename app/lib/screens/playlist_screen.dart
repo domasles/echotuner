@@ -172,7 +172,7 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
                                 }
                             },
 
-                            child: Text(provider.isPlaylistAddedToSpotify ? 'Update' : 'Add to Spotify'),
+                            child: Text('Add to Spotify'),
                         ),
                     ],
                 );
@@ -400,7 +400,7 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
                                     child: CircularProgressIndicator(strokeWidth: 2),
                                 )
 
-                                : Text(provider.isPlaylistAddedToSpotify ? 'Update' : 'Add to Spotify'),
+                                : Text('Add to Spotify'),
                             ),
                         ),
 

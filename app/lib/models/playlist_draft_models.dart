@@ -68,6 +68,7 @@ class SpotifyPlaylistRequest {
     final String name;
     final String? description;
     final bool? public;
+    final List<Song>? songs; // For demo accounts to provide current song list
 
     SpotifyPlaylistRequest({
         required this.playlistId,
@@ -76,6 +77,7 @@ class SpotifyPlaylistRequest {
         required this.name,
         this.description,
         this.public,
+        this.songs,
     });
 
     factory SpotifyPlaylistRequest.fromJson(Map<String, dynamic> json) => _$SpotifyPlaylistRequestFromJson(json);

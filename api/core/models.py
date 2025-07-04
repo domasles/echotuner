@@ -126,6 +126,7 @@ class SpotifyPlaylistRequest(BaseModel):
     name: str
     description: Optional[str] = None
     public: Optional[bool] = False
+    songs: Optional[List[Song]] = None  # For demo accounts to provide current song list
 
 class SpotifyPlaylistResponse(BaseModel):
     success: bool
