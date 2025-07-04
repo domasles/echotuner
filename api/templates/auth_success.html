@@ -20,7 +20,8 @@
         if (window.opener) {
             window.opener.postMessage({
                 type: 'SPOTIFY_AUTH_SUCCESS',
-                sessionId: '{{session_id}}'
+                sessionId: '{{session_id}}',
+                deviceId: '{{device_id}}'
             }, '*');
         }
         setTimeout(() => {

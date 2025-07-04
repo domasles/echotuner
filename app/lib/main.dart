@@ -44,7 +44,14 @@ class EchoTunerApp extends StatelessWidget {
                 ),
 
                 Provider<ApiService>(
-                    create: (context) => ApiService(),
+                    create: (context) {
+                        final apiService = ApiService();
+                        // Set AuthService reference after both services are created
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                            apiService.setAuthService(context.read<AuthService>());
+                        });
+                        return apiService;
+                    },
                 ),
 
                 Provider<ConfigService>(

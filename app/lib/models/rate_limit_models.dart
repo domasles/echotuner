@@ -51,3 +51,28 @@ class RateLimitStatus {
     factory RateLimitStatus.fromJson(Map<String, dynamic> json) => _$RateLimitStatusFromJson(json);
     Map<String, dynamic> toJson() => _$RateLimitStatusToJson(this);
 }
+
+@JsonSerializable()
+class DemoPlaylistRefinements {
+    @JsonKey(name: 'playlist_id')
+    final String playlistId;
+
+    @JsonKey(name: 'refinements_used')
+    final int refinementsUsed;
+
+    @JsonKey(name: 'max_refinements')
+    final int maxRefinements;
+
+    @JsonKey(name: 'can_refine')
+    final bool canRefine;
+
+    const DemoPlaylistRefinements({
+        required this.playlistId,
+        required this.refinementsUsed,
+        required this.maxRefinements,
+        required this.canRefine,
+    });
+
+    factory DemoPlaylistRefinements.fromJson(Map<String, dynamic> json) => _$DemoPlaylistRefinementsFromJson(json);
+    Map<String, dynamic> toJson() => _$DemoPlaylistRefinementsToJson(this);
+}

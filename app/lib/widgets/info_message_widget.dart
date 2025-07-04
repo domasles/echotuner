@@ -90,7 +90,7 @@ class InfoMessageWidget extends StatelessWidget {
                             onPressed: onDismiss,
                             icon: const Icon(Icons.close),
                             iconSize: 16,
-                            color: _getTextColor().withValues(alpha: 128),
+                            color: _getTextColor().withValues(alpha: 0.5),
                             padding: EdgeInsets.zero,
 
                             constraints: const BoxConstraints(

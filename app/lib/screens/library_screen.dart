@@ -250,7 +250,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                 ),
 
                 Expanded(
-                    child: TabBarView(
+                    child: isLibraryLoading ? const Center(child: CircularProgressIndicator()) : TabBarView(
                         controller: tabController,
                         children: [
                             _buildDraftsTab(),
@@ -287,11 +287,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
             );
         }
         
-        if (isLibraryLoading) {
-            return const Center(child: CircularProgressIndicator());
-        }
-        
-        if (drafts.isEmpty) {
+        if (drafts.isEmpty && !isLibraryLoading) {
             return const Center(
                 child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -431,11 +427,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
             );
         }
 
-        if (isLibraryLoading) {
-            return const Center(child: CircularProgressIndicator());
-        }
-
-        if (spotifyPlaylists.isEmpty) {
+        if (spotifyPlaylists.isEmpty && !isLibraryLoading) {
             return const Center(
                 child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,

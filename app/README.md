@@ -9,6 +9,8 @@ The EchoTuner application provides a user-friendly interface for AI-powered play
 The EchoTuner app delivers an intuitive experience for creating personalized playlists through natural language prompts. Users can describe their mood, preferences, or activities, and the app leverages AI-powered backend services to generate tailored music recommendations with support for multiple AI providers.
 
 **Key Features:**
+- **Demo Mode Support**: Automatic detection and handling of demo vs. normal account types
+- **Local Data Storage**: Intelligent storage management with server sync for normal users and local-only storage for demo users
 - **Natural Language Interface**: Describe your music preferences in plain language
 - **AI-Powered Recommendations**: Intelligent playlist generation with flexible AI model support
 - **Cross-Platform Compatibility**: Built with Flutter for Android, iOS, Desktop and Web
@@ -18,6 +20,7 @@ The EchoTuner app delivers an intuitive experience for creating personalized pla
 - **Library Management**: Track drafts and created playlists with silent refresh system
 - **Song Management**: Add, remove, and reorder songs with Spotify sync
 - **Smart Limit Indicators**: Visual rate limiting with floating progress bars
+- **Optimized API Usage**: Context limit enforcement to prevent unnecessary API calls
 
 ## Prerequisites
 
@@ -173,6 +176,30 @@ Key Flutter packages used in the project:
 - **Build Runner**: For code generation
 
 For complete dependency list, see `pubspec.yaml`.
+
+## Demo Mode
+
+The EchoTuner app automatically detects and adapts to demo mode configuration on the backend.
+
+**Demo Mode Features:**
+- **Automatic Detection**: App detects demo accounts and adjusts functionality accordingly
+- **Local Data Storage**: User preferences and context stored locally for demo users, server sync for normal users
+- **No Spotify Data Access**: Demo mode users cannot access followed artists or listening history
+- **Manual Artist Entry**: Demo users can manually search and add artists but cannot import Spotify data
+- **Session Management**: Seamless switching between demo and normal modes with automatic session cleanup
+- **Full Functionality**: Complete playlist generation and refinement capabilities using manually entered preferences
+
+**User Experience:**
+- Demo users see prompts to manually enter music preferences instead of importing from Spotify
+- Context limits are enforced locally to prevent unnecessary API calls
+- All playlist generation and music discovery features remain fully functional
+- No visual differences in the UI - demo mode is transparent to the user
+
+**Technical Implementation:**
+- `PersonalityService` automatically detects account type via API calls
+- Local storage used for demo users via `SharedPreferences`
+- API calls for personality data are skipped for demo accounts
+- Artist search functionality remains available in demo mode
 
 ## Build and Release
 

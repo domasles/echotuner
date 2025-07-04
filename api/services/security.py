@@ -9,34 +9,9 @@ from fastapi import HTTPException
 from functools import wraps
 
 from config.settings import settings
+from utils.decorators import debug_only, production_safe
 
 logger = logging.getLogger(__name__)
-
-def debug_only(func):
-    """Decorator to restrict endpoints to debug mode only."""
-
-    @wraps(func)
-    async def wrapper(*args, **kwargs):
-        if not settings.DEBUG:
-            logger.warning(f"Debug-only endpoint '{func.__name__}' accessed in production mode")
-
-            raise HTTPException(
-                status_code=403, 
-                detail="This endpoint is only available in debug mode"
-            )
-
-        return await func(*args, **kwargs)
-
-    return wrapper
-
-def production_safe(func):
-    """Decorator to mark endpoints as production-safe."""
-
-    @wraps(func)
-    async def wrapper(*args, **kwargs):
-        return await func(*args, **kwargs)
-
-    return wrapper
 
 class SecurityConfig:
     """Security configuration for production deployment."""

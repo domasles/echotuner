@@ -21,12 +21,14 @@ The EchoTuner API is a production-ready RESTful service that generates personali
 The API provides intelligent playlist generation capabilities with support for multiple AI providers including local Ollama models, OpenAI, Anthropic Claude, and custom AI endpoints. Built with FastAPI, it offers asynchronous request processing, comprehensive error handling, and seamless integration capabilities for third-party applications.
 
 **Key Features:**
+- **Demo Mode**: Configurable demo mode for public deployments with session isolation
 - **Flexible AI Models**: Support for Ollama (local), OpenAI, Anthropic Claude, and custom endpoints
 - **Real-Time Processing**: Live Spotify search integrated with AI analysis
 - **User Personality System**: Comprehensive preference learning and application
 - **Production Hardened**: Comprehensive error handling with graceful failures
 - **Integration Ready**: RESTful API designed for both internal app and external integration
 - **Configurable Rate Limiting**: Independent playlist and refinement limits with backend control
+- **Underscore Naming**: Consistent snake_case naming for all API fields and headers
 
 ## AI Model Support
 
@@ -187,6 +189,9 @@ LOG_LEVEL=INFO
 
 DATABASE_FILENAME=echotuner.db
 
+# Demo Mode Configuration
+DEMO=false  # Set to true to enable demo mode for public deployments
+
 # Ollama Configuration (for AI models)
 USE_OLLAMA=true
 OLLAMA_TIMEOUT=30
@@ -228,6 +233,32 @@ SECURE_HEADERS=true
 ```
 
 For complete configuration options, see the [Configuration](../README.md#configuration) section in the master documentation.
+
+## Demo Mode
+
+Demo mode provides a secure way to offer public access to EchoTuner functionality while complying with Spotify's API limitations.
+
+**Demo Mode Features:**
+- **Account Isolation**: Each device gets a unique demo account (`account_type="demo"`)
+- **No Spotify Data Access**: Demo users cannot access followed artists or listening history
+- **Session Management**: Automatic cleanup when switching between demo and normal modes
+- **Same API Endpoints**: No special endpoints required - account type is detected automatically
+
+**Configuration:**
+```env
+DEMO=true  # Enable demo mode
+```
+
+**Account Type Detection:**
+The API automatically creates demo accounts when in demo mode. Use the `/auth/account_type/{session_id}` endpoint to check account type:
+```bash
+GET /auth/account_type/your_session_id
+# Returns: {"account_type": "demo"} or {"account_type": "normal"}
+```
+
+**Session Switching:**
+- Switching from normal to demo: Normal sessions preserved, new demo session created
+- Switching from demo to normal: Demo sessions cleaned up, normal authentication required
 
 ## Development and Testing
 

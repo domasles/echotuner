@@ -21,13 +21,16 @@ class AuthInitRequest {
 @JsonSerializable()
 class AuthInitResponse {
     @JsonKey(name: 'auth_url')
-
     final String authUrl;
     final String state;
+    
+    @JsonKey(name: 'device_id')
+    final String deviceId;
 
     AuthInitResponse({
         required this.authUrl,
         required this.state,
+        required this.deviceId,
     });
 
     factory AuthInitResponse.fromJson(Map<String, dynamic> json) => _$AuthInitResponseFromJson(json);

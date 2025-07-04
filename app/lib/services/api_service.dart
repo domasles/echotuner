@@ -7,9 +7,22 @@ import '../models/playlist_request.dart';
 import '../models/app_config.dart';
 import '../utils/app_logger.dart';
 import '../config/settings.dart';
+import 'auth_service.dart';
 
 class ApiService {
     final http.Client _client = http.Client();
+    AuthService? _authService;
+    
+    void setAuthService(AuthService authService) {
+        _authService = authService;
+    }
+
+    Future<void> _handle401() async {
+        AppLogger.api('Received 401 - triggering logout');
+        if (_authService != null) {
+            await _authService!.logout();
+        }
+    }
 
     Future<Map<String, dynamic>> get(String endpoint, {Map<String, String>? headers}) async {
         AppLogger.api('GET $endpoint');
@@ -26,6 +39,7 @@ class ApiService {
 
         else if (response.statusCode == 401) {
             AppLogger.api('GET $endpoint - 401 Unauthorized');
+            await _handle401();
             throw ApiException('Authentication required');
         }
 
@@ -58,6 +72,7 @@ class ApiService {
 
         else if (response.statusCode == 401) {
             AppLogger.api('POST $endpoint - 401 Unauthorized');
+            await _handle401();
             throw ApiException('Authentication required');
         }
 
@@ -85,6 +100,11 @@ class ApiService {
 
         if (response.statusCode == 200) {
             return PlaylistResponse.fromJson(jsonDecode(response.body));
+        }
+
+        else if (response.statusCode == 401) {
+            await _handle401();
+            throw ApiException('Authentication required');
         }
 
         else if (response.statusCode == 429) {
@@ -116,6 +136,11 @@ class ApiService {
             return PlaylistResponse.fromJson(jsonDecode(response.body));
         }
 
+        else if (response.statusCode == 401) {
+            await _handle401();
+            throw ApiException('Authentication required');
+        }
+
         else if (response.statusCode == 429) {
             throw ApiException('Maximum refinements reached for this playlist.');
         }
@@ -139,6 +164,11 @@ class ApiService {
             return RateLimitStatus.fromJson(jsonDecode(response.body));
         }
 
+        else if (response.statusCode == 401) {
+            await _handle401();
+            throw ApiException('Authentication required');
+        }
+
         else {
             throw ApiException('Failed to get rate limit status');
         }
@@ -160,6 +190,7 @@ class ApiService {
         }
 
         else if (response.statusCode == 401) {
+            await _handle401();
             throw ApiException('Authentication required');
         }
 
@@ -191,6 +222,9 @@ class ApiService {
         
         if (response.statusCode == 200) {
             return AppConfigData.fromJson(jsonDecode(response.body));
+        } else if (response.statusCode == 401) {
+            await _handle401();
+            throw ApiException('Authentication required');
         } else {
             throw ApiException('Failed to get configuration');
         }
@@ -212,6 +246,7 @@ class ApiService {
         }
 
         else if (response.statusCode == 401) {
+            await _handle401();
             throw ApiException('Authentication required');
         }
 
@@ -240,6 +275,7 @@ class ApiService {
         }
 
         else if (response.statusCode == 401) {
+            await _handle401();
             throw ApiException('Authentication required');
         }
 
@@ -255,6 +291,11 @@ class ApiService {
 
         if (response.statusCode == 200) {
             return PlaylistDraft.fromJson(jsonDecode(response.body));
+        }
+
+        else if (response.statusCode == 401) {
+            await _handle401();
+            throw ApiException('Authentication required');
         }
 
         else if (response.statusCode == 404) {
@@ -275,6 +316,11 @@ class ApiService {
             Uri.parse(AppConfig.apiUrl('/drafts/$playlistId?device_id=$deviceId')),
         );
 
+        if (response.statusCode == 401) {
+            await _handle401();
+            throw ApiException('Authentication required');
+        }
+
         return response.statusCode == 200;
     }
 
@@ -283,6 +329,11 @@ class ApiService {
             Uri.parse(AppConfig.apiUrl('/spotify/playlist/$playlistId?session_id=$sessionId&device_id=$deviceId')),
         );
 
+        if (response.statusCode == 401) {
+            await _handle401();
+            throw ApiException('Authentication required');
+        }
+
         return response.statusCode == 200;
     }
 
@@ -290,6 +341,11 @@ class ApiService {
         final response = await _client.delete(
             Uri.parse(AppConfig.apiUrl('/spotify/playlist/$playlistId/tracks/$trackUri?session_id=$sessionId&device_id=$deviceId')),
         );
+
+        if (response.statusCode == 401) {
+            await _handle401();
+            throw ApiException('Authentication required');
+        }
 
         return response.statusCode == 200;
     }
@@ -302,6 +358,11 @@ class ApiService {
         if (response.statusCode == 200) {
             final data = json.decode(response.body);
             return List<Map<String, dynamic>>.from(data['tracks']);
+        }
+
+        else if (response.statusCode == 401) {
+            await _handle401();
+            throw ApiException('Authentication required');
         }
 
         else {
@@ -326,6 +387,11 @@ class ApiService {
 
         if (response.statusCode == 200) {
             return PlaylistResponse.fromJson(jsonDecode(response.body));
+        }
+
+        else if (response.statusCode == 401) {
+            await _handle401();
+            throw ApiException('Authentication required');
         }
 
         else if (response.statusCode == 429) {
@@ -356,6 +422,11 @@ class ApiService {
             return PlaylistResponse.fromJson(jsonDecode(response.body));
         }
 
+		else if (response.statusCode == 401) {
+            await _handle401();
+            throw ApiException('Authentication required');
+        }
+
 		else if (response.statusCode == 404) {
             throw ApiException('Draft playlist not found.');
         }
@@ -367,6 +438,36 @@ class ApiService {
 
 		else {
             throw ApiException('Failed to update draft playlist. Please try again.');
+        }
+    }
+
+    Future<Map<String, dynamic>> getDemoPlaylistRefinements(String playlistId, String sessionId, String deviceId) async {
+        final response = await _client.post(
+            Uri.parse(AppConfig.apiUrl('/auth/demo-playlist-refinements')),
+            headers: {'Content-Type': 'application/json'},
+
+            body: jsonEncode({
+                'playlist_id': playlistId,
+                'session_id': sessionId,
+                'device_id': deviceId,
+            }),
+        );
+
+        if (response.statusCode == 200) {
+            return jsonDecode(response.body);
+        }
+
+        else if (response.statusCode == 401) {
+            await _handle401();
+            throw ApiException('Authentication required');
+        }
+
+        else if (response.statusCode == 403) {
+            throw ApiException('This endpoint is only available for demo accounts');
+        }
+
+        else {
+            throw ApiException('Failed to get demo playlist refinements: ${response.body}');
         }
     }
 

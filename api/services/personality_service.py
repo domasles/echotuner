@@ -100,6 +100,17 @@ class PersonalityService(SingletonServiceBase):
         """Get user's followed artists from Spotify"""
 
         try:
+            # Check if this is a demo account - if so, return empty list
+            user_info = await self.auth_service.get_user_from_session(session_id)
+            if not user_info:
+                logger.error("Failed to get user info for followed artists")
+                return []
+
+            spotify_user_id = user_info.get('spotify_user_id')
+            if settings.DEMO and spotify_user_id and spotify_user_id.startswith("demo_user_"):
+                logger.info(f"Demo mode: skipping Spotify followed artists for device {device_id}")
+                return []
+
             access_token = await self.auth_service.get_access_token(session_id)
 
             if not access_token:
@@ -183,7 +194,6 @@ class PersonalityService(SingletonServiceBase):
 
                 artists.append(artist)
 
-            logger.info(f"Found {len(artists)} artists for query: {query}")
             return artists
 
         except Exception as e:

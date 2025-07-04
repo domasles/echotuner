@@ -4,6 +4,7 @@ import uvicorn
 import click
 import sys
 import re
+import uuid
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException, Request
@@ -35,6 +36,7 @@ from config.ai_models import ai_model_manager
 from services.data_loader import data_loader
 from services.ai_service import ai_service
 from services.security import debug_only
+from utils.decorators import demo_mode_restricted, normal_mode_restricted
 
 class CustomFormatter(logging.Formatter):
     def format(self, record):
@@ -230,7 +232,7 @@ async def root():
             "refine": "/refine-playlist",
             "update_draft": "/update-playlist-draft",
             "health": "/health",
-            "rate_limit": "/rate-limit-status/{device_id}",
+            "rate_limit": "/auth/rate-limit-status",
             "auth_init": "/auth/init",
             "auth_callback": "/auth/callback",
             "auth_validate": "/auth/validate",
@@ -249,10 +251,18 @@ async def auth_init(request: AuthInitRequest):
             logger.error("Auth service not ready")
             raise HTTPException(status_code=503, detail="Authentication service not available")
 
-        if not await auth_service.validate_device(request.device_id, update_last_seen=False):
+        # Generate server-side device ID
+        if settings.DEMO:
+            # Use demo user ID for demo mode
+            device_id = f"demo_user_{int(datetime.now().timestamp() * 1000)}"
+        else:
+            # Generate proper UUID for normal mode
+            device_id = str(uuid.uuid4())
+
+        if not await auth_service.validate_device(device_id, update_last_seen=False):
             try:
                 await auth_service.register_device_with_id(
-                    device_id=request.device_id,
+                    device_id=device_id,
                     platform=request.platform
                 )
 
@@ -260,10 +270,10 @@ async def auth_init(request: AuthInitRequest):
                 logger.error(f"Failed to auto-register device: {e}")
                 raise HTTPException(status_code=500, detail="Failed to register device")
 
-        auth_url, state = auth_service.generate_auth_url(request.device_id, request.platform)
+        auth_url, state = auth_service.generate_auth_url(device_id, request.platform)
 
-        await auth_service.store_auth_state(state, request.device_id, request.platform)
-        return AuthInitResponse(auth_url=auth_url, state=state)
+        await auth_service.store_auth_state(state, device_id, request.platform)
+        return AuthInitResponse(auth_url=auth_url, state=state, device_id=device_id)
 
     except Exception as e:
         logger.error(f"Auth init failed: {e}")
@@ -288,12 +298,13 @@ async def auth_callback(code: str = None, state: str = None, error: str = None):
         if not device_info:
             raise HTTPException(status_code=400, detail="Invalid or expired auth state")
 
-        session_id = await auth_service.handle_spotify_callback(code, state, device_info)
+        result = await auth_service.handle_spotify_callback(code, state, device_info)
 
-        if not session_id:
+        if not result:
             raise HTTPException(status_code=400, detail="Failed to create session")
 
-        html_content = template_service.render_template("auth_success.html", session_id=session_id)
+        session_id = result
+        html_content = template_service.render_template("auth_success.html", session_id=session_id, device_id=device_info['device_id'])
         return HTMLResponse(content=html_content)
 
     except HTTPException:
@@ -310,22 +321,43 @@ async def validate_session(request: SessionValidationRequest):
     """Validate session"""
 
     try:
-        is_valid = await auth_service.validate_session(request.session_id, request.device_id)
-        return SessionValidationResponse(valid=is_valid)
+        # Use validate_session_and_get_user instead of basic validate_session
+        # This ensures mode mismatches are also checked
+        user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
+        
+        if user_info is None:
+            # Check if it's a basic session validation failure vs mode mismatch
+            basic_valid = await auth_service.validate_session(request.session_id, request.device_id)
+            
+            if basic_valid:
+                # Session exists but mode mismatch - return 401
+                raise HTTPException(status_code=401, detail="Session invalid due to server mode mismatch")
+            else:
+                # Basic session validation failed - return 401
+                raise HTTPException(status_code=401, detail="Invalid or expired session")
+        
+        return SessionValidationResponse(valid=True)
 
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 401)
+        raise
     except Exception as e:
         logger.error(f"Session validation failed: {e}")
         raise HTTPException(status_code=500, detail="Session validation failed")
 
-@app.get("/auth/check-session/{device_id}")
-async def check_session(device_id: str):
+@app.get("/auth/check-session")
+async def check_session(request: Request):
     """Check if a session exists for the given device ID (for desktop polling)"""
 
     try:
+        device_id = request.headers.get('device_id')
+        if not device_id:
+            return {"message": "Device ID required in headers", "success": False}
+
         session_id = await auth_service.get_session_by_device(device_id)
 
         if session_id:
-            return {"session_id": session_id}
+            return {"session_id": session_id, "device_id": device_id}
 
         else:
             return {"session_id": None}
@@ -430,7 +462,13 @@ async def generate_playlist(request: PlaylistRequest):
             raise HTTPException(status_code=400, detail="Invalid or empty prompt")
         
         user_info = await require_auth(request)
-        rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
+        
+        # For demo accounts, use device_id for rate limiting (per device)
+        # For normal accounts, use spotify_user_id for rate limiting (shared across devices)
+        if user_info and user_info.get('account_type') == 'demo':
+            rate_limit_key = request.device_id
+        else:
+            rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
 
         if settings.PLAYLIST_LIMIT_ENABLED and not await rate_limiter_service.can_make_request(rate_limit_key):
             raise HTTPException(
@@ -478,13 +516,29 @@ async def generate_playlist(request: PlaylistRequest):
             discovery_strategy=request.discovery_strategy or "balanced"
         )
 
-        playlist_id = await playlist_draft_service.save_draft(
-            device_id=request.device_id,
-            session_id=request.session_id,
-            prompt=sanitized_prompt,
-            songs=songs,
-            refinements_used=0
-        )
+        # For demo accounts, only track playlist ID - don't save song data
+        # For normal accounts, save full draft with song data
+        if user_info and user_info.get('account_type') == 'demo':
+            # Generate a unique playlist ID for demo account
+            import uuid
+            playlist_id = str(uuid.uuid4())
+            
+            # Track the playlist ID for refinement counting
+            await db_service.add_demo_playlist(
+                playlist_id=playlist_id,
+                device_id=request.device_id,
+                session_id=request.session_id,
+                prompt=sanitized_prompt
+            )
+        else:
+            # Save full draft for normal accounts
+            playlist_id = await playlist_draft_service.save_draft(
+                device_id=request.device_id,
+                session_id=request.session_id,
+                prompt=sanitized_prompt,
+                songs=songs,
+                refinements_used=0
+            )
 
         if settings.PLAYLIST_LIMIT_ENABLED:
             await rate_limiter_service.record_request(rate_limit_key)
@@ -509,28 +563,50 @@ async def refine_playlist(request: PlaylistRequest):
 
     try:
         user_info = await require_auth(request)
-        rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
         current_songs = request.current_songs or []
         refinements_used = 0
         playlist_id = request.playlist_id
 
         if playlist_id:
-            draft = await playlist_draft_service.get_draft(playlist_id)
-
-            if draft:
-                current_songs = draft.songs
-                refinements_used = draft.refinements_used
-
+            # If playlist ID is provided, get refinement count from the appropriate source
+            if user_info and user_info.get('account_type') == 'demo':
+                # For demo accounts, get refinement count from demo_playlists table
+                refinements_used = await db_service.get_demo_playlist_refinements(playlist_id)
+                logger.info(f"Demo playlist {playlist_id} has {refinements_used} refinements used")
+                
                 if settings.REFINEMENT_LIMIT_ENABLED and refinements_used >= settings.MAX_REFINEMENTS_PER_PLAYLIST:
                     raise HTTPException(
                         status_code=429,
                         detail=f"Maximum of {settings.MAX_REFINEMENTS_PER_PLAYLIST} AI refinements reached for this playlist."
                     )
-
             else:
-                logger.warning(f"Draft playlist {playlist_id} not found, using provided songs")
+                # For normal accounts, get refinement count from the draft on API
+                draft = await playlist_draft_service.get_draft(playlist_id)
+
+                if draft:
+                    current_songs = draft.songs
+                    refinements_used = draft.refinements_used
+
+                    if settings.REFINEMENT_LIMIT_ENABLED and refinements_used >= settings.MAX_REFINEMENTS_PER_PLAYLIST:
+                        raise HTTPException(
+                            status_code=429,
+                            detail=f"Maximum of {settings.MAX_REFINEMENTS_PER_PLAYLIST} AI refinements reached for this playlist."
+                        )
+
+                else:
+                    logger.warning(f"Draft playlist {playlist_id} not found, using provided songs")
 
         else:
+            # No playlist ID - this is a new refinement without an existing draft
+            # Still need to check daily refinement limits
+            
+            # For demo accounts, use device_id for rate limiting (per device)
+            # For normal accounts, use spotify_user_id for rate limiting (shared across devices)
+            if user_info and user_info.get('account_type') == 'demo':
+                rate_limit_key = request.device_id
+            else:
+                rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
+                
             if settings.REFINEMENT_LIMIT_ENABLED and not await rate_limiter_service.can_refine_playlist(rate_limit_key):
                 raise HTTPException(
                     status_code=429,
@@ -579,13 +655,21 @@ async def refine_playlist(request: PlaylistRequest):
         )
 
         if playlist_id:
-            await playlist_draft_service.update_draft(
-                playlist_id=playlist_id,
-                songs=songs,
-                refinements_used=refinements_used + 1
-            )
+            # For demo accounts, only increment demo playlist refinements
+            # For normal accounts, update the draft on API
+            if user_info and user_info.get('account_type') == 'demo':
+                await db_service.increment_demo_playlist_refinements(playlist_id)
+                logger.info(f"Incremented demo playlist {playlist_id} refinement count")
+            else:
+                # Update existing draft with new refinement count
+                await playlist_draft_service.update_draft(
+                    playlist_id=playlist_id,
+                    songs=songs,
+                    refinements_used=refinements_used + 1
+                )
 
         else:
+            # Create new draft and record daily refinement limit
             playlist_id = await playlist_draft_service.save_draft(
                 device_id=request.device_id,
                 session_id=request.session_id,
@@ -593,9 +677,29 @@ async def refine_playlist(request: PlaylistRequest):
                 songs=songs,
                 refinements_used=1
             )
-
-        if settings.REFINEMENT_LIMIT_ENABLED:
-            await rate_limiter_service.record_refinement(rate_limit_key)
+            
+            # For demo accounts, also create a demo playlist entry for this refinement
+            if user_info and user_info.get('account_type') == 'demo':
+                await db_service.add_demo_playlist(
+                    playlist_id=playlist_id,
+                    device_id=request.device_id,
+                    session_id=request.session_id,
+                    prompt=f"Refined: {request.prompt}"
+                )
+                # Start with 1 refinement since this IS a refinement
+                await db_service.increment_demo_playlist_refinements(playlist_id)
+            
+            # Only record daily refinement limits for new refinements (no playlist_id)
+            if settings.REFINEMENT_LIMIT_ENABLED:
+                # For demo accounts, use device_id for rate limiting (per device)
+                # For normal accounts, use spotify_user_id for rate limiting (shared across devices)
+                if user_info and user_info.get('account_type') == 'demo':
+                    rate_limit_key = request.device_id
+                else:
+                    rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
+                    
+                logger.info(f"Recording refinement for rate_limit_key: {rate_limit_key}")
+                await rate_limiter_service.record_refinement(rate_limit_key)
 
         return PlaylistResponse(
             songs=songs,
@@ -656,8 +760,14 @@ async def update_playlist_draft(request: PlaylistRequest):
 async def get_authenticated_rate_limit_status(request: SessionValidationRequest):
     try:
         user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
-        rate_limit_key = user_info["spotify_user_id"]
-
+        
+        # For demo accounts, use device_id for rate limiting (per device)
+        # For normal accounts, use spotify_user_id for rate limiting (shared across devices)
+        if user_info and user_info.get('account_type') == 'demo':
+            rate_limit_key = request.device_id
+        else:
+            rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
+            
         return await rate_limiter_service.get_status(rate_limit_key)
 
     except HTTPException:
@@ -696,10 +806,7 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
     """Create a Spotify playlist from a draft."""
 
     try:
-        user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
-
-        if not user_info:
-            raise HTTPException(status_code=401, detail="Invalid or expired session")
+        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
 
         if not spotify_playlist_service.is_ready():
             raise HTTPException(status_code=503, detail="Spotify playlist service not available")
@@ -982,11 +1089,14 @@ async def delete_spotify_playlist(playlist_id: str, session_id: str = None, devi
         raise HTTPException(status_code=500, detail="Failed to delete Spotify playlist")
 
 @app.post("/personality/save", response_model=UserPersonalityResponse)
+@demo_mode_restricted
 async def save_user_personality(request: UserPersonalityRequest):
     """Save user personality preferences"""
 
     try:
         logger.info(f"Saving personality for session {request.session_id}")
+
+        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
 
         success = await personality_service.save_user_personality(
             session_id=request.session_id,
@@ -1002,21 +1112,22 @@ async def save_user_personality(request: UserPersonalityRequest):
             logger.error("Personality save failed")
             raise HTTPException(status_code=500, detail="Failed to save personality")
 
+    except HTTPException:
+        raise
+
     except Exception as e:
         logger.error(f"Failed to save user personality: {e}")
         raise HTTPException(status_code=500, detail="Failed to save personality")
 
 @app.get("/personality/load")
+@demo_mode_restricted
 async def load_user_personality(request: Request):
     try:
         user_info = await auth_middleware.validate_session_from_headers(request)
-        
-        session_id = request.headers.get('session_id')
-        device_id = request.headers.get('device_id')
 
         user_context = await personality_service.get_user_personality(
-            session_id=session_id,
-            device_id=device_id
+            session_id=request.headers.get('session_id'),
+            device_id=request.headers.get('device_id')
         )
 
         if user_context:
@@ -1032,15 +1143,12 @@ async def load_user_personality(request: Request):
         raise HTTPException(status_code=500, detail="Failed to load personality")
 
 @app.post("/personality/clear")
+@demo_mode_restricted
 async def clear_user_personality(request: UserPersonalityClearRequest):
     """Clear user personality preferences"""
 
     try:
-        user_info = await auth_service.get_user_from_session(request.session_id)
-        
-        if not user_info:
-            raise HTTPException(status_code=401, detail="Invalid session")
-
+        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
         spotify_user_id = user_info.get('spotify_user_id')
 
         success = await db_service.execute_query(
@@ -1056,25 +1164,29 @@ async def clear_user_personality(request: UserPersonalityClearRequest):
     except Exception as e:
         logger.error(f"Failed to clear user personality: {e}")
         raise HTTPException(status_code=500, detail="Failed to clear personality")
+        raise
+
+    except Exception as e:
+        logger.error(f"Failed to clear user personality: {e}")
+        raise HTTPException(status_code=500, detail="Failed to clear personality")
 
 @app.get("/user/followed-artists", response_model=FollowedArtistsResponse)
 async def get_followed_artists(request: Request, limit: int = 50):
     """Get user's followed artists from Spotify"""
 
     try:
-        session_id = request.headers.get('session_id')
-        device_id = request.headers.get('device_id')
-
-        if not session_id or not device_id:
-            raise HTTPException(status_code=422, detail="Missing session_id or device_id headers")
+        user_info = await auth_middleware.validate_session_from_headers(request)
 
         artists = await personality_service.get_followed_artists(
-            session_id=session_id,
-            device_id=device_id,
+            session_id=request.headers.get('session_id'),
+            device_id=request.headers.get('device_id'),
             limit=limit
         )
 
         return FollowedArtistsResponse(artists=artists)
+
+    except HTTPException:
+        raise
 
     except Exception as e:
         logger.warning(f"Failed to get followed artists: {e}")
@@ -1085,6 +1197,8 @@ async def search_artists(request: ArtistSearchRequest):
     """Search for artists on Spotify"""
 
     try:
+        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
+
         artists = await personality_service.search_artists(
             session_id=request.session_id,
             device_id=request.device_id,
@@ -1093,6 +1207,9 @@ async def search_artists(request: ArtistSearchRequest):
         )
 
         return ArtistSearchResponse(artists=artists)
+
+    except HTTPException:
+        raise
 
     except Exception as e:
         logger.error(f"Failed to search artists: {e}")
@@ -1189,26 +1306,20 @@ async def production_readiness_check():
 
 @app.post("/auth/logout")
 async def logout(request: Request):
-    """Logout and invalidate session"""
+    """Logout and completely clear all device data"""
 
     try:
         session_id = request.headers.get('session_id')
         device_id = request.headers.get('device_id')
 
-        if not session_id:
-            return {"message": "No session to logout", "success": False}
+        if not device_id:
+            return {"message": "Device ID required for logout", "success": False}
 
-        user_info = await auth_service.validate_session_and_get_user(session_id, device_id or "")
+        # Completely invalidate all data for this device
+        await auth_service.invalidate_device_completely(device_id)
         
-        if user_info:
-            await auth_service.invalidate_session(session_id)
-            logger.info(f"Successfully logged out session {session_id} for user {user_info.get('spotify_user_id')}")
-
-            return {"message": "Logged out successfully", "success": True}
-
-        else:
-            logger.info(f"Attempted to logout invalid session {session_id}")
-            return {"message": "Session was already invalid", "success": True}
+        logger.info(f"Successfully cleared all data for device {device_id[:8]}...")
+        return {"message": "Logged out successfully and cleared device data", "success": True}
 
     except Exception as e:
         logger.error(f"Logout failed: {e}")
@@ -1263,9 +1374,54 @@ async def get_account_type(session_id: str):
         if account_type is None:
             raise HTTPException(status_code=404, detail="Session not found")
         return {"account_type": account_type}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get account type: {e}")
         raise HTTPException(status_code=500, detail="Failed to get account type")
+
+@app.get("/server/mode")
+async def get_server_mode():
+    """Get current server mode"""
+    return {
+        "demo_mode": settings.DEMO,
+        "mode": "demo" if settings.DEMO else "normal"
+    }
+
+@app.get("/auth/mode")
+async def get_auth_mode():
+    """Get current authentication mode"""
+    return {
+        "mode": "demo" if settings.DEMO else "normal",
+        "demo": settings.DEMO
+    }
+
+@app.post("/auth/demo-playlist-refinements")
+async def get_demo_playlist_refinements(request: DemoPlaylistRefinementsRequest):
+    """Get refinement count for a specific demo playlist"""
+    
+    try:
+        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
+        
+        # Only allow demo accounts to use this endpoint
+        if not user_info or user_info.get('account_type') != 'demo':
+            raise HTTPException(status_code=403, detail="This endpoint is only available for demo accounts")
+        
+        refinements_used = await db_service.get_demo_playlist_refinements(request.playlist_id)
+        
+        return {
+            "playlist_id": request.playlist_id,
+            "refinements_used": refinements_used,
+            "max_refinements": settings.MAX_REFINEMENTS_PER_PLAYLIST,
+            "can_refine": refinements_used < settings.MAX_REFINEMENTS_PER_PLAYLIST
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(f"Demo playlist refinements error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting demo playlist refinements: {str(e)}")
 
 if __name__ == "__main__":
     logger.info(AppConstants.STARTUP_MESSAGE)

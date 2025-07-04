@@ -88,6 +88,7 @@ class AuthInitRequest(BaseModel):
 class AuthInitResponse(BaseModel):
     auth_url: str
     state: str
+    device_id: str
 
 class AuthCallbackRequest(BaseModel):
     code: str
@@ -180,3 +181,8 @@ class ArtistSearchRequest(BaseModel):
 
 class ArtistSearchResponse(BaseModel):
     artists: List[SpotifyArtist]
+
+class DemoPlaylistRefinementsRequest(BaseModel):
+    playlist_id: str
+    device_id: str
+    session_id: str

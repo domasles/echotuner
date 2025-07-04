@@ -21,10 +21,15 @@ class PersonalityService {
     Future<bool> _isDemoAccount() async {
         try {
             final sessionId = await _getSessionId();
-            if (sessionId == null) return false;
+            if (sessionId == null) {
+                return false;
+            }
             
+            AppLogger.personality('Checking account type for session: ${sessionId.substring(0, 8)}...');
             final response = await _apiService.get('/auth/account_type/$sessionId');
-            return response['account_type'] == 'demo';
+            final isDemo = response['account_type'] == 'demo';
+            AppLogger.personality('Account type check result: isDemo=$isDemo');
+            return isDemo;
         } catch (e) {
             AppLogger.personality('Failed to get account type: $e');
             
@@ -38,14 +43,19 @@ class PersonalityService {
         }
     }
 
+    Future<bool> isDemoAccount() async {
+        return await _isDemoAccount();
+    }
+
     Future<void> saveUserContext(UserContext context) async {
         final isDemoAccount = await _isDemoAccount();
         
         if (isDemoAccount) {
             AppLogger.personality('Demo account: Saving context locally...');
+            AppLogger.personality('Demo account: Context to save: ${context.toJson()}');
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString(_demoPersonalityKey, jsonEncode(context.toJson()));
-            AppLogger.personality('Demo account: Context saved locally');
+            AppLogger.personality('Demo account: Context saved locally successfully');
             return;
         }
 
@@ -75,18 +85,20 @@ class PersonalityService {
             final prefs = await SharedPreferences.getInstance();
             final personalityJson = prefs.getString(_demoPersonalityKey);
             
+            AppLogger.personality('Demo account: Raw data from storage: $personalityJson');
+            
             if (personalityJson != null) {
                 try {
                     final contextData = jsonDecode(personalityJson);
                     final context = UserContext.fromJson(contextData);
-                    AppLogger.personality('Demo account: Loaded context from local storage');
+                    AppLogger.personality('Demo account: Loaded context from local storage: ${context.toJson()}');
                     return context;
                 } catch (e) {
                     AppLogger.personality('Demo account: Failed to parse local personality: $e');
                 }
             }
             
-            AppLogger.personality('Demo account: No local personality found');
+            AppLogger.personality('Demo account: No local personality found - returning null');
             return null;
         }
 
@@ -133,6 +145,13 @@ class PersonalityService {
 
     Future<List<SpotifyArtist>> fetchFollowedArtists({String? sessionId}) async {
         try {
+            // Check if this is a demo account first
+            final isDemoAccount = await _isDemoAccount();
+            if (isDemoAccount) {
+                AppLogger.personality('Demo account: Skipping followed artists fetch');
+                return [];
+            }
+            
             final sessionIdToUse = sessionId ?? await _getSessionId();
 
             if (sessionIdToUse == null) {
@@ -151,6 +170,14 @@ class PersonalityService {
         }
         
         catch (e) {
+            AppLogger.personality('Failed to fetch followed artists: $e');
+            
+            // If unauthorized, trigger re-auth
+            if (e.toString().contains('401') || e.toString().contains('404')) {
+                AppLogger.personality('Session invalid, triggering logout for re-authentication');
+                await _authService.logout();
+            }
+            
             return [];
         }
     }
@@ -178,6 +205,14 @@ class PersonalityService {
         }
 
         catch (e) {
+            AppLogger.personality('Failed to search artists: $e');
+            
+            // If unauthorized, trigger re-auth
+            if (e.toString().contains('401') || e.toString().contains('404')) {
+                AppLogger.personality('Session invalid, triggering logout for re-authentication');
+                await _authService.logout();
+            }
+            
             return [];
         }
     }

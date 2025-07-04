@@ -137,9 +137,14 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
             _followedArtists = await personalityService.fetchFollowedArtists(sessionId: authService.sessionId);
 
             if (_userContext == null) {
-                final defaultContext = await personalityService.getDefaultPersonalityContext(sessionId: authService.sessionId);
-                _userContext = defaultContext;
-                _populateFormFromContext(defaultContext);
+                // Only create default context for non-demo accounts
+                final isDemo = await personalityService.isDemoAccount();
+                
+                if (!isDemo) {
+                    final defaultContext = await personalityService.getDefaultPersonalityContext(sessionId: authService.sessionId);
+                    _userContext = defaultContext;
+                    _populateFormFromContext(defaultContext);
+                }
             }
 
             await personalityService.markArtistsSynced();

@@ -1,10 +1,46 @@
 ![EchoTuner Logo](./EchoTunerLogo.svg)
 
+## Demo Mode
+
+EchoTuner includes a robust demo mode designed to comply with Spotify's public app limitations while providing a full-featured experience.
+
+**Demo Mode Features:**
+- **Isolated User Sessions**: Each device gets a unique demo user account with isolated data
+- **Local Data Storage**: All user preferences and context are stored locally in the app, with no server persistence
+- **No Spotify Data Sync**: Demo users cannot access Spotify followed artists or listening history - only manually entered preferences are used
+- **Full Playlist Generation**: Complete AI-powered playlist creation using manually configured music preferences
+- **Artist Search**: Spotify artist search functionality is available, but no automatic data pulling
+- **Session Isolation**: No cross-device sync for demo users to ensure privacy and compliance
+
+**Demo vs. Normal Mode:**
+- **Authentication**: Demo mode uses the same OAuth flow but creates temporary demo accounts
+- **Data Persistence**: Normal mode syncs data to the server; demo mode keeps everything local
+- **Spotify Integration**: Normal mode accesses your Spotify data; demo mode relies on manual input
+- **Session Management**: Switching between modes automatically manages session cleanup and creation
+
+**Configuration:**
+Enable demo mode by setting `DEMO=true` in your `.env` file. When switching from normal to demo mode, normal sessions are preserved. When switching from demo to normal mode, demo sessions are automatically cleaned up.
+
+Demo mode allows users to experience EchoTuner's full functionality without requiring access to their personal Spotify data, making it perfect for public deployments and demonstrations.EchoTunerLogo.svg)
+
 # EchoTuner - AI Powered Playlist Generation Platform
 
-EchoTuner is a production-ready platform that generates personalized music playlists using artificial intelligence and natural language processing. The platform features a flexible AI model system supporting both local (Ollama) and cloud-based AI providers (OpenAI, Anthropic Claude), combined with Spotify Web API integration for intelligent music recommendations.
+EchoTuner is a tool for visualizing and analyzing your Spotify playlists based on audio features like energy, valence, danceability, and more. It started off as a fun idea for a simple public-facing app, but it quickly ran into the modern reality of building with Spotify's Web API.
 
-The platform consists of a modular RESTful API service and a cross-platform Flutter application for music discovery and playlist creation.
+As of 2025, Spotify has tightened the screws on public app access. With the new quota system and extended access rules, you now need over 250,000 monthly users, security audits, and formal review just to avoid your app getting throttled or locked to a 25-user limit. So… yeah. Public deployment? Not happening.
+
+But here’s the twist: that limitation is exactly what makes EchoTuner worth open-sourcing.
+
+Instead of chasing Spotify’s new “platform partner” dream, this project leans into the local dev workflow. You run EchoTuner for yourself, with your own Spotify Developer OAuth credentials, in a local Docker container. That means no rate limits, no review process, no privacy weirdness, and total control over how you interact with your data. Just you, your playlists, and a dead-simple setup.
+
+In fact, the "you have to run it yourself" part? That’s kind of the point. It encourages devs to spin up their own small-scale tools, explore the Spotify API on their terms, and stop relying on centralized services that might break or disappear overnight.
+
+A self-contained music analysis tool you own completely? We call that a win.
+
+## Demo
+There’s going to be a demo too - just not in the traditional sense. To comply with Spotify’s public app limitations, the demo strips out cross-device functionality like real-time playlist syncing and user-specific storage. Instead, all data is saved locally in-session, and playlists are generated under a shared public sandbox account (not your real Spotify). Think of it as a staging area: playlists you create there are public and fully claimable with one click into your actual Spotify account.
+
+So, whether you’re running it locally or poking around the demo, EchoTuner is here for curious developers who just want to understand their playlists—without needing a startup, a legal team, or a million users.
 
 ## Project Status
 
@@ -319,8 +355,29 @@ For detailed implementation instructions, see the [API README](./api/README.md#4
 - **Cross-Platform Support**: Consistent authentication across web, mobile, and desktop
 - **Session Security**: Device binding prevents session hijacking and spoofing
 - **Token Management**: Secure refresh token handling with automatic renewal
+- **Mode-Aware Validation**: Sessions are validated against current API mode (demo/normal)
+- **Automatic Cleanup**: Device data and demo sessions are properly cleaned up on logout
+- **Session Recovery**: Graceful handling of mode switches and API restarts
+
+### Rate Limiting and Abuse Prevention
+- **Per-User Rate Limits**: Configurable daily limits for playlist generation and refinements
+- **Device-Based Tracking**: Rate limits tracked by device/user for accurate counting
+- **Persistent Storage**: Rate limit data survives API restarts and mode switches
+- **Real-Time Updates**: Live rate limit status updates in the application
+- **Graceful Degradation**: Clear messaging when limits are reached
 
 ## API Reference
+
+### API Conventions
+
+**Field Naming**: All API endpoints use underscore naming convention (snake_case) for field names and headers. This includes:
+- Request and response JSON fields: `favorite_genres`, `user_context`, `session_id`
+- HTTP headers: `x_session_id`, `x_device_id`, `content_type`
+- URL parameters and query strings: `device_id`, `playlist_id`, `time_range`
+
+**Account Types**: The API supports two account types:
+- `normal`: Full Spotify integration with data persistence and cross-device sync
+- `demo`: Local-only operation with no Spotify data access or server persistence
 
 ### Core Endpoints
 
