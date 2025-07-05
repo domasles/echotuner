@@ -1,29 +1,38 @@
+"""
+Prompt validator service.
+Validates if user input is related to music, mood, or emotions.
+"""
+
 import numpy as np
 import logging
 import httpx
 
-from services.data_loader import data_loader
-from config.settings import settings
-from config.ai_models import ai_model_manager
 from core.singleton import SingletonServiceBase
+
+from config.ai_models import ai_model_manager
+from config.settings import settings
+
+from services.data_loader import data_loader
 
 logger = logging.getLogger(__name__)
 
 class PromptValidatorService(SingletonServiceBase):
     """Lightweight model to validate if user input is music/mood related."""
 
+    def __init__(self):
+        super().__init__()
+
     def _setup_service(self):
         """Initialize the PromptValidatorService."""
+
         self.model_config = ai_model_manager.get_provider()
         self.prompt_validation_threshold = settings.PROMPT_VALIDATION_THRESHOLD
         self.prompt_validation_timeout = settings.PROMPT_VALIDATION_TIMEOUT
-        self.music_reference_embeddings = None
-        self.initialized = False
-        self.http_client = None
-        self._log_initialization("Prompt validator service initialized successfully", logger)
 
-    def __init__(self):
-        super().__init__()
+        self.music_reference_embeddings = None
+        self.http_client = None
+
+        self._log_initialization("Prompt validator service initialized successfully", logger)
 
     async def initialize(self):
         """Initialize the model asynchronously"""
@@ -39,7 +48,6 @@ class PromptValidatorService(SingletonServiceBase):
             await self._compute_reference_embeddings()
 
             logger.info("Prompt validator initialized successfully!")
-            self.initialized = True
 
         except RuntimeError:
             raise
@@ -47,11 +55,6 @@ class PromptValidatorService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Prompt validator initialization failed: {e}")
             raise RuntimeError(f"Prompt validator initialization failed: {e}")
-
-    def is_ready(self) -> bool:
-        """Check if the service is ready"""
-
-        return self.initialized
 
     async def _check_ai_model_connection(self) -> bool:
         """Check if AI model is running and accessible"""

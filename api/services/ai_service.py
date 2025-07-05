@@ -1,5 +1,5 @@
 """
-AI Service for EchoTuner API.
+AI service.
 Handles AI model interactions across different providers (Ollama, OpenAI, Anthropic, etc.).
 """
 
@@ -8,20 +8,23 @@ import logging
 
 from typing import Dict, Any, Optional, List
 
+from core.singleton import SingletonServiceBase
+
 from config.ai_models import ai_model_manager, AIModelConfig
 
 logger = logging.getLogger(__name__)
 
-class AIServiceError(Exception):
-    """Base exception for AI service errors."""
-
-    pass
-
-class AIService:
+class AIService(SingletonServiceBase):
     """Service for interacting with AI models across different providers."""
     
     def __init__(self):
+        super().__init__()
+
+    def _setup_service(self):
+        """Initialize the AIService."""
+
         self._session: Optional[aiohttp.ClientSession] = None
+        self._log_initialization("AI service initialized successfully", logger)
     
     async def initialize(self):
         """Initialize the AI service."""
@@ -110,11 +113,11 @@ class AIService:
                 return await self._generate_anthropic(prompt, model_config, **kwargs)
 
             else:
-                raise AIServiceError(f"Unsupported AI provider: {model_config.name}")
+                raise Exception(f"Unsupported AI provider: {model_config.name}")
 
         except Exception as e:
             logger.error(f"Text generation failed with {model_config.name}: {e}")
-            raise AIServiceError(f"Text generation failed: {e}")
+            raise Exception(f"Text generation failed: {e}")
 
     async def _generate_ollama(self, prompt: str, model_config: AIModelConfig, **kwargs) -> str:
         """Generate text using Ollama."""
@@ -136,7 +139,7 @@ class AIService:
         ) as response:
             if response.status != 200:
                 error_text = await response.text()
-                raise AIServiceError(f"Ollama request failed: {error_text}")
+                raise Exception(f"Ollama request failed: {error_text}")
 
             result = await response.json()
             return result.get("response", "")
@@ -162,7 +165,7 @@ class AIService:
         ) as response:
             if response.status != 200:
                 error_text = await response.text()
-                raise AIServiceError(f"OpenAI request failed: {error_text}")
+                raise Exception(f"OpenAI request failed: {error_text}")
 
             result = await response.json()
             return result["choices"][0]["message"]["content"]
@@ -188,7 +191,7 @@ class AIService:
         ) as response:
             if response.status != 200:
                 error_text = await response.text()
-                raise AIServiceError(f"Anthropic request failed: {error_text}")
+                raise Exception(f"Anthropic request failed: {error_text}")
 
             result = await response.json()
             return result["content"][0]["text"]
@@ -199,18 +202,18 @@ class AIService:
         model_config = ai_model_manager.get_provider(model_id)
 
         if not model_config.embedding_model:
-            raise AIServiceError(f"No embedding model configured for {model_config.name}")
+            raise Exception(f"No embedding model configured for {model_config.name}")
 
         try:
             if model_config.name.lower() == "ollama":
                 return await self._get_ollama_embedding(text, model_config)
 
             else:
-                raise AIServiceError(f"Embedding not supported for {model_config.name}")
+                raise Exception(f"Embedding not supported for {model_config.name}")
 
         except Exception as e:
             logger.error(f"Embedding generation failed with {model_config.name}: {e}")
-            raise AIServiceError(f"Embedding generation failed: {e}")
+            raise Exception(f"Embedding generation failed: {e}")
 
     async def _get_ollama_embedding(self, text: str, model_config: AIModelConfig) -> List[float]:
         """Get embedding using Ollama."""
@@ -227,7 +230,7 @@ class AIService:
         ) as response:
             if response.status != 200:
                 error_text = await response.text()
-                raise AIServiceError(f"Ollama embedding request failed: {error_text}")
+                raise Exception(f"Ollama embedding request failed: {error_text}")
 
             result = await response.json()
             return result.get("embedding", [])

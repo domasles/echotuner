@@ -1,3 +1,9 @@
+"""
+Spotify search service.
+Searches for songs in real-time using the Spotify Web API.
+Converts AI-generated search queries into actual song results.
+"""
+
 import logging
 import spotipy
 import random
@@ -13,10 +19,10 @@ from config.settings import settings
 logger = logging.getLogger(__name__)
 
 class SpotifySearchService(SingletonServiceBase):
-    """
-    Service for searching songs in real-time using Spotify Web API.
-    Converts AI-generated search queries into actual song results.
-    """
+    """Service for searching songs in real-time using Spotify Web API."""
+
+    def __init__(self):
+        super().__init__()
 
     def _setup_service(self):
         """Initialize the SpotifySearchService."""
@@ -24,18 +30,11 @@ class SpotifySearchService(SingletonServiceBase):
         self.client_id = settings.SPOTIFY_CLIENT_ID
         self.client_secret = settings.SPOTIFY_CLIENT_SECRET
         self.spotify = None
-        self._initialized = False
 
         self._log_initialization("Spotify search service initialized successfully", logger)
 
-    def __init__(self):
-        super().__init__()
-
     async def initialize(self):
         """Initialize Spotify client"""
-
-        if self._initialized:
-            return
             
         try:
             if not self.client_id or not self.client_secret:
@@ -51,7 +50,6 @@ class SpotifySearchService(SingletonServiceBase):
             await self._test_connection()
 
             logger.info("Spotify Search Service initialized successfully")
-            self._initialized = True
 
         except RuntimeError:
             raise
@@ -59,11 +57,6 @@ class SpotifySearchService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Failed to initialize Spotify Search Service: {e}")
             raise RuntimeError(f"Spotify Search Service initialization failed: {e}")
-
-    def is_ready(self) -> bool:
-        """Check if the service is ready"""
-
-        return self._initialized
 
     async def _test_connection(self):
         """Test Spotify API connection"""
@@ -91,9 +84,6 @@ class SpotifySearchService(SingletonServiceBase):
         Returns:
             List of Song objects
         """
-
-        if not self._initialized:
-            await self.initialize()
 
         if not self.spotify:
             raise RuntimeError("Spotify service not properly initialized")

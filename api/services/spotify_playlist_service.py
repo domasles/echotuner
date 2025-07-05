@@ -16,13 +16,13 @@ logger = logging.getLogger(__name__)
 class SpotifyPlaylistService(SingletonServiceBase):
     """Service for creating playlists in Spotify."""
 
-    def _setup_service(self):
-        """Initialize the SpotifyPlaylistService."""
-        self._initialized = False
-        self._log_initialization("Spotify playlist service initialized successfully", logger)
-
     def __init__(self):
         super().__init__()
+
+    def _setup_service(self):
+        """Initialize the SpotifyPlaylistService."""
+
+        self._log_initialization("Spotify playlist service initialized successfully", logger)
 
     async def initialize(self):
         """Initialize the Spotify playlist service."""
@@ -32,7 +32,6 @@ class SpotifyPlaylistService(SingletonServiceBase):
                 logger.warning("Spotify credentials not configured - playlist creation disabled")
                 return
 
-            self._initialized = True
             logger.info("Spotify playlist service initialized successfully")
 
         except Exception as e:

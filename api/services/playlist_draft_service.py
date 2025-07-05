@@ -1,4 +1,7 @@
-"""Playlist draft management service for EchoTuner."""
+"""
+Playlist draft service.
+Manages playlist drafts, including saving, updating, and cleaning up expired drafts.
+"""
 
 import asyncio
 import logging
@@ -10,10 +13,12 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 from pathlib import Path
 
-from config.app_constants import AppConstants
-from core.models import PlaylistDraft, Song
-from config.settings import settings
 from core.singleton import SingletonServiceBase
+from core.models import PlaylistDraft, Song
+
+from config.app_constants import AppConstants
+from config.settings import settings
+
 from services.database_service import db_service
 
 logger = logging.getLogger(__name__)
@@ -21,24 +26,22 @@ logger = logging.getLogger(__name__)
 class PlaylistDraftService(SingletonServiceBase):
     """Service for managing playlist drafts and Spotify playlist integration."""
 
-    def _setup_service(self):
-        """Initialize the PlaylistDraftService."""
-        self.db_path = Path(__file__).parent.parent / AppConstants.DATABASE_FILENAME
-        self._initialized = False
-        self._cleanup_task = None
-        self._log_initialization("Playlist draft service initialized successfully", logger)
-
     def __init__(self):
         super().__init__()
 
+    def _setup_service(self):
+        """Initialize the PlaylistDraftService."""
+
+        self.db_path = Path(__file__).parent.parent / AppConstants.DATABASE_FILENAME
+        self._cleanup_task = None
+
+        self._log_initialization("Playlist draft service initialized successfully", logger)
+
     async def initialize(self):
         """Initialize the playlist draft service."""
-        if self._initialized:
-            return
+
         try:
             await self._start_cleanup_task()
-
-            self._initialized = True
             logger.info("Playlist draft service initialized successfully")
 
         except Exception as e:

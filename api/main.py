@@ -17,7 +17,8 @@ from pathlib import Path
 
 from core.models import *
 
-from config.app_constants import AppConstants
+from config.app_constants import app_constants
+from config.ai_models import ai_model_manager
 from config.settings import settings
 
 from services.spotify_playlist_service import spotify_playlist_service
@@ -25,23 +26,23 @@ from services.playlist_draft_service import playlist_draft_service
 from services.playlist_generator import playlist_generator_service
 from services.prompt_validator import prompt_validator_service
 from services.personality_service import personality_service
-from services.security import validate_production_readiness
 from services.template_service import template_service
 from services.rate_limiter import rate_limiter_service
-from services.auth_middleware import AuthMiddleware
-from services.security import get_security_headers
+from services.auth_middleware import auth_middleware
 from services.database_service import db_service
 from services.auth_service import auth_service
-from config.ai_models import ai_model_manager
 from services.data_loader import data_loader
 from services.ai_service import ai_service
-from services.security import debug_only
-from utils.decorators import demo_mode_restricted, normal_mode_restricted
+
+from services.security import validate_production_readiness
+from services.security import get_security_headers
+
+from utils.decorators import *
 
 class CustomFormatter(logging.Formatter):
     def format(self, record):
         raw_level = record.levelname
-        color = AppConstants.LOGGER_COLORS.get(raw_level, None)
+        color = app_constants.LOGGER_COLORS.get(raw_level, None)
 
         colored_level = click.style(raw_level, fg=color) if color else raw_level
 
@@ -67,13 +68,11 @@ logger = logging.getLogger(__name__)
 api_dir = Path(__file__).parent
 sys.path.insert(0, str(api_dir))
 
-auth_middleware = AuthMiddleware(auth_service)
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle startup and shutdown events"""
 
-    logger.info(f"Starting {AppConstants.APP_NAME} API...")
+    logger.info(f"Starting {app_constants.APP_NAME} API...")
     config_errors = settings.validate_required_settings()
 
     if config_errors:
@@ -105,14 +104,10 @@ async def lifespan(app: FastAPI):
         await asyncio.gather(*init_tasks)
 
         logger.info(f"AI Service: {'ENABLED' if ai_service else 'DISABLED'}")
-        logger.info(f"Spotify Search: {'ENABLED' if playlist_generator_service.spotify_search.is_ready() else 'DISABLED'}")
         logger.info(f"Rate Limiting: {'ENABLED' if settings.PLAYLIST_LIMIT_ENABLED else 'DISABLED'}")
-        logger.info(f"Auth Service: {'ENABLED' if auth_service.is_ready() else 'DISABLED'}")
-        logger.info(f"Playlist Drafts: {'ENABLED' if playlist_draft_service.is_ready() else 'DISABLED'}")
-        logger.info(f"Spotify Playlists: {'ENABLED' if spotify_playlist_service.is_ready() else 'DISABLED'}")
 
     except Exception as e:
-        logger.error(f"Failed to initialize {AppConstants.APP_NAME} API: {e}")
+        logger.error(f"Failed to initialize {app_constants.APP_NAME} API: {e}")
         raise
 
     yield
@@ -137,9 +132,9 @@ async def preload_data_cache():
         logger.warning(f"Cache preloading failed (non-critical): {e}")
 
 app = FastAPI(
-    title=AppConstants.API_TITLE,
+    title=app_constants.API_TITLE,
     description="AI-powered playlist generation with real-time song search",
-    version=AppConstants.API_VERSION,
+    version=app_constants.API_VERSION,
     lifespan=lifespan
 )
 
@@ -223,7 +218,7 @@ async def add_security_headers(request, call_next):
 @app.get("/")
 async def root():
     return {
-        "message": AppConstants.API_WELCOME_MESSAGE,
+        "message": app_constants.API_WELCOME_MESSAGE,
         "description": "AI-powered playlist generation with real-time song search",
         "demo_mode": settings.DEMO,
         "demo_info": "Demo mode uses a shared Spotify account with device-specific experiences" if settings.DEMO else None,
@@ -394,12 +389,7 @@ async def health_check():
     if settings.DEBUG:
         return {
             "status": "healthy",
-            "version": AppConstants.API_VERSION, 
-            "services": {
-                "prompt_validator": prompt_validator_service.is_ready(),
-                "playlist_generator": playlist_generator_service.is_ready(),
-                "rate_limiter": rate_limiter_service.is_ready()
-            },
+            "version": app_constants.API_VERSION,
             "features": {
                 "spotify_search": playlist_generator_service.spotify_search.is_ready(),
                 "rate_limiting": settings.PLAYLIST_LIMIT_ENABLED
@@ -414,6 +404,7 @@ async def health_check():
 @debug_only
 async def get_config():
     """Get client configuration values"""
+
     return {
         "personality": {
             "max_favorite_artists": settings.MAX_FAVORITE_ARTISTS,
@@ -462,11 +453,10 @@ async def generate_playlist(request: PlaylistRequest):
             raise HTTPException(status_code=400, detail="Invalid or empty prompt")
         
         user_info = await require_auth(request)
-        
-        # For demo accounts, use device_id for rate limiting (per device)
-        # For normal accounts, use spotify_user_id for rate limiting (shared across devices)
+
         if user_info and user_info.get('account_type') == 'demo':
             rate_limit_key = request.device_id
+
         else:
             rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
 
@@ -1446,7 +1436,7 @@ async def get_demo_playlist_refinements(request: DemoPlaylistRefinementsRequest)
         raise HTTPException(status_code=500, detail=f"Error getting demo playlist refinements: {str(e)}")
 
 if __name__ == "__main__":
-    logger.info(AppConstants.STARTUP_MESSAGE)
+    logger.info(app_constants.STARTUP_MESSAGE)
 
     uvicorn.run(
         "main:app",

@@ -110,12 +110,18 @@ For complete installation and setup instructions, please refer to the [master in
    ANTHROPIC_API_KEY=your-anthropic-api-key-here
    ```
 
-5. **Run automated setup:**
+5. **Set up a virtual environment (recommended):**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows use: venv\Scripts\activate
+   ```
+
+6. **Run automated setup:**
    ```bash
    python setup.py
    ```
 
-6. **Start the API:**
+7. **Start the API:**
    ```bash
    python main.py
    ```

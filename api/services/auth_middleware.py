@@ -1,14 +1,28 @@
+"""
+Auth middleware for FastAPI.
+Handles user authentication and session validation.
+"""
+
 import logging
 
 from fastapi import HTTPException, Request
 from typing import Optional, Dict
 
-from services.auth_service import AuthService
+from core.singleton import SingletonServiceBase
+
+from services.auth_service import auth_service
 
 logger = logging.getLogger(__name__)
 
-class AuthMiddleware:
-    def __init__(self, auth_service: AuthService):
+class AuthMiddleware(SingletonServiceBase):
+    """Middleware for validating user sessions and managing authentication."""
+
+    def __init__(self):
+        super().__init__()
+
+    def _setup_service(self):
+        """Initialize the AuthMiddleware with the AuthService."""
+
         self.auth_service = auth_service
 
     async def validate_session_from_headers(self, request: Request) -> Dict[str, str]:
@@ -43,3 +57,5 @@ class AuthMiddleware:
         except Exception as e:
             logger.error(f"Failed to get access token: {e}")
             return None
+
+auth_middleware = AuthMiddleware()

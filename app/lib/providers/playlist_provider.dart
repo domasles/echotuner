@@ -521,7 +521,7 @@ class PlaylistProvider extends ChangeNotifier {
                             }
                             
                             await prefs.setString(_demoPlaylistsKey, jsonEncode(existingPlaylists));
-                            AppLogger.playlist('Updated draft ${_currentPlaylistId} locally after refinement');
+                            AppLogger.playlist('Updated draft $_currentPlaylistId locally after refinement');
                         } catch (e) {
                             AppLogger.error('Failed to update local draft after refinement', error: e);
                         }

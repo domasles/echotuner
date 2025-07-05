@@ -1,4 +1,8 @@
-import asyncio
+"""
+Playlist generator service.
+Generates playlists using AI-powered real-time song search.
+"""
+
 import logging
 import httpx
 import random
@@ -6,29 +10,31 @@ import json
 
 from typing import List, Dict, Any, Optional
 
-from services.data_loader import data_loader
-from core.models import Song, UserContext
-from config.settings import settings
-from config.ai_models import ai_model_manager
 from core.singleton import SingletonServiceBase
+from core.models import Song, UserContext
+
+from config.ai_models import ai_model_manager
+from config.settings import settings
+
+from services.spotify_search_service import spotify_search_service
+from services.data_loader import data_loader
 
 logger = logging.getLogger(__name__)
 
 class PlaylistGeneratorService(SingletonServiceBase):
     """AI service that generates playlists using real-time song search."""
 
-    def _setup_service(self):
-        """Initialize the PlaylistGeneratorService."""
-        # Import here to avoid circular imports
-        from services.spotify_search_service import spotify_search_service
-        self.spotify_search = spotify_search_service
-        self.model_config = ai_model_manager.get_provider()
-        self.initialized = False
-        self.http_client = None
-        self._log_initialization("Playlist generator service initialized successfully", logger)
-
     def __init__(self):
         super().__init__()
+
+    def _setup_service(self):
+        """Initialize the PlaylistGeneratorService."""
+
+        self.spotify_search = spotify_search_service
+        self.model_config = ai_model_manager.get_provider()
+        self.http_client = None
+
+        self._log_initialization("Playlist generator service initialized successfully", logger)
 
     async def initialize(self):
         """Initialize the AI model and Spotify search service"""
@@ -44,7 +50,6 @@ class PlaylistGeneratorService(SingletonServiceBase):
             await self._ensure_model_available()
 
             logger.info(f"AI Playlist Generation initialized successfully with {self.model_config.name}!")
-            self.initialized = True
 
         except RuntimeError:
             raise
@@ -52,11 +57,6 @@ class PlaylistGeneratorService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Playlist generation initialization failed: {e}")
             raise RuntimeError(f"Playlist generation initialization failed: {e}")
-
-    def is_ready(self) -> bool:
-        """Check if the service is ready"""
-
-        return self.initialized
 
     async def _check_ai_model_connection(self) -> bool:
         """Check if the AI model is running and accessible"""
@@ -66,9 +66,7 @@ class PlaylistGeneratorService(SingletonServiceBase):
                 response = await self.http_client.get(f"{self.model_config.endpoint}/api/tags")
                 return response.status_code == 200
             else:
-                # For external APIs, just check if we have proper configuration
-                return (self.model_config.api_key is not None and 
-                       self.model_config.endpoint is not None)
+                return (self.model_config.api_key is not None and self.model_config.endpoint is not None)
 
         except:
             return False
@@ -90,6 +88,7 @@ class PlaylistGeneratorService(SingletonServiceBase):
 
                     else:
                         logger.info(f"Model {self.model_config.model_name} is available")
+
             else:
                 logger.info(f"Using external AI model: {self.model_config.name}")
 
@@ -134,9 +133,6 @@ class PlaylistGeneratorService(SingletonServiceBase):
         Returns:
             List of exactly 'count' songs
         """
-
-        if not self.initialized:
-            await self.initialize()
 
         try:
             search_strategy = await self._generate_search_strategy(prompt, user_context, discovery_strategy)

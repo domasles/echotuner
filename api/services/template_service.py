@@ -1,9 +1,15 @@
 from pathlib import Path
+from core.singleton import SingletonServiceBase
 
-class TemplateService:
+class TemplateService(SingletonServiceBase):
     """Service for loading and rendering HTML templates"""
 
     def __init__(self):
+        super().__init__()
+
+    def _setup_service(self):
+        """Initialize the TemplateService."""
+
         self.templates_dir = Path(__file__).parent.parent / "templates"
         self._cache = {}
 

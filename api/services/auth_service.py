@@ -1,4 +1,7 @@
-"""Authentication service for Spotify OAuth and session management."""
+"""
+Auth service.
+Manages Spotify OAuth authentication, user sessions, and device registration.
+"""
 
 import logging
 import secrets
@@ -9,14 +12,21 @@ from datetime import datetime, timedelta
 from spotipy.oauth2 import SpotifyOAuth
 from typing import Optional, Dict
 
-from services.database_service import db_service
 from core.singleton import SingletonServiceBase
+
 from config.app_constants import AppConstants
 from config.settings import settings
+
+from services.database_service import db_service
 
 logger = logging.getLogger(__name__)
 
 class AuthService(SingletonServiceBase):
+    """Service for managing Spotify OAuth authentication and user sessions."""
+
+    def __init__(self):
+        super().__init__()
+    
     def _setup_service(self):
         """Initialize the AuthService."""
 
@@ -24,15 +34,11 @@ class AuthService(SingletonServiceBase):
         self.spotify_oauth = None
 
         self._initialize_spotify_oauth()
-        
-        # Clean up accounts based on current mode
+
         if not settings.DEMO:
-            self._cleanup_demo_accounts()    # Clean demo accounts in normal mode only
+            self._cleanup_demo_accounts()
         
         self._log_initialization("Auth service initialized successfully", logger)
-
-    def __init__(self):
-        super().__init__()
 
     def _initialize_spotify_oauth(self):
         """Initialize Spotify OAuth configuration"""

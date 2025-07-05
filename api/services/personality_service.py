@@ -1,19 +1,29 @@
+"""
+Peonality service.
+Manages user personality and preferences, including saving and retrieving user context, fetching followed artists, and enhancing AI context with personality data.
+"""
+
 import logging
 import json
 
 from typing import Optional, List
 
-from services.spotify_search_service import spotify_search_service
 from core.models import UserContext, SpotifyArtist
-from services.database_service import db_service
 from core.singleton import SingletonServiceBase
-from services.auth_service import auth_service
+
 from config.settings import settings
+
+from services.spotify_search_service import spotify_search_service
+from services.database_service import db_service
+from services.auth_service import auth_service
 
 logger = logging.getLogger(__name__)
 
 class PersonalityService(SingletonServiceBase):
     """Service for managing user personality and preferences"""
+
+    def __init__(self):
+        super().__init__()
 
     def _setup_service(self):
         """Initialize the PersonalityService."""
@@ -23,14 +33,10 @@ class PersonalityService(SingletonServiceBase):
 
         self._log_initialization("Personality service initialized successfully", logger)
 
-    def __init__(self):
-        super().__init__()
-
     async def initialize(self):
         """Initialize the service"""
 
-        if not hasattr(self.spotify_search, '_initialized') or not self.spotify_search._initialized:
-            await self.spotify_search.initialize()
+        await self.spotify_search.initialize()
 
     async def save_user_personality(self, session_id: str, device_id: str, user_context: UserContext) -> bool:
         """Save user personality preferences"""
@@ -44,8 +50,7 @@ class PersonalityService(SingletonServiceBase):
                 return False
 
             spotify_user_id = user_info.get('spotify_user_id')
-            
-            # Check if this is a demo account
+
             if settings.DEMO and spotify_user_id.startswith("demo_user_"):
                 logger.info(f"Demo mode: personality not stored server-side for device {device_id}")
                 return True

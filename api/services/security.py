@@ -5,11 +5,7 @@ Provides endpoint protection and security features for EchoTuner API.
 
 import logging
 
-from fastapi import HTTPException
-from functools import wraps
-
 from config.settings import settings
-from utils.decorators import debug_only, production_safe
 
 logger = logging.getLogger(__name__)
 

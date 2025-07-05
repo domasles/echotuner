@@ -28,6 +28,7 @@ class SingletonServiceBase:
 
         self._singleton_initialized = True
         self._logger_name = self.__class__.__name__
+
         self._setup_service()
     
     def _setup_service(self):

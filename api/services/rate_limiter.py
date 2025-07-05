@@ -21,7 +21,6 @@ class RateLimiterService(SingletonServiceBase):
         self.max_refinements = settings.MAX_REFINEMENTS_PER_PLAYLIST
         self.is_rate_limiting_enabled = settings.PLAYLIST_LIMIT_ENABLED
         self.max_requests_per_day = settings.MAX_PLAYLISTS_PER_DAY
-        self._initialized = False
 
         self._log_initialization("Rate limiter service initialized successfully", logger)
 
@@ -31,21 +30,12 @@ class RateLimiterService(SingletonServiceBase):
     async def initialize(self):
         """Initialize the database and create tables if needed"""
 
-        if self._initialized:
-            return
-
         try:
-            self._initialized = True
             logger.info("Rate limiter initialized successfully")
 
         except Exception as e:
             logger.error(f"Error initializing rate limiter: {e}")
             raise RuntimeError(f"Rate limiter initialization failed: {e}")
-
-    def is_ready(self) -> bool:
-        """Check if the service is ready"""
-
-        return self._initialized
 
     def _get_device_hash(self, device_id: str) -> str:
         """Create a hash of the device ID for privacy"""

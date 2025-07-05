@@ -28,3 +28,5 @@ class AppConstants:
         'CRITICAL': 'bright_red',
         APP_NAME: 'magenta'
     }
+
+app_constants = AppConstants()

@@ -1,4 +1,7 @@
-"""Database service for centralized database operations."""
+"""
+Database service
+Centralizedly manages all database operations.
+"""
 
 import aiosqlite
 import logging
@@ -7,37 +10,32 @@ from typing import Optional, Dict, List, Any
 from datetime import datetime
 
 from core.singleton import SingletonServiceBase
-from config.app_constants import AppConstants
 from core.models import UserContext
+
+from config.app_constants import AppConstants
 
 logger = logging.getLogger(__name__)
 
 class DatabaseService(SingletonServiceBase):
     """Centralized database service for all database operations"""
 
-    def __init__(self, db_path: str = None):
-        self.db_path = db_path or AppConstants.DATABASE_FILENAME
-        self._initialized = False
+    def __init__(self):
         super().__init__()
 
     def _setup_service(self):
         """Initialize database service."""
 
+        self.db_path = AppConstants.DATABASE_FILENAME
         self._log_initialization("Database service initialized as singleton", logger)
 
     async def initialize(self):
         """Initialize all database tables (only once)"""
-
-        if self._initialized:
-            return
 
         await self._create_auth_tables()
         await self._create_personality_tables()
         await self._create_playlist_tables()
         await self._create_rate_limit_tables()
         await self._run_migrations()
-
-        self._initialized = True
 
     async def _create_auth_tables(self):
         """Create authentication-related tables"""
@@ -184,7 +182,6 @@ class DatabaseService(SingletonServiceBase):
                     END
                 """)
 
-                # Table for tracking demo account playlist IDs and their refinement counts
                 await db.execute("""
                     CREATE TABLE IF NOT EXISTS demo_playlists (
                         playlist_id TEXT PRIMARY KEY,
