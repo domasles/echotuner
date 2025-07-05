@@ -1,4 +1,10 @@
+"""
+Template service.
+This service is responsible for loading and rendering HTML templates.
+"""
+
 from pathlib import Path
+
 from core.singleton import SingletonServiceBase
 
 class TemplateService(SingletonServiceBase):

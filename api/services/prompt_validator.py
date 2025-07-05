@@ -12,7 +12,7 @@ from core.singleton import SingletonServiceBase
 from config.ai_models import ai_model_manager
 from config.settings import settings
 
-from services.data_loader import data_loader
+from services.data_service import data_loader
 
 logger = logging.getLogger(__name__)
 
@@ -95,23 +95,23 @@ class PromptValidatorService(SingletonServiceBase):
                         logger.error(f"Failed to pull embedding model: {pull_response.text}")
                         raise RuntimeError(f"Failed to pull embedding model {self.model_config.embedding_model}")
 
-                elif self.model_config.model_name not in model_names:
-                    logger.info(f"Pulling model {self.model_config.model_name}...")
+                elif self.model_config.generation_model not in model_names:
+                    logger.info(f"Pulling model {self.model_config.generation_model}...")
 
                     pull_response = await self.http_client.post(
                         f"{self.model_config.endpoint}/api/pull",
-                        json={"name": self.model_config.model_name}
+                        json={"name": self.model_config.generation_model}
                     )
 
                     if pull_response.status_code == 200:
-                        logger.info(f"Model {self.model_config.model_name} pulled successfully")
+                        logger.info(f"Model {self.model_config.generation_model} pulled successfully")
 
                     else:
                         logger.error(f"Failed to pull model: {pull_response.text}")
-                        raise RuntimeError(f"Failed to pull model {self.model_config.model_name}")
+                        raise RuntimeError(f"Failed to pull model {self.model_config.generation_model}")
 
                 else:
-                    logger.info(f"Model {self.model_config.model_name} already available")
+                    logger.info(f"Model {self.model_config.generation_model} already available")
 
         except RuntimeError:
             raise
@@ -162,7 +162,7 @@ class PromptValidatorService(SingletonServiceBase):
             response = await self.http_client.post(
                 f"{self.model_config.endpoint}/api/embeddings",
                 json={
-                    "model": self.model_config.embedding_model or self.model_config.model_name,
+                    "model": self.model_config.embedding_model or self.model_config.generation_model,
                     "prompt": text
                 },
                 timeout=self.prompt_validation_timeout
@@ -188,9 +188,6 @@ class PromptValidatorService(SingletonServiceBase):
         Validate if the prompt is related to music, mood, or emotions.
         Returns True if valid, False otherwise.
         """
-
-        if not self.initialized:
-            await self.initialize()
 
         prompt = prompt.lower().strip()
 

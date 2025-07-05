@@ -23,10 +23,6 @@ class SingletonServiceBase:
     """Base class for singleton services with managed logging."""
     
     def __init__(self):
-        if hasattr(self, '_singleton_initialized'):
-            return
-
-        self._singleton_initialized = True
         self._logger_name = self.__class__.__name__
 
         self._setup_service()
@@ -39,6 +35,4 @@ class SingletonServiceBase:
     def _log_initialization(self, message: str, logger):
         """Log initialization only once per singleton instance."""
 
-        if not hasattr(self, '_initialization_logged'):
-            logger.info(message)
-            self._initialization_logged = True
+        logger.info(message)

@@ -474,11 +474,6 @@ class PlaylistDraftService(SingletonServiceBase):
             spotify_playlist_id=row[9]
         )
 
-    def is_ready(self) -> bool:
-        """Check if the service is ready."""
-
-        return self._initialized
-
     async def cleanup(self):
         """Clean up the service."""
 

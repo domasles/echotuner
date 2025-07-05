@@ -16,19 +16,21 @@ class Settings:
     API_HOST: str = os.getenv("API_HOST", "0.0.0.0")
     API_PORT: int = int(os.getenv("API_PORT", 8000))
 
+    DEMO: bool = os.getenv("DEMO", "false").lower() == "true"
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
-    DEFAULT_AI_PROVIDER: str = os.getenv("DEFAULT_AI_PROVIDER", "ollama")
+    AI_PROVIDER: str = os.getenv("AI_PROVIDER", "ollama")
 
     AI_ENDPOINT: str = os.getenv("AI_ENDPOINT", "http://localhost:11434")
     AI_GENERATION_MODEL: str = os.getenv("AI_GENERATION_MODEL", "phi3:mini")
     AI_EMBEDDING_MODEL: str = os.getenv("AI_EMBEDDING_MODEL", "nomic-embed-text:latest")
+    AI_MAX_TOKENS: Optional[int] = int(os.getenv("AI_MAX_TOKENS", 2000))
+    AI_TEMPERATURE: Optional[float] = float(os.getenv("AI_TEMPERATURE", 0.7))
     AI_TIMEOUT: int = int(os.getenv("AI_TIMEOUT", 30))
     AI_MODEL_PULL_TIMEOUT: int = int(os.getenv("AI_MODEL_PULL_TIMEOUT", 300))
 
-    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
-    ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
+    CLOUD_API_KEY: Optional[str] = os.getenv("CLOUD_API_KEY")
 
     PROMPT_VALIDATION_THRESHOLD: float = float(os.getenv("PROMPT_VALIDATION_THRESHOLD", 0.6))
     PROMPT_VALIDATION_TIMEOUT: int = int(os.getenv("PROMPT_VALIDATION_TIMEOUT", 30))
@@ -64,9 +66,6 @@ class Settings:
 
     MAX_PROMPT_LENGTH: int = int(os.getenv("MAX_PROMPT_LENGTH", 500))
     MAX_PLAYLIST_NAME_LENGTH: int = int(os.getenv("MAX_PLAYLIST_NAME_LENGTH", 100))
-    
-    # Demo Mode
-    DEMO: bool = os.getenv("DEMO", "false").lower() == "true"
     
     def validate_required_settings(self) -> list[str]:
         """Validate that required settings are configured for production"""

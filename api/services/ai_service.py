@@ -60,13 +60,13 @@ class AIService(SingletonServiceBase):
                 headers["Content-Type"] = "application/json"
 
                 test_payload = {
-                    "model": model_config.model_name,
+                    "model": model_config.generation_model,
                     "messages": [{"role": "user", "content": "Hello"}],
                     "max_tokens": 5
                 }
 
                 async with self._session.post(
-                    f"{model_config.endpoint}/chat/completions",
+                    f"{model_config.endpoint}/v1/chat/completions",
                     headers=headers,
                     json=test_payload,
                     timeout=aiohttp.ClientTimeout(total=10)
@@ -78,13 +78,13 @@ class AIService(SingletonServiceBase):
                 headers["Content-Type"] = "application/json"
 
                 test_payload = {
-                    "model": model_config.model_name,
+                    "model": model_config.generation_model,
                     "max_tokens": 5,
                     "messages": [{"role": "user", "content": "Hello"}]
                 }
 
                 async with self._session.post(
-                    f"{model_config.endpoint}/messages",
+                    f"{model_config.endpoint}/v1/messages",
                     headers=headers,
                     json=test_payload,
                     timeout=aiohttp.ClientTimeout(total=10)
@@ -123,7 +123,7 @@ class AIService(SingletonServiceBase):
         """Generate text using Ollama."""
 
         payload = {
-            "model": model_config.model_name,
+            "model": model_config.generation_model,
             "prompt": prompt,
             "stream": False,
             "options": {
@@ -151,14 +151,14 @@ class AIService(SingletonServiceBase):
         headers["Content-Type"] = "application/json"
 
         payload = {
-            "model": model_config.model_name,
+            "model": model_config.generation_model,
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": kwargs.get("max_tokens", model_config.max_tokens or 2000),
             "temperature": kwargs.get("temperature", model_config.temperature or 0.7)
         }
 
         async with self._session.post(
-            f"{model_config.endpoint}/chat/completions",
+            f"{model_config.endpoint}/v1/chat/completions",
             headers=headers,
             json=payload,
             timeout=aiohttp.ClientTimeout(total=model_config.timeout)
@@ -177,14 +177,14 @@ class AIService(SingletonServiceBase):
         headers["Content-Type"] = "application/json"
 
         payload = {
-            "model": model_config.model_name,
+            "model": model_config.generation_model,
             "max_tokens": kwargs.get("max_tokens", model_config.max_tokens or 2000),
             "messages": [{"role": "user", "content": prompt}],
             "temperature": kwargs.get("temperature", model_config.temperature or 0.7)
         }
 
         async with self._session.post(
-            f"{model_config.endpoint}/messages",
+            f"{model_config.endpoint}/v1/messages",
             headers=headers,
             json=payload,
             timeout=aiohttp.ClientTimeout(total=model_config.timeout)
@@ -248,9 +248,8 @@ class AIService(SingletonServiceBase):
         return {
             "name": model_config.name,
             "endpoint": model_config.endpoint,
-            "model_name": model_config.model_name,
+            "model_name": model_config.generation_model,
             "embedding_model": model_config.embedding_model,
-            "has_api_key": bool(model_config.api_key),
             "timeout": model_config.timeout,
             "max_tokens": model_config.max_tokens,
             "temperature": model_config.temperature

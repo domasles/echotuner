@@ -17,7 +17,7 @@ from config.ai_models import ai_model_manager
 from config.settings import settings
 
 from services.spotify_search_service import spotify_search_service
-from services.data_loader import data_loader
+from services.data_service import data_loader
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +65,9 @@ class PlaylistGeneratorService(SingletonServiceBase):
             if self.model_config.name.lower() == "ollama":
                 response = await self.http_client.get(f"{self.model_config.endpoint}/api/tags")
                 return response.status_code == 200
+
             else:
-                return (self.model_config.api_key is not None and self.model_config.endpoint is not None)
+                return (self.model_config.endpoint is not None)
 
         except:
             return False
@@ -82,12 +83,12 @@ class PlaylistGeneratorService(SingletonServiceBase):
                     models = response.json().get("models", [])
                     model_names = [model.get("name", "") for model in models]
 
-                    if self.model_config.model_name not in model_names:
-                        logger.info(f"Model {self.model_config.model_name} not found, pulling...")
+                    if self.model_config.generation_model not in model_names:
+                        logger.info(f"Model {self.model_config.generation_model} not found, pulling...")
                         await self._pull_model()
 
                     else:
-                        logger.info(f"Model {self.model_config.model_name} is available")
+                        logger.info(f"Model {self.model_config.generation_model} is available")
 
             else:
                 logger.info(f"Using external AI model: {self.model_config.name}")
@@ -105,16 +106,16 @@ class PlaylistGeneratorService(SingletonServiceBase):
 
             response = await self.http_client.post(
                 f"{self.model_config.endpoint}/api/pull",
-                json={"name": self.model_config.model_name},
+                json={"name": self.model_config.generation_model},
                 timeout=settings.AI_MODEL_PULL_TIMEOUT
             )
 
             if response.status_code == 200:
-                logger.info(f"Model {self.model_config.model_name} pulled successfully")
+                logger.info(f"Model {self.model_config.generation_model} pulled successfully")
 
             else:
-                logger.error(f"Failed to pull model {self.model_config.model_name}")
-                raise RuntimeError(f"Failed to pull model {self.model_config.model_name}")
+                logger.error(f"Failed to pull model {self.model_config.generation_model}")
+                raise RuntimeError(f"Failed to pull model {self.model_config.generation_model}")
 
         except Exception as e:
             logger.error(f"Model pull failed: {e}")
@@ -218,7 +219,7 @@ class PlaylistGeneratorService(SingletonServiceBase):
                     context += f"Before recommending ANY song, verify the artist is NOT in this list: {', '.join(user_context.disliked_artists)}\n\n"
 
                 context += "USER PREFERENCES:\n"
-                
+
                 if user_context.favorite_genres:
                     context += f"Preferred genres (prioritize these): {', '.join(user_context.favorite_genres)}\n"
 
@@ -231,13 +232,15 @@ class PlaylistGeneratorService(SingletonServiceBase):
                 if user_context.decade_preference:
                     context += f"Preferred decades: {', '.join(user_context.decade_preference)}\n"
 
-            # Add discovery strategy information and modify search approach
             context += f"\nDISCOVERY STRATEGY: {discovery_strategy}\n"
+
             if discovery_strategy == "new_music":
                 context += "PRIORITIZE discovering new artists and hidden gems. Focus on lesser-known tracks and emerging artists.\n"
+
             elif discovery_strategy == "existing_music":
                 context += "PRIORITIZE familiar favorites from user's taste profile. Focus on artists and songs similar to user's preferences.\n"
-            else:  # balanced
+
+            else:
                 context += "BALANCE between familiar favorites and new discoveries. Mix popular tracks with some hidden gems.\n"
 
             if user_context:
@@ -297,72 +300,37 @@ class PlaylistGeneratorService(SingletonServiceBase):
                     genre_examples[genre] = genre
 
             ai_prompt = f"""
-                You are an expert music curator and recommendation AI with deep knowledge of artists, genres, and musical styles. Your primary goal is to deeply understand the user's musical intent and provide recommendations that perfectly match their request, preferences, and personality.
+                You are an expert Spotify music curator AI. Analyze user input ({context}) with access to:
+                - Genres, example artists: {', '.join(genre_examples.values())}
+                - Activities, their energy levels: {activity_energies}
+                - Moods: {', '.join(available_moods)}
 
-                User Request to analyze:
-                {context}
+                Follow strict rules:
 
-                You have access to the following predefined options:
+                1. Match genres precisely using artist examples.
+                - Hip hop/rap → only hip hop, trap, rap genres
+                - Pop → pop, dance pop, mainstream only
+                - Rock → rock, alternative, metal only
+                - Never mix incompatible genres.
 
-                - Available genres with representative artists: {', '.join(genre_examples.values())}
-                - Available activities: {', '.join(available_activities)}
-                - Activity-to-energy mappings: {activity_energies}
-                - Available moods: {', '.join(available_moods)}
+                2. Treat any mentioned artist as valid; identify their genre. Respect user's favorite and avoided artists.
+                3. Consider user personality: mood, preferences, discovery openness, decades, explicit/instrumental, and context.
+                4. Match energy level ("low", "medium", "high") based on activity and mood.
 
-                CRITICAL INSTRUCTIONS:
+                Return JSON with:
+                - mood_keywords (3-5)
+                - genres (2-3 from list)
+                - energy_level
+                - brief explanation considering user preferences.
 
-                1. **GENRE ACCURACY IS PARAMOUNT**: 
-                   - Use the artist examples to understand what each genre truly represents
-                   - Hip hop/rap requests should ONLY get hip hop, trap, or rap-related genres
-                   - Pop requests should ONLY get pop, dance pop, or mainstream genres
-                   - Rock requests should ONLY get rock, alternative, metal, etc.
-                   - NEVER mix incompatible genres (e.g., don't suggest pop artists for rap requests)
+                Examples:
+                - "I want rap music" → genres: ["hip hop", "trap"]
+                - "Heavy metal for workout" → genres: ["metal", "rock"]
+                - "Chill indie songs" → genres: ["indie", "alternative"]
+                - "90s gangsta rap" → genres: ["90s rap", "hip hop"]
+                - "Electronic dance music" → genres: ["electronic", "dance"]
 
-                2. **ARTIST RECOGNITION**: 
-                   - All artist names mentioned in user requests are music-related by definition
-                   - If a user mentions ANY artist name, treat it as a valid music reference
-                   - Use the artist examples to identify which genre each artist belongs to
-                   - Respect the user's artist preferences completely
-
-                3. **USER PERSONALITY INTEGRATION**:
-                   - STRICTLY RESPECT user's favorite genres and artists mentioned in their profile
-                   - ABSOLUTELY AVOID any artists mentioned in the "AVOID these artists" list
-                   - Consider the user's mood preferences for different situations
-                   - Respect their discovery openness level (1-10 scale)
-                   - Consider their decade preferences when applicable
-                   - Honor their explicit content and instrumental music preferences
-                   - Factor in their listening context preferences
-
-                4. **ENERGY AND MOOD MAPPING**:
-                   - Match energy levels precisely to the request and user activity
-                   - Consider the emotional context deeply
-                   - Factor in time of day, activity, and user's current state
-
-                Return the following analysis in JSON format:
-
-                1. **mood_keywords**: 3 to 5 strong emotional or stylistic keywords that capture the feeling of the request
-                2. **genres**: 2 to 3 genres STRICTLY from the provided genre list that most accurately match the request and user preferences
-                3. **energy_level**: "low", "medium", or "high" based on request, activity mapping, and user context
-                4. **explanation**: Clear explanation (2-3 sentences) of your analysis, including how user preferences influenced your choices
-
-                Format your response in valid JSON:
-                {{
-                    "mood_keywords": ["keyword1", "keyword2", "keyword3"],
-                    "genres": ["genre1", "genre2"],
-                    "energy_level": "medium",
-                    "explanation": "Detailed explanation here including user preference considerations"
-                }}
-
-                EXAMPLES OF CORRECT GENRE MAPPING:
-
-                - "I want some rap music" → genres: ["hip hop", "trap"] (NOT pop or other genres)
-                - "Play some Taylor Swift vibes" → genres: ["pop", "indie pop"] (NOT hip hop)
-                - "Heavy metal for working out" → genres: ["metal", "rock"] (NOT electronic)
-                - "Chill indie songs" → genres: ["indie", "alternative"] (NOT hip hop or pop)
-                - "90s gangsta rap" → genres: ["90s rap", "hip hop"] (NOT alternative rock)
-                - "Electronic dance music" → genres: ["electronic", "dance"] (NOT rock or folk)
-
-                Remember: The user's request is the primary guide, but their saved preferences should strongly influence your final recommendations.
+                User request guides output; preferences strongly influence it.
             """
 
             response_text = await self._call_ai_model(ai_prompt)
@@ -668,7 +636,7 @@ class PlaylistGeneratorService(SingletonServiceBase):
             response = await self.http_client.post(
                 f"{self.model_config.endpoint}/api/generate",
                 json={
-                    "model": self.model_config.model_name,
+                    "model": self.model_config.generation_model,
                     "prompt": prompt,
                     "stream": False
                 },
@@ -685,14 +653,14 @@ class PlaylistGeneratorService(SingletonServiceBase):
             headers = self.model_config.headers or {}
 
             data = {
-                "model": self.model_config.model_name,
+                "model": self.model_config.generation_model,
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": self.model_config.max_tokens,
                 "temperature": self.model_config.temperature
             }
 
             response = await self.http_client.post(
-                f"{self.model_config.endpoint}/chat/completions",
+                f"{self.model_config.endpoint}/v1/chat/completions",
                 headers=headers,
                 json=data
             )
@@ -708,14 +676,14 @@ class PlaylistGeneratorService(SingletonServiceBase):
             headers = self.model_config.headers or {}
 
             data = {
-                "model": self.model_config.model_name,
+                "model": self.model_config.generation_model,
                 "max_tokens": self.model_config.max_tokens,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": self.model_config.temperature
             }
 
             response = await self.http_client.post(
-                f"{self.model_config.endpoint}/messages",
+                f"{self.model_config.endpoint}/v1/messages",
                 headers=headers,
                 json=data
             )

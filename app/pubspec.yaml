@@ -2,7 +2,7 @@ name: echotuner
 description: AI-powered Spotify playlist generator
 
 publish_to: 'none'
-version: 1.7.0-alpha+1
+version: 1.9.0-alpha+1
 
 environment:
     sdk: '>=3.0.0 <4.0.0'
@@ -46,6 +46,8 @@ flutter:
         - assets/logos/EchoTunerLogo.svg
         - assets/logos/SpotifyLogo.svg
 
+        - assets/icons/EchoTunerIcon.png
+
 flutter_launcher_icons:
     android: true
     ios: true
@@ -53,18 +55,18 @@ flutter_launcher_icons:
 
     windows:
         generate: true
-        image_path: "assets/logos/EchoTunerLogo.png"
+        image_path: "assets/icons/EchoTunerIcon.png"
         icon_size: 256
 
     macos:
         generate: true
-        image_path: "assets/logos/EchoTunerLogo.png"
+        image_path: "assets/icons/EchoTunerIcon.png"
 
     web:
         generate: true
-        image_path: "assets/logos/EchoTunerLogo.png"
+        image_path: "assets/icons/EchoTunerIcon.png"
 
-    image_path: "assets/logos/EchoTunerLogo.png"
+    image_path: "assets/icons/EchoTunerIcon.png"
 
     adaptive_icon_background: "#000000"
-    adaptive_icon_foreground: "assets/logos/EchoTunerLogo.png"
+    adaptive_icon_foreground: "assets/icons/EchoTunerIcon.png"

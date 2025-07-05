@@ -11,10 +11,13 @@ import random
 from typing import List, Optional
 
 from spotipy.oauth2 import SpotifyClientCredentials
+
 from core.singleton import SingletonServiceBase
-from services.data_loader import data_loader
 from core.models import Song, UserContext
+
 from config.settings import settings
+
+from services.data_service import data_loader
 
 logger = logging.getLogger(__name__)
 

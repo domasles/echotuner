@@ -59,9 +59,6 @@ class RateLimiterService(SingletonServiceBase):
         if not self.is_rate_limiting_enabled:
             return True
 
-        if not self._initialized:
-            await self.initialize()
-
         try:
             device_hash = self._get_device_hash(device_id)
             current_date = datetime.now().date().isoformat()
@@ -89,9 +86,6 @@ class RateLimiterService(SingletonServiceBase):
         if not settings.REFINEMENT_LIMIT_ENABLED:
             return True
 
-        if not self._initialized:
-            await self.initialize()
-
         try:
             device_hash = self._get_device_hash(device_id)
             current_date = datetime.now().date().isoformat()
@@ -115,9 +109,6 @@ class RateLimiterService(SingletonServiceBase):
 
     async def record_request(self, device_id: str):
         """Record a playlist generation request"""
-
-        if not self._initialized:
-            await self.initialize()
 
         try:
             device_hash = self._get_device_hash(device_id)
@@ -143,9 +134,6 @@ class RateLimiterService(SingletonServiceBase):
 
     async def record_refinement(self, device_id: str):
         """Record a playlist refinement request"""
-
-        if not self._initialized:
-            await self.initialize()
 
         try:
             device_hash = self._get_device_hash(device_id)
@@ -179,9 +167,6 @@ class RateLimiterService(SingletonServiceBase):
         """Get current rate limit status for a device"""
 
         device_hash = self._get_device_hash(device_id)
-
-        if not self._initialized:
-            await self.initialize()
 
         try:
             current_date = datetime.now().date().isoformat()
@@ -241,9 +226,6 @@ class RateLimiterService(SingletonServiceBase):
 
     async def reset_daily_limits(self):
         """Reset all daily limits (for testing purposes)"""
-
-        if not self._initialized:
-            await self.initialize()
 
         try:
             await db_service.delete_record('rate_limits', '1=1')

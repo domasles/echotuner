@@ -536,7 +536,6 @@ class DatabaseService(SingletonServiceBase):
         """Get rate limit status for a user"""
 
         try:
-            # Get the most recent record for this user, regardless of date
             row = await self.fetch_one("SELECT requests_count, refinements_count, last_request_date FROM rate_limits WHERE user_id = ? ORDER BY last_request_date DESC LIMIT 1", (user_id,))
 
             if row:

@@ -288,7 +288,7 @@ ollama pull nomic-embed-text
 
 **Setup:**
 ```env
-DEFAULT_AI_PROVIDER=openai
+AI_PROVIDER=openai
 OPENAI_API_KEY=sk-your-openai-api-key-here
 ```
 
@@ -300,7 +300,7 @@ OPENAI_API_KEY=sk-your-openai-api-key-here
 
 **Setup:**
 ```env
-DEFAULT_AI_PROVIDER=anthropic
+AI_PROVIDER=anthropic
 ANTHROPIC_API_KEY=your-anthropic-api-key-here
 ```
 
@@ -327,7 +327,7 @@ The system supports any REST API-based AI service. See the [API documentation](a
 - **Configuration**: Set `ANTHROPIC_API_KEY` in environment variables
 
 ```env
-DEFAULT_AI_PROVIDER=anthropic
+AI_PROVIDER=anthropic
 ANTHROPIC_API_KEY=your-anthropic-api-key-here
 ```
 
@@ -344,7 +344,7 @@ Common patterns include OpenAI-compatible APIs, custom response formats, and pro
 For detailed implementation instructions, see the [API README](./api/README.md#4-custom-ai-providers).
 
 ### Model Selection Logic
-1. Uses model specified in `DEFAULT_AI_PROVIDER` environment variable
+1. Uses model specified in `AI_PROVIDER` environment variable
 2. Falls back to Ollama if default model is unavailable
 3. Automatic failover between available models
 4. Graceful error handling with informative messages
@@ -455,7 +455,7 @@ Service health and dependency status.
 ```json
 {
     "status": "healthy",
-    "version": "1.7.0",
+    "version": "1.9.0",
     "services": {
         "prompt_validator": true,
         "playlist_generator": true,

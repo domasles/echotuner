@@ -6,10 +6,11 @@ import logging
 
 from typing import List, Dict, Any, Optional, Tuple
 
-from config.settings import settings
-from config.app_constants import AppConstants
-from core.models import Song
 from core.singleton import SingletonServiceBase
+from core.models import Song
+
+from config.app_constants import AppConstants
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -351,6 +352,6 @@ class SpotifyPlaylistService(SingletonServiceBase):
     def is_ready(self) -> bool:
         """Check if the service is ready."""
 
-        return self._initialized and settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET
+        return settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET
 
 spotify_playlist_service = SpotifyPlaylistService()

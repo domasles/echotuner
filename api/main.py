@@ -2,10 +2,9 @@ import asyncio
 import logging
 import uvicorn
 import click
+import uuid
 import sys
 import re
-import uuid
-from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.gzip import GZipMiddleware
@@ -13,12 +12,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 
 from core.models import *
 
 from config.app_constants import app_constants
-from config.ai_models import ai_model_manager
 from config.settings import settings
 
 from services.spotify_playlist_service import spotify_playlist_service
@@ -31,7 +30,7 @@ from services.rate_limiter import rate_limiter_service
 from services.auth_middleware import auth_middleware
 from services.database_service import db_service
 from services.auth_service import auth_service
-from services.data_loader import data_loader
+from services.data_service import data_loader
 from services.ai_service import ai_service
 
 from services.security import validate_production_readiness
@@ -506,22 +505,17 @@ async def generate_playlist(request: PlaylistRequest):
             discovery_strategy=request.discovery_strategy or "balanced"
         )
 
-        # For demo accounts, only track playlist ID - don't save song data
-        # For normal accounts, save full draft with song data
         if user_info and user_info.get('account_type') == 'demo':
-            # Generate a unique playlist ID for demo account
-            import uuid
             playlist_id = str(uuid.uuid4())
-            
-            # Track the playlist ID for refinement counting
+
             await db_service.add_demo_playlist(
                 playlist_id=playlist_id,
                 device_id=request.device_id,
                 session_id=request.session_id,
                 prompt=sanitized_prompt
             )
+
         else:
-            # Save full draft for normal accounts
             playlist_id = await playlist_draft_service.save_draft(
                 device_id=request.device_id,
                 session_id=request.session_id,
@@ -1232,9 +1226,6 @@ async def remove_track_from_spotify_playlist(playlist_id: str, track_uri: str, s
     """Remove a track from a Spotify playlist."""
 
     try:
-        if not spotify_playlist_service._initialized:
-            raise HTTPException(status_code=503, detail="Spotify playlist service not available")
-
         access_token = await auth_service.get_access_token(session_id)
 
         if not access_token:
@@ -1272,7 +1263,6 @@ async def get_ai_models():
     
     return {
         "available_models": models,
-        "default_model": ai_model_manager.get_default_model()
     }
 
 @app.post("/ai/test")

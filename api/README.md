@@ -92,21 +92,21 @@ For complete installation and setup instructions, please refer to the [master in
    ```bash
    # Install and start Ollama
    # Install required models
-   ollama pull llama3.2:3b
+   ollama pull phi3:mini
    ollama pull nomic-embed-text
    ```
 
    **For OpenAI (Cloud AI):**
    ```env
    # Edit .env file
-   DEFAULT_AI_PROVIDER=openai
+   AI_PROVIDER=openai
    OPENAI_API_KEY=sk-your-openai-api-key-here
    ```
 
    **For Anthropic Claude (Cloud AI):**
    ```env
    # Edit .env file
-   DEFAULT_AI_PROVIDER=anthropic
+   AI_PROVIDER=anthropic
    ANTHROPIC_API_KEY=your-anthropic-api-key-here
    ```
 
@@ -333,7 +333,7 @@ ollama pull nomic-embed-text       # Embedding model
 
 **Configuration:**
 ```env
-DEFAULT_AI_PROVIDER=ollama
+AI_PROVIDER=ollama
 AI_ENDPOINT=http://localhost:11434
 AI_GENERATION_MODEL=phi3:mini
 AI_EMBEDDING_MODEL=nomic-embed-text:latest
@@ -348,7 +348,7 @@ AI_EMBEDDING_MODEL=nomic-embed-text:latest
 
 **Configuration:**
 ```env
-DEFAULT_AI_PROVIDER=openai
+AI_PROVIDER=openai
 OPENAI_API_KEY=sk-your-openai-api-key-here
 ```
 
@@ -365,7 +365,7 @@ OPENAI_API_KEY=sk-your-openai-api-key-here
 
 **Configuration:**
 ```env
-DEFAULT_AI_PROVIDER=anthropic
+AI_PROVIDER=anthropic
 ANTHROPIC_API_KEY=your-anthropic-api-key-here
 ```
 
@@ -382,22 +382,13 @@ EchoTuner's AI system is designed to be modular and extensible. You can add supp
 Add your AI provider's configuration to the `.env` file:
 
 ```env
-# Custom AI Provider Configuration
-CUSTOM_PROVIDER_API_KEY=your-api-key-here
-CUSTOM_PROVIDER_ENDPOINT=https://api.yourprovider.com/v1
-CUSTOM_PROVIDER_MODEL=your-model-name
-CUSTOM_PROVIDER_TIMEOUT=30
-```
-
-Update `config/settings.py` to include your new provider settings:
-
-```python
-class Settings:
-    # Add your custom provider settings
-    CUSTOM_PROVIDER_API_KEY: Optional[str] = os.getenv("CUSTOM_PROVIDER_API_KEY")
-    CUSTOM_PROVIDER_ENDPOINT: str = os.getenv("CUSTOM_PROVIDER_ENDPOINT", "https://api.yourprovider.com/v1")
-    CUSTOM_PROVIDER_MODEL: str = os.getenv("CUSTOM_PROVIDER_MODEL", "default-model")
-    CUSTOM_PROVIDER_TIMEOUT: int = int(os.getenv("CUSTOM_PROVIDER_TIMEOUT", 30))
+# AI Model Configuration
+AI_PROVIDER=your_custom_provider
+AI_ENDPOINT=https://api.yourprovider.com
+AI_GENERATION_MODEL=your-generation-model
+AI_EMBEDDING_MODEL=your-embedding-model
+AI_MAX_TOKENS=2000
+AI_TEMPERATURE=0.7
 ```
 
 ##### Step 2: Register the Model
@@ -406,22 +397,19 @@ In `config/ai_models.py`, add your provider to the `_setup_default_models` metho
 
 ```python
 def _setup_default_models(self):
-    # ... existing models ...
-    
-    # Your Custom Provider
     if settings.CUSTOM_PROVIDER_API_KEY:
+        # ... existing models ...
+
+        # Your Custom Provider
         self._models["custom_provider"] = AIModelConfig(
             name="Custom Provider",
-            endpoint=settings.CUSTOM_PROVIDER_ENDPOINT,
-            api_key=settings.CUSTOM_PROVIDER_API_KEY,
-            model_name=settings.CUSTOM_PROVIDER_MODEL,
-            headers={
-                "Authorization": f"Bearer {settings.CUSTOM_PROVIDER_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            max_tokens=2000,
-            temperature=0.7,
-            timeout=settings.CUSTOM_PROVIDER_TIMEOUT
+            endpoint=settings.AI_ENDPOINT,
+            generation_model=settings.AI_GENERATION_MODEL,
+            embedding_model=settings.AI_EMBEDDING_MODEL,
+            headers={"Authorization": f"Bearer {settings.CLOUD_API_KEY}"},
+            max_tokens=settings.AI_MAX_TOKENS,
+            temperature=settings.AI_TEMPERATURE,
+            timeout=settings.AI_TIMEOUT
         )
 ```
 
@@ -436,14 +424,19 @@ async def generate_text(self, prompt: str, model_id: Optional[str] = None, **kwa
     try:
         if model_config.name.lower() == "ollama":
             return await self._generate_ollama(prompt, model_config, **kwargs)
+
         elif model_config.name.lower() == "openai":
             return await self._generate_openai(prompt, model_config, **kwargs)
+
         elif model_config.name.lower() == "anthropic":
             return await self._generate_anthropic(prompt, model_config, **kwargs)
-        elif model_config.name.lower() == "custom provider":  # Add this
+
+        elif model_config.name.lower() == "custom provider":
             return await self._generate_custom_provider(prompt, model_config, **kwargs)
+
         else:
             raise AIServiceError(f"Unsupported AI provider: {model_config.name}")
+
     except Exception as e:
         logger.error(f"Text generation failed with {model_config.name}: {e}")
         raise AIServiceError(f"Text generation failed: {e}")
@@ -496,20 +489,12 @@ async def _generate_custom_provider(self, prompt: str, model_config: AIModelConf
 
 3. **Test your model** (debug mode only):
    ```bash
-   curl -X POST "http://localhost:8000/ai/test" \
-     -H "Content-Type: application/json" \
-     -d '{"model_id": "custom_provider", "prompt": "Hello, world!"}'
+   curl -X POST "http://localhost:8000/ai/test" -H "Content-Type: application/json" -d '{"model_id": "custom_provider", "prompt": "Hello, world!"}'
    ```
 
 4. **Generate a playlist** using your model:
    ```bash
-   curl -X POST "http://localhost:8000/generate-playlist" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "prompt": "Upbeat rock music for working out",
-       "device_id": "test-device",
-       "count": 10
-     }'
+   curl -X POST "http://localhost:8000/generate-playlist" -H "Content-Type: application/json" -d '{"prompt": "Upbeat rock music for working out", "device_id": "test-device", "count": 10}'
    ```
 
 ##### Common Integration Patterns
