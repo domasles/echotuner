@@ -91,6 +91,23 @@ class AIService(SingletonServiceBase):
                 ) as response:
                     return response.status == 200
 
+            elif model_config.name.lower() == "google":
+                headers = model_config.headers or {}
+                headers["Content-Type"] = "application/json"
+
+                test_payload = {
+                    "contents": [{"parts": [{"text": "Hello"}]}],
+                    "generationConfig": {"maxOutputTokens": 5}
+                }
+
+                async with self._session.post(
+                    f"{model_config.endpoint}/v1beta/models/{model_config.generation_model}:generateContent",
+                    headers=headers,
+                    json=test_payload,
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as response:
+                    return response.status == 200
+
             return True
 
         except Exception as e:
@@ -112,6 +129,9 @@ class AIService(SingletonServiceBase):
             elif model_config.name.lower() == "anthropic":
                 return await self._generate_anthropic(prompt, model_config, **kwargs)
 
+            elif model_config.name.lower() == "google":
+                return await self._generate_google(prompt, model_config, **kwargs)
+
             else:
                 raise Exception(f"Unsupported AI provider: {model_config.name}")
 
@@ -127,8 +147,8 @@ class AIService(SingletonServiceBase):
             "prompt": prompt,
             "stream": False,
             "options": {
-                "temperature": kwargs.get("temperature", model_config.temperature or 0.7),
-                "num_predict": kwargs.get("max_tokens", model_config.max_tokens or 2000)
+                "num_predict": kwargs.get("max_tokens", model_config.max_tokens),
+                "temperature": kwargs.get("temperature", model_config.temperature)
             }
         }
 
@@ -153,8 +173,8 @@ class AIService(SingletonServiceBase):
         payload = {
             "model": model_config.generation_model,
             "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": kwargs.get("max_tokens", model_config.max_tokens or 2000),
-            "temperature": kwargs.get("temperature", model_config.temperature or 0.7)
+            "max_tokens": kwargs.get("max_tokens", model_config.max_tokens),
+            "temperature": kwargs.get("temperature", model_config.temperature)
         }
 
         async with self._session.post(
@@ -178,9 +198,9 @@ class AIService(SingletonServiceBase):
 
         payload = {
             "model": model_config.generation_model,
-            "max_tokens": kwargs.get("max_tokens", model_config.max_tokens or 2000),
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": kwargs.get("temperature", model_config.temperature or 0.7)
+            "max_tokens": kwargs.get("max_tokens", model_config.max_tokens),
+            "temperature": kwargs.get("temperature", model_config.temperature)
         }
 
         async with self._session.post(
@@ -196,6 +216,33 @@ class AIService(SingletonServiceBase):
             result = await response.json()
             return result["content"][0]["text"]
 
+    async def _generate_google(self, prompt: str, model_config: AIModelConfig, **kwargs) -> str:
+        """Generate text using Google Gemini."""
+
+        headers = model_config.headers or {}
+        headers["Content-Type"] = "application/json"
+
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "maxOutputTokens": kwargs.get("max_tokens", model_config.max_tokens),
+                "temperature": kwargs.get("temperature", model_config.temperature)
+            }
+        }
+
+        async with self._session.post(
+            f"{model_config.endpoint}/v1beta/models/{model_config.generation_model}:generateContent",
+            headers=headers,
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=model_config.timeout)
+        ) as response:
+            if response.status != 200:
+                error_text = await response.text()
+                raise Exception(f"Google request failed: {error_text}")
+
+            result = await response.json()
+            return result["candidates"][0]["content"]["parts"][0]["text"]
+
     async def get_embedding(self, text: str, model_id: Optional[str] = None) -> List[float]:
         """Get text embedding using the specified model."""
 
@@ -207,6 +254,15 @@ class AIService(SingletonServiceBase):
         try:
             if model_config.name.lower() == "ollama":
                 return await self._get_ollama_embedding(text, model_config)
+
+            elif model_config.name.lower() == "openai":
+                return await self._get_openai_embedding(text, model_config)
+
+            elif model_config.name.lower() == "anthropic":
+                return await self._get_anthropic_embedding(text, model_config)
+
+            elif model_config.name.lower() == "google":
+                return await self._get_google_embedding(text, model_config)
 
             else:
                 raise Exception(f"Embedding not supported for {model_config.name}")
@@ -234,6 +290,58 @@ class AIService(SingletonServiceBase):
 
             result = await response.json()
             return result.get("embedding", [])
+
+    async def _get_openai_embedding(self, text: str, model_config: AIModelConfig) -> List[float]:
+        """Get embedding using OpenAI."""
+
+        headers = model_config.headers or {}
+        headers["Content-Type"] = "application/json"
+
+        payload = {
+            "model": model_config.embedding_model,
+            "input": text
+        }
+
+        async with self._session.post(
+            f"{model_config.endpoint}/v1/embeddings",
+            headers=headers,
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=model_config.timeout)
+        ) as response:
+            if response.status != 200:
+                error_text = await response.text()
+                raise Exception(f"OpenAI embedding request failed: {error_text}")
+
+            result = await response.json()
+            return result["data"][0]["embedding"]
+
+    async def _get_anthropic_embedding(self, text: str, model_config: AIModelConfig) -> List[float]:
+        """Get embedding using Anthropic."""
+        # Note: Anthropic doesn't have a dedicated embedding API, so we raise an exception
+        raise Exception("Anthropic does not provide embedding models")
+
+    async def _get_google_embedding(self, text: str, model_config: AIModelConfig) -> List[float]:
+        """Get embedding using Google Gemini."""
+
+        headers = model_config.headers or {}
+        headers["Content-Type"] = "application/json"
+
+        payload = {
+            "content": {"parts": [{"text": text}]}
+        }
+
+        async with self._session.post(
+            f"{model_config.endpoint}/v1beta/models/{model_config.embedding_model}:embedContent",
+            headers=headers,
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=model_config.timeout)
+        ) as response:
+            if response.status != 200:
+                error_text = await response.text()
+                raise Exception(f"Google embedding request failed: {error_text}")
+
+            result = await response.json()
+            return result["embedding"]["values"]
 
     def list_available_models(self) -> List[str]:
         """List all available AI models."""

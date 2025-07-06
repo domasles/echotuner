@@ -41,6 +41,7 @@ The API provides intelligent playlist generation capabilities with support for m
 **Cloud AI Providers**
 - **OpenAI**: `gpt-4o-mini` for fast, intelligent responses
 - **Anthropic Claude**: `claude-3-5-sonnet-20241022` for sophisticated analysis
+- **Google Gemini**: `gemini-1.5-flash` for advanced reasoning and multimodal capabilities
 - **Benefits**: No local resources, powerful models, consistent performance
 - **Requirements**: Valid API keys
 
@@ -65,6 +66,7 @@ For complete installation and setup instructions, please refer to the [master in
    - **Ollama** (local) from [https://ollama.ai](https://ollama.ai)
    - **OpenAI API Key** from [https://platform.openai.com](https://platform.openai.com)
    - **Anthropic API Key** from [https://console.anthropic.com](https://console.anthropic.com)
+   - **Google API Key** from [Google Cloud Console](https://console.cloud.google.com/)
 3. **Spotify Developer Account** for API credentials
 4. **Spotify API credentials** (Client ID and Client Secret)
 
@@ -100,14 +102,21 @@ For complete installation and setup instructions, please refer to the [master in
    ```env
    # Edit .env file
    AI_PROVIDER=openai
-   OPENAI_API_KEY=sk-your-openai-api-key-here
+   CLOUD_API_KEY=sk-your-openai-api-key-here
    ```
 
    **For Anthropic Claude (Cloud AI):**
    ```env
    # Edit .env file
    AI_PROVIDER=anthropic
-   ANTHROPIC_API_KEY=your-anthropic-api-key-here
+   CLOUD_API_KEY=your-anthropic-api-key-here
+   ```
+
+   **For Google Gemini (Cloud AI):**
+   ```env
+   # Edit .env file
+   AI_PROVIDER=google
+   CLOUD_API_KEY=your-google-api-key-here
    ```
 
 5. **Set up a virtual environment (recommended):**
@@ -349,11 +358,12 @@ AI_EMBEDDING_MODEL=nomic-embed-text:latest
 **Configuration:**
 ```env
 AI_PROVIDER=openai
-OPENAI_API_KEY=sk-your-openai-api-key-here
+CLOUD_API_KEY=sk-your-openai-api-key-here
 ```
 
 **Models used:**
 - **Generation**: `gpt-4o-mini` (configurable)
+- **Embeddings**: `text-embedding-3-small` (built-in)
 - **Cost**: ~$0.15-0.60 per 1000 requests (depending on prompt size)
 
 #### 3. Anthropic Claude (Cloud AI)
@@ -366,14 +376,33 @@ OPENAI_API_KEY=sk-your-openai-api-key-here
 **Configuration:**
 ```env
 AI_PROVIDER=anthropic
-ANTHROPIC_API_KEY=your-anthropic-api-key-here
+CLOUD_API_KEY=your-anthropic-api-key-here
 ```
 
 **Models used:**
 - **Generation**: `claude-3-5-sonnet-20241022` (configurable)
+- **Embeddings**: Not available (Anthropic focuses on text generation)
 - **Cost**: ~$3-15 per 1000 requests (depending on prompt size)
 
-#### 4. Custom AI Providers
+#### 4. Google Gemini (Cloud AI)
+**Best for**: Advanced reasoning, multimodal capabilities, cost-effective AI
+
+**Requirements:**
+- Google AI Studio account at [https://aistudio.google.com](https://aistudio.google.com)
+- API key with sufficient quota
+
+**Configuration:**
+```env
+AI_PROVIDER=google
+CLOUD_API_KEY=your-google-api-key-here
+```
+
+**Models used:**
+- **Generation**: `gemini-1.5-flash` (configurable)
+- **Embeddings**: `text-embedding-004` (built-in)
+- **Cost**: ~$0.075-0.30 per 1000 requests (depending on prompt size)
+
+#### 5. Custom AI Providers
 
 EchoTuner's AI system is designed to be modular and extensible. You can add support for any REST API-based AI service by following these steps:
 
@@ -397,7 +426,7 @@ In `config/ai_models.py`, add your provider to the `_setup_default_models` metho
 
 ```python
 def _setup_default_models(self):
-    if settings.CUSTOM_PROVIDER_API_KEY:
+    if settings.CLOUD_API_KEY:
         # ... existing models ...
 
         # Your Custom Provider
@@ -455,8 +484,8 @@ async def _generate_custom_provider(self, prompt: str, model_config: AIModelConf
     payload = {
         "model": model_config.model_name,
         "prompt": prompt,  # or "messages": [{"role": "user", "content": prompt}]
-        "max_tokens": kwargs.get("max_tokens", model_config.max_tokens or 2000),
-        "temperature": kwargs.get("temperature", model_config.temperature or 0.7)
+        "max_tokens": kwargs.get("max_tokens", model_config.max_tokens),
+        "temperature": kwargs.get("temperature", model_config.temperature)
     }
     
     async with self._session.post(

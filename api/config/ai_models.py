@@ -55,11 +55,21 @@ class AIModelManager:
                 name="Anthropic",
                 endpoint=settings.AI_ENDPOINT,
                 generation_model=settings.AI_GENERATION_MODEL,
-                embedding_model=settings.AI_EMBEDDING_MODEL,
+                embedding_model=None,  # Anthropic doesn't provide embeddings
                 headers={
                     "x-api-key": settings.CLOUD_API_KEY,
                     "anthropic-version": "2023-06-01"
                 },
+                max_tokens=settings.AI_MAX_TOKENS,
+                temperature=settings.AI_TEMPERATURE
+            )
+
+            self._models["google"] = AIModelConfig(
+                name="Google",
+                endpoint=settings.AI_ENDPOINT,
+                generation_model=settings.AI_GENERATION_MODEL,
+                embedding_model=settings.AI_EMBEDDING_MODEL,
+                headers={"x-goog-api-key": settings.CLOUD_API_KEY},
                 max_tokens=settings.AI_MAX_TOKENS,
                 temperature=settings.AI_TEMPERATURE
             )

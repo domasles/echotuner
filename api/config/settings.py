@@ -24,7 +24,7 @@ class Settings:
 
     AI_ENDPOINT: str = os.getenv("AI_ENDPOINT", "http://localhost:11434")
     AI_GENERATION_MODEL: str = os.getenv("AI_GENERATION_MODEL", "phi3:mini")
-    AI_EMBEDDING_MODEL: str = os.getenv("AI_EMBEDDING_MODEL", "nomic-embed-text:latest")
+    AI_EMBEDDING_MODEL: str = os.getenv("AI_EMBEDDING_MODEL", "nomic-embed-text:latest") if not "None" else None # Use None for no embedding model
     AI_MAX_TOKENS: Optional[int] = int(os.getenv("AI_MAX_TOKENS", 2000))
     AI_TEMPERATURE: Optional[float] = float(os.getenv("AI_TEMPERATURE", 0.7))
     AI_TIMEOUT: int = int(os.getenv("AI_TIMEOUT", 30))
