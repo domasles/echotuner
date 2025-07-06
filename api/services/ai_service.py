@@ -1,366 +1,138 @@
 """
 AI service.
-Handles AI model interactions across different providers (Ollama, OpenAI, Anthropic, etc.).
+Handles AI model interactions using the modular provider system.
 """
 
-import aiohttp
 import logging
-
 from typing import Dict, Any, Optional, List
 
 from core.singleton import SingletonServiceBase
-
-from config.ai_models import ai_model_manager, AIModelConfig
+from config.ai_models import ai_model_manager
+from providers.base import BaseAIProvider
 
 logger = logging.getLogger(__name__)
 
 class AIService(SingletonServiceBase):
-    """Service for interacting with AI models across different providers."""
+    """Service for interacting with AI models using the provider system."""
     
     def __init__(self):
         super().__init__()
 
     def _setup_service(self):
         """Initialize the AIService."""
-
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._current_provider: Optional[BaseAIProvider] = None
         self._log_initialization("AI service initialized successfully", logger)
     
     async def initialize(self):
         """Initialize the AI service."""
-
-        if self._session is None:
-            self._session = aiohttp.ClientSession()
-
+        # Prevent multiple initializations
+        if self._current_provider and getattr(self._current_provider, '_session', None):
+            logger.debug("AI service already initialized, skipping")
+            return
+            
         try:
-            default_provider = ai_model_manager.get_provider()
-            await self._test_model_availability(default_provider)
-            logger.info(f"AI Service initialized with {default_provider.name}")
+            logger.debug("Initializing AI service...")
+            self._current_provider = ai_model_manager.get_provider()
+            await self._current_provider.initialize()
+            
+            logger.info(f"AI Service initialized with {self._current_provider.name}")
 
         except Exception as e:
-            logger.warning(f"Default AI model not available: {e}")
+            logger.error(f"AI service initialization failed: {e}")
+            raise
 
     async def close(self):
         """Close the AI service and cleanup resources."""
+        if self._current_provider:
+            await self._current_provider.close()
+            self._current_provider = None
 
-        if self._session:
-            await self._session.close()
-            self._session = None
-
-    async def _test_model_availability(self, model_config: AIModelConfig) -> bool:
-        """Test if a model is available and responding."""
-
+    async def generate_text(self, prompt: str, provider_id: Optional[str] = None, **kwargs) -> str:
+        """
+        Generate text using the specified AI provider.
+        
+        Args:
+            prompt: Input prompt for text generation
+            provider_id: Optional provider ID (uses default if None)
+            **kwargs: Additional generation parameters
+            
+        Returns:
+            Generated text response
+        """
         try:
-            if model_config.name.lower() == "ollama":
-                async with self._session.get(f"{model_config.endpoint}/api/tags") as response:
-                    return response.status == 200
-
-            elif model_config.name.lower() == "openai":
-                headers = model_config.headers or {}
-                headers["Content-Type"] = "application/json"
-
-                test_payload = {
-                    "model": model_config.generation_model,
-                    "messages": [{"role": "user", "content": "Hello"}],
-                    "max_tokens": 5
-                }
-
-                async with self._session.post(
-                    f"{model_config.endpoint}/v1/chat/completions",
-                    headers=headers,
-                    json=test_payload,
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    return response.status == 200
-
-            elif model_config.name.lower() == "anthropic":
-                headers = model_config.headers or {}
-                headers["Content-Type"] = "application/json"
-
-                test_payload = {
-                    "model": model_config.generation_model,
-                    "max_tokens": 5,
-                    "messages": [{"role": "user", "content": "Hello"}]
-                }
-
-                async with self._session.post(
-                    f"{model_config.endpoint}/v1/messages",
-                    headers=headers,
-                    json=test_payload,
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    return response.status == 200
-
-            elif model_config.name.lower() == "google":
-                headers = model_config.headers or {}
-                headers["Content-Type"] = "application/json"
-
-                test_payload = {
-                    "contents": [{"parts": [{"text": "Hello"}]}],
-                    "generationConfig": {"maxOutputTokens": 5}
-                }
-
-                async with self._session.post(
-                    f"{model_config.endpoint}/v1beta/models/{model_config.generation_model}:generateContent",
-                    headers=headers,
-                    json=test_payload,
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as response:
-                    return response.status == 200
-
-            return True
-
-        except Exception as e:
-            logger.debug(f"Model availability test failed for {model_config.name}: {e}")
-            return False
-
-    async def generate_text(self, prompt: str, model_id: Optional[str] = None, **kwargs) -> str:
-        """Generate text using the specified AI model."""
-
-        model_config = ai_model_manager.get_provider(model_id)
-
-        try:
-            if model_config.name.lower() == "ollama":
-                return await self._generate_ollama(prompt, model_config, **kwargs)
-
-            elif model_config.name.lower() == "openai":
-                return await self._generate_openai(prompt, model_config, **kwargs)
-
-            elif model_config.name.lower() == "anthropic":
-                return await self._generate_anthropic(prompt, model_config, **kwargs)
-
-            elif model_config.name.lower() == "google":
-                return await self._generate_google(prompt, model_config, **kwargs)
-
+            if provider_id and provider_id != getattr(self._current_provider, 'name', '').lower():
+                # Different provider requested, create new instance
+                provider = ai_model_manager.get_provider(provider_id)
+                await provider.initialize()
             else:
-                raise Exception(f"Unsupported AI provider: {model_config.name}")
+                # Use current provider
+                provider = self._current_provider
+                
+            if not provider:
+                raise Exception("No AI provider available")
+            
+            return await provider.generate_text(prompt, **kwargs)
 
         except Exception as e:
-            logger.error(f"Text generation failed with {model_config.name}: {e}")
+            logger.error(f"Text generation failed: {e}")
             raise Exception(f"Text generation failed: {e}")
 
-    async def _generate_ollama(self, prompt: str, model_config: AIModelConfig, **kwargs) -> str:
-        """Generate text using Ollama."""
-
-        payload = {
-            "model": model_config.generation_model,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "num_predict": kwargs.get("max_tokens", model_config.max_tokens),
-                "temperature": kwargs.get("temperature", model_config.temperature)
-            }
-        }
-
-        async with self._session.post(
-            f"{model_config.endpoint}/api/generate",
-            json=payload,
-            timeout=aiohttp.ClientTimeout(total=model_config.timeout)
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"Ollama request failed: {error_text}")
-
-            result = await response.json()
-            return result.get("response", "")
-
-    async def _generate_openai(self, prompt: str, model_config: AIModelConfig, **kwargs) -> str:
-        """Generate text using OpenAI."""
-
-        headers = model_config.headers or {}
-        headers["Content-Type"] = "application/json"
-
-        payload = {
-            "model": model_config.generation_model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": kwargs.get("max_tokens", model_config.max_tokens),
-            "temperature": kwargs.get("temperature", model_config.temperature)
-        }
-
-        async with self._session.post(
-            f"{model_config.endpoint}/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=aiohttp.ClientTimeout(total=model_config.timeout)
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"OpenAI request failed: {error_text}")
-
-            result = await response.json()
-            return result["choices"][0]["message"]["content"]
-
-    async def _generate_anthropic(self, prompt: str, model_config: AIModelConfig, **kwargs) -> str:
-        """Generate text using Anthropic Claude."""
-
-        headers = model_config.headers or {}
-        headers["Content-Type"] = "application/json"
-
-        payload = {
-            "model": model_config.generation_model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": kwargs.get("max_tokens", model_config.max_tokens),
-            "temperature": kwargs.get("temperature", model_config.temperature)
-        }
-
-        async with self._session.post(
-            f"{model_config.endpoint}/v1/messages",
-            headers=headers,
-            json=payload,
-            timeout=aiohttp.ClientTimeout(total=model_config.timeout)
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"Anthropic request failed: {error_text}")
-
-            result = await response.json()
-            return result["content"][0]["text"]
-
-    async def _generate_google(self, prompt: str, model_config: AIModelConfig, **kwargs) -> str:
-        """Generate text using Google Gemini."""
-
-        headers = model_config.headers or {}
-        headers["Content-Type"] = "application/json"
-
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {
-                "maxOutputTokens": kwargs.get("max_tokens", model_config.max_tokens),
-                "temperature": kwargs.get("temperature", model_config.temperature)
-            }
-        }
-
-        async with self._session.post(
-            f"{model_config.endpoint}/v1beta/models/{model_config.generation_model}:generateContent",
-            headers=headers,
-            json=payload,
-            timeout=aiohttp.ClientTimeout(total=model_config.timeout)
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"Google request failed: {error_text}")
-
-            result = await response.json()
-            return result["candidates"][0]["content"]["parts"][0]["text"]
-
-    async def get_embedding(self, text: str, model_id: Optional[str] = None) -> List[float]:
-        """Get text embedding using the specified model."""
-
-        model_config = ai_model_manager.get_provider(model_id)
-
-        if not model_config.embedding_model:
-            raise Exception(f"No embedding model configured for {model_config.name}")
-
+    async def get_embedding(self, text: str, provider_id: Optional[str] = None, **kwargs) -> List[float]:
+        """
+        Get text embedding using the specified provider.
+        
+        Args:
+            text: Input text for embedding
+            provider_id: Optional provider ID (uses default if None)
+            **kwargs: Additional embedding parameters
+            
+        Returns:
+            Embedding vector
+        """
         try:
-            if model_config.name.lower() == "ollama":
-                return await self._get_ollama_embedding(text, model_config)
-
-            elif model_config.name.lower() == "openai":
-                return await self._get_openai_embedding(text, model_config)
-
-            elif model_config.name.lower() == "anthropic":
-                return await self._get_anthropic_embedding(text, model_config)
-
-            elif model_config.name.lower() == "google":
-                return await self._get_google_embedding(text, model_config)
-
+            if provider_id and provider_id != getattr(self._current_provider, 'name', '').lower():
+                # Different provider requested, create new instance
+                provider = ai_model_manager.get_provider(provider_id)
+                await provider.initialize()
             else:
-                raise Exception(f"Embedding not supported for {model_config.name}")
+                # Use current provider
+                provider = self._current_provider
+                
+            if not provider:
+                raise Exception("No AI provider available")
+            
+            return await provider.get_embedding(text, **kwargs)
 
         except Exception as e:
-            logger.error(f"Embedding generation failed with {model_config.name}: {e}")
+            logger.error(f"Embedding generation failed: {e}")
             raise Exception(f"Embedding generation failed: {e}")
 
-    async def _get_ollama_embedding(self, text: str, model_config: AIModelConfig) -> List[float]:
-        """Get embedding using Ollama."""
+    def list_available_providers(self) -> List[str]:
+        """List all available AI providers."""
+        return ai_model_manager.list_providers()
 
-        payload = {
-            "model": model_config.embedding_model,
-            "prompt": text
-        }
+    def get_provider_info(self, provider_id: Optional[str] = None) -> Dict[str, Any]:
+        """Get information about a specific provider."""
+        provider = ai_model_manager.get_provider(provider_id)
+        return provider.get_info()
 
-        async with self._session.post(
-            f"{model_config.endpoint}/api/embeddings",
-            json=payload,
-            timeout=aiohttp.ClientTimeout(total=model_config.timeout)
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"Ollama embedding request failed: {error_text}")
-
-            result = await response.json()
-            return result.get("embedding", [])
-
-    async def _get_openai_embedding(self, text: str, model_config: AIModelConfig) -> List[float]:
-        """Get embedding using OpenAI."""
-
-        headers = model_config.headers or {}
-        headers["Content-Type"] = "application/json"
-
-        payload = {
-            "model": model_config.embedding_model,
-            "input": text
-        }
-
-        async with self._session.post(
-            f"{model_config.endpoint}/v1/embeddings",
-            headers=headers,
-            json=payload,
-            timeout=aiohttp.ClientTimeout(total=model_config.timeout)
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"OpenAI embedding request failed: {error_text}")
-
-            result = await response.json()
-            return result["data"][0]["embedding"]
-
-    async def _get_anthropic_embedding(self, text: str, model_config: AIModelConfig) -> List[float]:
-        """Get embedding using Anthropic."""
-        # Note: Anthropic doesn't have a dedicated embedding API, so we raise an exception
-        raise Exception("Anthropic does not provide embedding models")
-
-    async def _get_google_embedding(self, text: str, model_config: AIModelConfig) -> List[float]:
-        """Get embedding using Google Gemini."""
-
-        headers = model_config.headers or {}
-        headers["Content-Type"] = "application/json"
-
-        payload = {
-            "content": {"parts": [{"text": text}]}
-        }
-
-        async with self._session.post(
-            f"{model_config.endpoint}/v1beta/models/{model_config.embedding_model}:embedContent",
-            headers=headers,
-            json=payload,
-            timeout=aiohttp.ClientTimeout(total=model_config.timeout)
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"Google embedding request failed: {error_text}")
-
-            result = await response.json()
-            return result["embedding"]["values"]
+    # Legacy compatibility methods for smooth transition
+    
+    async def _test_model_availability(self, model_config) -> bool:
+        """Legacy method for backward compatibility."""
+        try:
+            if self._current_provider:
+                return await self._current_provider.test_availability()
+            return False
+        except Exception:
+            return False
 
     def list_available_models(self) -> List[str]:
-        """List all available AI models."""
-
-        return ai_model_manager.list_models()
+        """Legacy method - use list_available_providers instead."""
+        return self.list_available_providers()
 
     def get_model_info(self, model_id: Optional[str] = None) -> Dict[str, Any]:
-        """Get information about a specific model."""
-
-        model_config = ai_model_manager.get_provider(model_id)
-
-        return {
-            "name": model_config.name,
-            "endpoint": model_config.endpoint,
-            "model_name": model_config.generation_model,
-            "embedding_model": model_config.embedding_model,
-            "timeout": model_config.timeout,
-            "max_tokens": model_config.max_tokens,
-            "temperature": model_config.temperature
-        }
+        """Legacy method - use get_provider_info instead."""
+        return self.get_provider_info(model_id)
 
 ai_service = AIService()

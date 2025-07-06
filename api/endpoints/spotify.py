@@ -1,0 +1,197 @@
+"""
+Spotify-related endpoint implementations
+"""
+
+import logging
+from fastapi import HTTPException
+
+from core.models import (
+    SpotifyPlaylistRequest, SpotifyPlaylistResponse
+)
+from services.spotify_playlist_service import spotify_playlist_service
+from services.playlist_draft_service import playlist_draft_service
+from services.auth_service import auth_service
+from services.auth_middleware import auth_middleware
+from services.database_service import db_service
+
+logger = logging.getLogger(__name__)
+
+async def create_spotify_playlist(request: SpotifyPlaylistRequest):
+    """Create a Spotify playlist from a draft."""
+
+    try:
+        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
+
+        if not spotify_playlist_service.is_ready():
+            raise HTTPException(status_code=503, detail="Spotify playlist service not available")
+
+        # For demo accounts, don't look up draft on API since they store locally
+        # For normal accounts, get the draft from API
+        if user_info and user_info.get('account_type') == 'demo':
+            # Demo accounts don't store drafts on API, so we use provided songs
+            if not request.songs:
+                raise HTTPException(status_code=400, detail="Songs list required for demo accounts")
+            
+            # Verify the playlist exists in demo_playlists table
+            demo_refinements = await db_service.get_demo_playlist_refinements(request.playlist_id)
+            if demo_refinements < 0:  # This would indicate playlist doesn't exist
+                raise HTTPException(status_code=404, detail="Demo playlist not found")
+            
+            songs = request.songs
+            draft = None  # No draft for demo accounts
+        else:
+            # For normal accounts, get the draft from API
+            draft = await playlist_draft_service.get_draft(request.playlist_id)
+            if not draft:
+                raise HTTPException(status_code=404, detail="Draft playlist not found")
+            songs = draft.songs
+
+        # Only do session validation for normal accounts with drafts
+        if draft and draft.session_id and draft.session_id != request.session_id:
+            draft_user_info = await auth_service.get_user_from_session(draft.session_id)
+            current_user_spotify_id = user_info.get('spotify_user_id')
+            draft_user_spotify_id = draft_user_info.get('spotify_user_id') if draft_user_info else None
+
+            logger.info(f"Cross-device check: draft user {draft_user_spotify_id}, current user {current_user_spotify_id}")
+            logger.info(f"Draft user info: {draft_user_info}")
+            logger.info(f"Current user info: {user_info}")
+
+            if current_user_spotify_id != draft_user_spotify_id:
+                logger.warning(f"Access denied: draft belongs to user {draft_user_spotify_id}, current user is {current_user_spotify_id}")
+                raise HTTPException(status_code=403, detail="This draft belongs to a different user")
+
+        elif draft and not draft.session_id and draft.device_id != request.device_id:
+            logger.warning(f"Access denied: draft device {draft.device_id}, current device {request.device_id}")
+            raise HTTPException(status_code=403, detail="This draft belongs to a different device")
+
+        access_token = await auth_service.get_access_token(request.session_id)
+
+        if not access_token:
+            raise HTTPException(status_code=401, detail="No valid access token")
+
+        spotify_playlist_id, playlist_url = await spotify_playlist_service.create_playlist(
+            access_token=access_token,
+            name=request.name,
+            songs=songs,
+            description=request.description,
+            public=request.public or False
+        )
+
+        # Only mark draft as added to Spotify for normal accounts (demo accounts handle this locally)
+        if draft:
+            await playlist_draft_service.mark_as_added_to_spotify(
+                playlist_id=request.playlist_id,
+                spotify_playlist_id=spotify_playlist_id,
+                spotify_url=playlist_url,
+                user_id=user_info.get('spotify_user_id'),
+                device_id=request.device_id,
+                session_id=request.session_id,
+                playlist_name=request.name
+            )
+
+        logger.info(f"Created Spotify playlist {spotify_playlist_id} from {'draft' if draft else 'demo playlist'} {request.playlist_id}")
+
+        return SpotifyPlaylistResponse(
+            success=True,
+            spotify_playlist_id=spotify_playlist_id,
+            playlist_url=playlist_url,
+            message="Playlist created successfully"
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(f"Failed to create Spotify playlist: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create Spotify playlist")
+
+async def get_spotify_playlist_tracks(playlist_id: str, session_id: str = None, device_id: str = None):
+    """Get tracks from a Spotify playlist."""
+
+    try:
+        if not session_id or not device_id:
+            raise HTTPException(status_code=400, detail="session_id and device_id parameters required")
+
+        user_info = await auth_service.validate_session_and_get_user(session_id, device_id)
+
+        if not user_info:
+            raise HTTPException(status_code=401, detail="Invalid or expired session")
+
+        if not spotify_playlist_service.is_ready():
+            raise HTTPException(status_code=503, detail="Spotify playlist service not available")
+
+        access_token = await auth_service.get_access_token(session_id)
+
+        if not access_token:
+            raise HTTPException(status_code=401, detail="No valid access token")
+
+        tracks = await spotify_playlist_service.get_playlist_tracks(access_token, playlist_id)
+
+        return {"tracks": tracks}
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(f"Failed to get Spotify playlist tracks: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get Spotify playlist tracks")
+
+async def delete_spotify_playlist(playlist_id: str, session_id: str = None, device_id: str = None):
+    """Delete/unfollow a Spotify playlist."""
+
+    try:
+        if not session_id or not device_id:
+            raise HTTPException(status_code=400, detail="session_id and device_id parameters required")
+
+        user_info = await auth_service.validate_session_and_get_user(session_id, device_id)
+
+        if not user_info:
+            raise HTTPException(status_code=401, detail="Invalid or expired session")
+
+        if not spotify_playlist_service.is_ready():
+            raise HTTPException(status_code=503, detail="Spotify playlist service not available")
+
+        access_token = await auth_service.get_access_token(session_id)
+
+        if not access_token:
+            raise HTTPException(status_code=401, detail="No valid access token")
+
+        success = await spotify_playlist_service.delete_playlist(access_token, playlist_id)
+        
+        if success:
+            await playlist_draft_service.remove_spotify_playlist_tracking(playlist_id)
+            return {"message": "Playlist deleted/unfollowed successfully"}
+
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete playlist from Spotify")
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(f"Failed to delete Spotify playlist {playlist_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete Spotify playlist")
+
+async def remove_track_from_spotify_playlist(playlist_id: str, track_uri: str, session_id: str = None, device_id: str = None):
+    """Remove a track from a Spotify playlist."""
+
+    try:
+        access_token = await auth_service.get_access_token(session_id)
+
+        if not access_token:
+            raise HTTPException(status_code=401, detail="No valid access token")
+
+        success = await spotify_playlist_service.remove_track_from_playlist(access_token, playlist_id, track_uri)
+
+        if success:
+            return {"message": "Track removed successfully"}
+
+        else:
+            raise HTTPException(status_code=500, detail="Failed to remove track from Spotify")
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(f"Failed to remove track from Spotify playlist {playlist_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to remove track from playlist")

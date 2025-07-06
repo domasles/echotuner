@@ -3,6 +3,7 @@ Prompt validator service.
 Validates if user input is related to music, mood, or emotions.
 """
 
+import asyncio
 import numpy as np
 import logging
 import httpx
@@ -13,6 +14,7 @@ from config.ai_models import ai_model_manager
 from config.settings import settings
 
 from services.data_service import data_loader
+from services.ai_service import ai_service
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +46,8 @@ class PromptValidatorService(SingletonServiceBase):
                 logger.error("AI model not running or not accessible")
                 raise RuntimeError("AI model is not running. Please check your AI model configuration and try again.")
 
-            await self._ensure_model_available()
-            await self._compute_reference_embeddings()
+            # Initialize reference embeddings in background to speed up startup
+            asyncio.create_task(self._compute_reference_embeddings_async())
 
             logger.info("Prompt validator initialized successfully!")
 
@@ -56,69 +58,21 @@ class PromptValidatorService(SingletonServiceBase):
             logger.error(f"Prompt validator initialization failed: {e}")
             raise RuntimeError(f"Prompt validator initialization failed: {e}")
 
+    async def _compute_reference_embeddings_async(self):
+        """Compute reference embeddings asynchronously without blocking startup"""
+        
+        try:
+            logger.info("Computing reference embeddings in background...")
+            await self._compute_reference_embeddings()
+            logger.info("Reference embeddings computed successfully")
+        except Exception as e:
+            logger.error(f"Failed to compute reference embeddings: {e}")
+            # Don't raise - this will be handled when validation is attempted
+
     async def _check_ai_model_connection(self) -> bool:
         """Check if AI model is running and accessible"""
 
-        try:
-            response = await self.http_client.get(f"{self.model_config.endpoint}/api/tags")
-            return response.status_code == 200
-
-        except:
-            return False
-
-    async def _ensure_model_available(self):
-        """Ensure the model is available"""
-
-        try:
-            if self.model_config.name.lower() != "ollama":
-                logger.info(f"Using external AI model: {self.model_config.name}")
-                return
-
-            response = await self.http_client.get(f"{self.model_config.endpoint}/api/tags")
-
-            if response.status_code == 200:
-                models = response.json().get('models', [])
-                model_names = [model['name'] for model in models]
-
-                if self.model_config.embedding_model and self.model_config.embedding_model not in model_names:
-                    logger.info(f"Pulling embedding model {self.model_config.embedding_model}...")
-
-                    pull_response = await self.http_client.post(
-                        f"{self.model_config.endpoint}/api/pull",
-                        json={"name": self.model_config.embedding_model}
-                    )
-
-                    if pull_response.status_code == 200:
-                        logger.info(f"Embedding model {self.model_config.embedding_model} pulled successfully")
-
-                    else:
-                        logger.error(f"Failed to pull embedding model: {pull_response.text}")
-                        raise RuntimeError(f"Failed to pull embedding model {self.model_config.embedding_model}")
-
-                elif self.model_config.generation_model not in model_names:
-                    logger.info(f"Pulling model {self.model_config.generation_model}...")
-
-                    pull_response = await self.http_client.post(
-                        f"{self.model_config.endpoint}/api/pull",
-                        json={"name": self.model_config.generation_model}
-                    )
-
-                    if pull_response.status_code == 200:
-                        logger.info(f"Model {self.model_config.generation_model} pulled successfully")
-
-                    else:
-                        logger.error(f"Failed to pull model: {pull_response.text}")
-                        raise RuntimeError(f"Failed to pull model {self.model_config.generation_model}")
-
-                else:
-                    logger.info(f"Model {self.model_config.generation_model} already available")
-
-        except RuntimeError:
-            raise
-
-        except Exception as e:
-            logger.error(f"Model availability check failed: {e}")
-            raise RuntimeError(f"Model availability check failed: {e}")
+        return await ai_service._test_model_availability(self.model_config)
 
     def _normalize(self, vector: np.ndarray) -> np.ndarray:
         """Normalize a vector to unit length"""
@@ -127,29 +81,38 @@ class PromptValidatorService(SingletonServiceBase):
         return vector / norm if norm else np.zeros_like(vector)
 
     async def _compute_reference_embeddings(self):
-        """Pre-compute embeddings for music-related reference texts"""
+        """Pre-compute embeddings for music-related reference texts with concurrency"""
 
         try:
             music_references = data_loader.get_prompt_references()
-            embeddings = []
-
-            for text in music_references:
-                embedding = await self._get_embedding(text)
-
-                if embedding is not None:
-                    embedding = self._normalize(embedding)
-                    embeddings.append(embedding)
+            
+            # Limit concurrent requests to avoid overwhelming the API
+            semaphore = asyncio.Semaphore(5)  # Max 5 concurrent requests
+            
+            async def get_embedding_with_semaphore(text):
+                async with semaphore:
+                    try:
+                        embedding = await self._get_embedding(text)
+                        if embedding is not None:
+                            return self._normalize(embedding)
+                    except Exception as e:
+                        logger.debug(f"Failed to get embedding for '{text[:30]}...': {e}")
+                    return None
+            
+            # Process embeddings concurrently
+            tasks = [get_embedding_with_semaphore(text) for text in music_references]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Filter out None results and exceptions
+            embeddings = [result for result in results 
+                         if result is not None and not isinstance(result, Exception)]
 
             if embeddings:
                 self.music_reference_embeddings = np.array(embeddings)
                 logger.info(f"Computed {len(embeddings)} reference embeddings")
-
             else:
                 logger.error("No reference embeddings computed")
                 raise RuntimeError("Failed to compute reference embeddings")
-
-        except RuntimeError:
-            raise
 
         except Exception as e:
             logger.error(f"Reference embeddings computation failed: {e}")
@@ -159,25 +122,9 @@ class PromptValidatorService(SingletonServiceBase):
         """Get embedding for text using AI model"""
 
         try:
-            response = await self.http_client.post(
-                f"{self.model_config.endpoint}/api/embeddings",
-                json={
-                    "model": self.model_config.embedding_model or self.model_config.generation_model,
-                    "prompt": text
-                },
-                timeout=self.prompt_validation_timeout
-            )
-
-            if response.status_code == 200:
-                result = response.json()
-                return np.array(result.get('embedding', []))
-
-            else:
-                logger.error(f"Failed to get embedding: {response.text}")
-                raise RuntimeError(f"Failed to get embedding from AI model")
-
-        except RuntimeError:
-            raise
+            # Use the AI service abstraction instead of direct API calls
+            embedding = await ai_service.get_embedding(text, model_id=None)
+            return np.array(embedding)
 
         except Exception as e:
             logger.error(f"Embedding request failed: {e}")

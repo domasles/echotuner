@@ -7,9 +7,10 @@ from typing import Dict, Optional, List
 from pydantic import BaseModel
 
 from config.settings import settings
+from providers.registry import provider_registry, BaseAIProvider
 
 class AIModelConfig(BaseModel):
-    """Configuration for AI model endpoints."""
+    """Configuration for AI model endpoints (legacy compatibility)."""
     
     name: str
     endpoint: str
@@ -21,19 +22,18 @@ class AIModelConfig(BaseModel):
     temperature: Optional[float] = None
 
 class AIModelManager:
-    """Manager for AI model configurations."""
+    """Manager for AI model configurations using the new provider system."""
 
     def __init__(self):
-        self._models: Dict[str, AIModelConfig] = {}
-        self._provider: str = "ollama"
-
-        self._setup_default_models()
+        self._providers: Dict[str, BaseAIProvider] = {}
+        self._current_provider: str = "ollama"
+        self._setup_default_providers()
     
-    def _setup_default_models(self):
-        """Setup default model configurations."""
+    def _setup_default_providers(self):
+        """Setup default provider configurations."""
 
-        self._models["ollama"] = AIModelConfig(
-            name="Ollama",
+        self._providers["ollama"] = provider_registry.create_provider(
+            name="ollama",
             endpoint=settings.AI_ENDPOINT,
             generation_model=settings.AI_GENERATION_MODEL,
             embedding_model=settings.AI_EMBEDDING_MODEL,
@@ -41,8 +41,8 @@ class AIModelManager:
         )
 
         if settings.CLOUD_API_KEY:
-            self._models["openai"] = AIModelConfig(
-                name="OpenAI",
+            self._providers["openai"] = provider_registry.create_provider(
+                name="openai",
                 endpoint=settings.AI_ENDPOINT,
                 generation_model=settings.AI_GENERATION_MODEL,
                 embedding_model=settings.AI_EMBEDDING_MODEL,
@@ -51,8 +51,8 @@ class AIModelManager:
                 temperature=settings.AI_TEMPERATURE
             )
 
-            self._models["anthropic"] = AIModelConfig(
-                name="Anthropic",
+            self._providers["anthropic"] = provider_registry.create_provider(
+                name="anthropic",
                 endpoint=settings.AI_ENDPOINT,
                 generation_model=settings.AI_GENERATION_MODEL,
                 embedding_model=None,  # Anthropic doesn't provide embeddings
@@ -64,8 +64,8 @@ class AIModelManager:
                 temperature=settings.AI_TEMPERATURE
             )
 
-            self._models["google"] = AIModelConfig(
-                name="Google",
+            self._providers["google"] = provider_registry.create_provider(
+                name="google",
                 endpoint=settings.AI_ENDPOINT,
                 generation_model=settings.AI_GENERATION_MODEL,
                 embedding_model=settings.AI_EMBEDDING_MODEL,
@@ -74,27 +74,39 @@ class AIModelManager:
                 temperature=settings.AI_TEMPERATURE
             )
 
-        self._provider = settings.AI_PROVIDER
+        self._current_provider = settings.AI_PROVIDER
 
-    def register_model(self, model_id: str, config: AIModelConfig):
-        """Register a new AI model configuration."""
+    def register_provider(self, provider_id: str, provider: BaseAIProvider):
+        """Register a new AI provider instance."""
+        self._providers[provider_id] = provider
 
-        self._models[model_id] = config
+    def get_provider(self, provider_id: Optional[str] = None) -> BaseAIProvider:
+        """Get provider instance by ID."""
+        if provider_id is None:
+            provider_id = self._current_provider
 
-    def get_provider(self, model_id: Optional[str] = None) -> AIModelConfig:
-        """Get model configuration by ID."""
+        if provider_id not in self._providers:
+            raise ValueError(f"Unknown provider: {provider_id}")
 
-        if model_id is None:
-            model_id = self._provider
+        return self._providers[provider_id]
 
-        if model_id not in self._models:
-            raise ValueError(f"Unknown model: {model_id}")
+    def get_provider_legacy(self, provider_id: Optional[str] = None) -> AIModelConfig:
+        """Get legacy model configuration for backward compatibility."""
+        provider = self.get_provider(provider_id)
+        
+        return AIModelConfig(
+            name=provider.name,
+            endpoint=provider.endpoint,
+            headers=provider.headers,
+            timeout=provider.timeout,
+            generation_model=provider.generation_model,
+            embedding_model=provider.embedding_model,
+            max_tokens=provider.max_tokens,
+            temperature=provider.temperature
+        )
 
-        return self._models[model_id]
-
-    def list_models(self) -> List[str]:
-        """List available model IDs."""
-
-        return list(self._models.keys())
+    def list_providers(self) -> List[str]:
+        """List available provider IDs."""
+        return list(self._providers.keys())
 
 ai_model_manager = AIModelManager()

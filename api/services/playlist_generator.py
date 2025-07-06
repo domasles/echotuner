@@ -4,7 +4,6 @@ Generates playlists using AI-powered real-time song search.
 """
 
 import logging
-import httpx
 import random
 import json
 
@@ -13,11 +12,11 @@ from typing import List, Dict, Any, Optional
 from core.singleton import SingletonServiceBase
 from core.models import Song, UserContext
 
-from config.ai_models import ai_model_manager
 from config.settings import settings
 
 from services.spotify_search_service import spotify_search_service
 from services.data_service import data_loader
+from services.ai_service import ai_service
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +30,6 @@ class PlaylistGeneratorService(SingletonServiceBase):
         """Initialize the PlaylistGeneratorService."""
 
         self.spotify_search = spotify_search_service
-        self.model_config = ai_model_manager.get_provider()
-        self.http_client = None
 
         self._log_initialization("Playlist generator service initialized successfully", logger)
 
@@ -40,86 +37,14 @@ class PlaylistGeneratorService(SingletonServiceBase):
         """Initialize the AI model and Spotify search service"""
 
         try:
-            self.http_client = httpx.AsyncClient(timeout=self.model_config.timeout)
+            # AI service is initialized in main.py, no need to initialize again
             await self.spotify_search.initialize()
 
-            if not await self._check_ai_model_connection():
-                logger.error(f"AI model {self.model_config.name} not running or not accessible")
-                raise RuntimeError(f"AI model {self.model_config.name} is not accessible. Please check your configuration.")
-
-            await self._ensure_model_available()
-
-            logger.info(f"AI Playlist Generation initialized successfully with {self.model_config.name}!")
-
-        except RuntimeError:
-            raise
+            logger.info("AI Playlist Generation initialized successfully!")
 
         except Exception as e:
             logger.error(f"Playlist generation initialization failed: {e}")
             raise RuntimeError(f"Playlist generation initialization failed: {e}")
-
-    async def _check_ai_model_connection(self) -> bool:
-        """Check if the AI model is running and accessible"""
-
-        try:
-            if self.model_config.name.lower() == "ollama":
-                response = await self.http_client.get(f"{self.model_config.endpoint}/api/tags")
-                return response.status_code == 200
-
-            else:
-                return (self.model_config.endpoint is not None)
-
-        except:
-            return False
-
-    async def _ensure_model_available(self):
-        """Ensure the required model is available"""
-
-        try:
-            if self.model_config.name.lower() == "ollama":
-                response = await self.http_client.get(f"{self.model_config.endpoint}/api/tags")
-
-                if response.status_code == 200:
-                    models = response.json().get("models", [])
-                    model_names = [model.get("name", "") for model in models]
-
-                    if self.model_config.generation_model not in model_names:
-                        logger.info(f"Model {self.model_config.generation_model} not found, pulling...")
-                        await self._pull_model()
-
-                    else:
-                        logger.info(f"Model {self.model_config.generation_model} is available")
-
-            else:
-                logger.info(f"Using external AI model: {self.model_config.name}")
-
-        except Exception as e:
-            logger.error(f"Model check failed: {e}")
-            raise RuntimeError(f"Model check failed: {e}")
-
-    async def _pull_model(self):
-        """Pull the required model (Ollama only)"""
-
-        try:
-            if self.model_config.name.lower() != "ollama":
-                return
-
-            response = await self.http_client.post(
-                f"{self.model_config.endpoint}/api/pull",
-                json={"name": self.model_config.generation_model},
-                timeout=settings.AI_MODEL_PULL_TIMEOUT
-            )
-
-            if response.status_code == 200:
-                logger.info(f"Model {self.model_config.generation_model} pulled successfully")
-
-            else:
-                logger.error(f"Failed to pull model {self.model_config.generation_model}")
-                raise RuntimeError(f"Failed to pull model {self.model_config.generation_model}")
-
-        except Exception as e:
-            logger.error(f"Model pull failed: {e}")
-            raise RuntimeError(f"Model pull failed: {e}")
 
     async def generate_playlist(self, prompt: str, user_context: Optional[UserContext] = None, count: int = 30, discovery_strategy: str = "balanced") -> List[Song]:
         """
@@ -200,9 +125,7 @@ class PlaylistGeneratorService(SingletonServiceBase):
             Dictionary with mood_keywords, genres, energy_level, etc.
         """
 
-        if not await self._check_ai_model_connection():
-            raise RuntimeError("AI model connection lost during playlist generation")
-
+        # AI service handles connectivity - no need to check here
         return await self._ai_generate_strategy(prompt, user_context)
 
     async def _ai_generate_strategy(self, prompt: str, user_context: Optional[UserContext] = None, discovery_strategy: str = "balanced") -> Dict[str, Any]:
@@ -632,70 +555,15 @@ class PlaylistGeneratorService(SingletonServiceBase):
     async def _call_ai_model(self, prompt: str) -> str:
         """Universal method to call different AI models"""
 
-        if self.model_config.name.lower() == "ollama":
-            response = await self.http_client.post(
-                f"{self.model_config.endpoint}/api/generate",
-                json={
-                    "model": self.model_config.generation_model,
-                    "prompt": prompt,
-                    "stream": False
-                },
-                timeout=self.model_config.timeout
-            )
+        try:
+            # Import here to avoid circular imports
+            from services.ai_service import ai_service
+            
+            # Use the AI service abstraction instead of direct API calls
+            return await ai_service.generate_text(prompt, model_id=None)
 
-            if response.status_code == 200:
-                return response.json()["response"].strip()
-
-            else:
-                raise RuntimeError(f"Ollama API error: {response.status_code}")
-
-        elif self.model_config.name.lower() == "openai":
-            headers = self.model_config.headers or {}
-
-            data = {
-                "model": self.model_config.generation_model,
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": self.model_config.max_tokens,
-                "temperature": self.model_config.temperature
-            }
-
-            response = await self.http_client.post(
-                f"{self.model_config.endpoint}/v1/chat/completions",
-                headers=headers,
-                json=data
-            )
-
-            if response.status_code == 200:
-                result = response.json()
-                return result["choices"][0]["message"]["content"].strip()
-
-            else:
-                raise Exception(f"OpenAI API error: {response.status_code}")
-
-        elif self.model_config.name.lower() == "anthropic":
-            headers = self.model_config.headers or {}
-
-            data = {
-                "model": self.model_config.generation_model,
-                "max_tokens": self.model_config.max_tokens,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": self.model_config.temperature
-            }
-
-            response = await self.http_client.post(
-                f"{self.model_config.endpoint}/v1/messages",
-                headers=headers,
-                json=data
-            )
-
-            if response.status_code == 200:
-                result = response.json()
-                return result["content"][0]["text"].strip()
-
-            else:
-                raise Exception(f"Anthropic API error: {response.status_code}")
-
-        else:
-            raise Exception(f"Unsupported AI model: {self.model_config.name}")
+        except Exception as e:
+            logger.error(f"AI model call failed: {e}")
+            raise RuntimeError(f"AI model call failed: {e}")
 
 playlist_generator_service = PlaylistGeneratorService()
