@@ -7,8 +7,8 @@ Copy this file and modify it to implement your own AI provider.
 Example usage:
 1. Copy this file to a new file (e.g., providers/my_custom_provider.py)
 2. Implement the required methods
-3. Update ai_models.py to register your provider
-4. Set AI_PROVIDER=my_custom in your .env file
+3. The provider will be auto-discovered by the registry
+4. Set AI_PROVIDER=custom in your .env file (or whatever name you use)
 """
 
 import logging
@@ -25,15 +25,14 @@ class CustomProvider(BaseAIProvider):
     Replace this class and its methods with your specific implementation.
     """
     
-    @property
-    def name(self) -> str:
-        """Return your provider's name."""
-        return "Custom"  # Change this to your provider name
-    
-    @property
-    def supports_embeddings(self) -> bool:
-        """Return whether your provider supports embeddings."""
-        return True  # Change to False if your provider doesn't support embeddings
+    def __init__(self):
+        """Initialize the provider."""
+        super().__init__()
+        self.name = "custom"  # Change this to your provider name (lowercase)
+        
+        # Override any settings-based attributes if needed
+        # self.endpoint = "https://your-custom-api.com"  # Override AI_ENDPOINT
+        # self.headers = {"Authorization": f"Bearer {your_api_key}"}  # Add auth headers
     
     async def test_availability(self) -> bool:
         """
@@ -43,7 +42,7 @@ class CustomProvider(BaseAIProvider):
         Return True if available, False otherwise.
         """
         try:
-            # Example: make a simple GET or POST request to test
+            # Example: make a simple GET request to test connectivity
             async with self._session.get(f"{self.endpoint}/health") as response:
                 return response.status == 200
         except Exception as e:
@@ -62,9 +61,6 @@ class CustomProvider(BaseAIProvider):
             Generated text response
         """
         # Example implementation - replace with your provider's API
-        headers = self.headers.copy()
-        headers["Content-Type"] = "application/json"
-
         payload = {
             "prompt": prompt,
             "model": self.generation_model,
@@ -74,7 +70,7 @@ class CustomProvider(BaseAIProvider):
 
         async with self._session.post(
             f"{self.endpoint}/v1/generate",  # Replace with your API endpoint
-            headers=headers,
+            headers=self.headers,
             json=payload,
             timeout=self.timeout
         ) as response:
@@ -85,7 +81,7 @@ class CustomProvider(BaseAIProvider):
             result = await response.json()
             return result.get("text", "")  # Adjust based on your API response format
     
-    async def _get_embedding_impl(self, text: str, **kwargs) -> List[float]:
+    async def get_embedding(self, text: str, **kwargs) -> List[float]:
         """
         Get embedding using your provider.
         
@@ -100,9 +96,6 @@ class CustomProvider(BaseAIProvider):
             raise Exception("No embedding model configured for Custom provider")
         
         # Example implementation - replace with your provider's API
-        headers = self.headers.copy()
-        headers["Content-Type"] = "application/json"
-
         payload = {
             "text": text,
             "model": self.embedding_model
@@ -110,7 +103,7 @@ class CustomProvider(BaseAIProvider):
 
         async with self._session.post(
             f"{self.endpoint}/v1/embeddings",  # Replace with your API endpoint
-            headers=headers,
+            headers=self.headers,
             json=payload,
             timeout=self.timeout
         ) as response:
@@ -157,11 +150,12 @@ class AdvancedCustomProvider(CustomProvider):
         errors = []
         
         if not self.endpoint:
-            errors.append("Endpoint is required")
+            errors.append("AI_ENDPOINT is required")
         
         if not self.generation_model:
-            errors.append("Generation model is required")
+            errors.append("AI_GENERATION_MODEL is required")
         
         # Add your custom validation logic here
+        # Example: check API keys, validate endpoint format, etc.
         
         return errors

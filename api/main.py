@@ -191,7 +191,8 @@ async def validate_session_endpoint(request: SessionValidationRequest):
 
 @app.get("/auth/check-session")
 async def check_session_endpoint(request: Request):
-    """Check if a session exists for the given device ID (for session polling)"""
+    """Check if a session exists for the given device ID"""
+
     return await check_session(request)
 
 @app.post("/auth/rate-limit-status", response_model=RateLimitStatus)
@@ -228,7 +229,7 @@ async def logout_endpoint(request: Request):
 @app.post("/auth/cleanup")
 @debug_only
 async def cleanup_sessions_endpoint():
-    """Clean up expired sessions and auth attempts (debug only)"""
+    """Clean up expired sessions and auth attempts"""
 
     return await cleanup_sessions()
 
@@ -373,6 +374,7 @@ async def get_server_mode_endpoint():
     """Get current server mode"""
 
     return await get_server_mode()
+
 if __name__ == "__main__":
     logger.info(app_constants.STARTUP_MESSAGE)
 
