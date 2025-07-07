@@ -40,7 +40,7 @@ Check API health and service status.
 {
     "status": "healthy",
     "timestamp": "2024-01-01T00:00:00Z",
-    "version": "1.0.0",
+    "version": "1.0.0-beta",
     "services": {
         "database": "healthy",
         "ai_provider": "healthy",
@@ -153,16 +153,8 @@ Get current server mode and configuration.
 **Response:**
 ```json
 {
-    "mode": "development|production",
-    "debug": true,
     "demo_mode": false,
-    "features": {
-        "auth_required": true,
-        "rate_limiting": true,
-        "security_headers": true
-    },
-    "ai_provider": "ollama",
-    "version": "1.0.0"
+    "mode": "normal|demo",
 }
 ```
 

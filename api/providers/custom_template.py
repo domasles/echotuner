@@ -12,6 +12,7 @@ Example usage:
 """
 
 import logging
+
 from typing import List
 
 from .base import BaseAIProvider
@@ -21,45 +22,49 @@ logger = logging.getLogger(__name__)
 class CustomProvider(BaseAIProvider):
     """
     Custom AI provider implementation template.
-    
+
     Replace this class and its methods with your specific implementation.
     """
-    
+
     def __init__(self):
         """Initialize the provider."""
+
         super().__init__()
         self.name = "custom"  # Change this to your provider name (lowercase)
-        
+
         # Override any settings-based attributes if needed
         # self.endpoint = "https://your-custom-api.com"  # Override AI_ENDPOINT
         # self.headers = {"Authorization": f"Bearer {your_api_key}"}  # Add auth headers
-    
+
     async def test_availability(self) -> bool:
         """
         Test if your provider is available.
-        
+
         This should make a minimal request to test connectivity.
         Return True if available, False otherwise.
         """
+
         try:
             # Example: make a simple GET request to test connectivity
             async with self._session.get(f"{self.endpoint}/health") as response:
                 return response.status == 200
+
         except Exception as e:
             logger.debug(f"Custom provider availability test failed: {e}")
             return False
-    
+
     async def generate_text(self, prompt: str, **kwargs) -> str:
         """
         Generate text using your provider.
-        
+
         Args:
             prompt: The input prompt
             **kwargs: Additional parameters (max_tokens, temperature, etc.)
-            
+
         Returns:
             Generated text response
         """
+
         # Example implementation - replace with your provider's API
         payload = {
             "prompt": prompt,
@@ -84,17 +89,18 @@ class CustomProvider(BaseAIProvider):
     async def get_embedding(self, text: str, **kwargs) -> List[float]:
         """
         Get embedding using your provider.
-        
+
         Args:
             text: The input text
             **kwargs: Additional parameters
-            
+
         Returns:
             Embedding vector as list of floats
         """
+
         if not self.embedding_model:
             raise Exception("No embedding model configured for Custom provider")
-        
+
         # Example implementation - replace with your provider's API
         payload = {
             "text": text,
@@ -120,42 +126,44 @@ class AdvancedCustomProvider(CustomProvider):
     """
     Advanced custom provider template with additional features.
     """
-    
+
     async def initialize(self) -> None:
         """
         Override initialization if you need custom setup.
         """
+
         await super().initialize()
-        
+
         # Add your custom initialization logic here
         # For example: authenticate, validate API keys, etc.
         logger.info(f"Initializing {self.name} provider with custom setup")
-    
+
     async def close(self) -> None:
         """
         Override cleanup if you need custom teardown.
         """
+
         # Add your custom cleanup logic here
         logger.info(f"Closing {self.name} provider")
-        
         await super().close()
     
     def validate_config(self) -> List[str]:
         """
         Validate provider configuration.
-        
+
         Returns:
             List of validation error messages (empty if valid)
         """
+
         errors = []
-        
+
         if not self.endpoint:
             errors.append("AI_ENDPOINT is required")
-        
+
         if not self.generation_model:
             errors.append("AI_GENERATION_MODEL is required")
-        
+
         # Add your custom validation logic here
         # Example: check API keys, validate endpoint format, etc.
-        
+
         return errors

@@ -29,7 +29,7 @@ class BaseAIProvider(ABC):
         self.temperature = settings.AI_TEMPERATURE
         self.timeout = settings.AI_TIMEOUT
         self._session: Optional[aiohttp.ClientSession] = None
-    
+
     async def initialize(self) -> None:
         """Initialize the provider (create session, test connectivity, etc.)."""
 

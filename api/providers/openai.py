@@ -24,7 +24,7 @@ class OpenAIProvider(BaseAIProvider):
         
         self.name = "openai"
         self.headers = {"Authorization": f"Bearer {settings.CLOUD_API_KEY}"}
-    
+
     async def test_availability(self) -> bool:
         """Test if OpenAI is available."""
 

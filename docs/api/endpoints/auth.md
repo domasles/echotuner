@@ -111,7 +111,7 @@ Register a new device with the system.
 {
     "device_info": {
         "platform": "iOS|Android",
-        "version": "1.0.0",
+        "version": "1.0.0-beta",
         "model": "iPhone 14"
     }
 }

@@ -24,7 +24,7 @@ class GoogleProvider(BaseAIProvider):
 
         self.name = "google"
         self.headers = {"x-goog-api-key": settings.CLOUD_API_KEY}
-    
+
     async def test_availability(self) -> bool:
         """Test if Google Gemini is available."""
 
