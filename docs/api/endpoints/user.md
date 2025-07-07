@@ -15,30 +15,30 @@ Get user's followed artists from Spotify.
 **Response:**
 ```json
 {
-  "artists": [
-    {
-      "id": "string",
-      "name": "string",
-      "genres": ["string"],
-      "popularity": 75,
-      "followers": {
-        "total": 1000000
-      },
-      "images": [
+    "artists": [
         {
-          "url": "string",
-          "height": 640,
-          "width": 640
+            "id": "string",
+            "name": "string",
+            "genres": ["string"],
+            "popularity": 75,
+            "followers": {
+                "total": 1000000
+            },
+            "images": [
+                {
+                    "url": "string",
+                    "height": 640,
+                    "width": 640
+                }
+            ],
+            "external_urls": {
+                "spotify": "string"
+            }
         }
-      ],
-      "external_urls": {
-        "spotify": "string"
-      }
-    }
-  ],
-  "total": 25,
-  "next": "string",
-  "previous": null
+    ],
+    "total": 25,
+    "next": "string",
+    "previous": null
 }
 ```
 
@@ -59,30 +59,30 @@ Search for artists on Spotify.
 **Response:**
 ```json
 {
-  "artists": [
-    {
-      "id": "string",
-      "name": "string",
-      "genres": ["string"],
-      "popularity": 75,
-      "followers": {
-        "total": 1000000
-      },
-      "images": [
+    "artists": [
         {
-          "url": "string",
-          "height": 640,
-          "width": 640
+            "id": "string",
+            "name": "string",
+            "genres": ["string"],
+            "popularity": 75,
+            "followers": {
+                "total": 1000000
+            },
+            "images": [
+                {
+                    "url": "string",
+                    "height": 640,
+                    "width": 640
+                }
+            ],
+            "external_urls": {
+                "spotify": "string"
+            }
         }
-      ],
-      "external_urls": {
-        "spotify": "string"
-      }
-    }
-  ],
-  "total": 100,
-  "offset": 0,
-  "limit": 20
+    ],
+    "total": 100,
+    "offset": 0,
+    "limit": 20
 }
 ```
 

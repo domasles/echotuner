@@ -39,6 +39,11 @@ class SpotifyPlaylistService(SingletonServiceBase):
             logger.error(f"Failed to initialize Spotify playlist service: {e}")
             raise
 
+    def is_ready(self) -> bool:
+        """Check if the service is ready."""
+
+        return settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET
+
     async def get_user_playlists(self, access_token: str) -> List[Dict[str, Any]]:
         """Get user's Spotify playlists."""
 
@@ -96,7 +101,7 @@ class SpotifyPlaylistService(SingletonServiceBase):
             logger.error(f"Failed to get playlist tracks: {e}")
             raise
 
-    async def create_playlist(self, access_token: str, name: str, songs: List[Song], description: Optional[str] = None, public: bool = False) -> Tuple[str, str]:
+    async def create_playlist(self, access_token: str, playlist_name: str, songs: List[Song], description: Optional[str] = None, public: bool = False) -> Tuple[str, str]:
         """Create a new Spotify playlist with the given songs."""
 
         try:
@@ -109,8 +114,8 @@ class SpotifyPlaylistService(SingletonServiceBase):
                 user_id = await self._get_user_id(session, headers)
 
                 playlist_data = {
-                    'name': name,
-                    'description': description or AppConstants.DEFAULT_PLAYLIST_DESCRIPTION,
+                    'name': playlist_name,
+                    'description': description if description else AppConstants.DEFAULT_PLAYLIST_DESCRIPTION,
                     'public': public
                 }
 
@@ -313,10 +318,5 @@ class SpotifyPlaylistService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Error removing track from playlist: {e}")
             return False
-
-    def is_ready(self) -> bool:
-        """Check if the service is ready."""
-
-        return settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET
 
 spotify_playlist_service = SpotifyPlaylistService()

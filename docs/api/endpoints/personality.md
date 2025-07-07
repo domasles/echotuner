@@ -9,33 +9,33 @@ Save user personality preferences.
 **Request Body:**
 ```json
 {
-  "session_id": "string",
-  "device_id": "string",
-  "personality": {
-    "music_taste": {
-      "preferred_genres": ["pop", "rock", "electronic"],
-      "disliked_genres": ["country", "heavy metal"],
-      "openness_to_new_music": 0.8,
-      "mainstream_vs_underground": 0.3
-    },
-    "listening_habits": {
-      "typical_listening_time": "evening",
-      "preferred_playlist_length": 45,
-      "skip_frequency": "rarely",
-      "volume_preference": "moderate"
-    },
-    "mood_preferences": {
-      "energy_level": 0.7,
-      "emotional_tone": "positive",
-      "preferred_activities": ["working", "relaxing", "exercising"]
-    },
-    "discovery_preferences": {
-      "artist_diversity": 0.6,
-      "temporal_range": "last_10_years",
-      "language_preference": ["english", "spanish"],
-      "instrumental_tolerance": 0.4
+    "session_id": "string",
+    "device_id": "string",
+    "personality": {
+        "music_taste": {
+            "preferred_genres": ["pop", "rock", "electronic"],
+            "disliked_genres": ["country", "heavy metal"],
+            "openness_to_new_music": 0.8,
+            "mainstream_vs_underground": 0.3
+        },
+        "listening_habits": {
+            "typical_listening_time": "evening",
+            "preferred_playlist_length": 45,
+            "skip_frequency": "rarely",
+            "volume_preference": "moderate"
+        },
+        "mood_preferences": {
+            "energy_level": 0.7,
+            "emotional_tone": "positive",
+            "preferred_activities": ["working", "relaxing", "exercising"]
+        },
+        "discovery_preferences": {
+            "artist_diversity": 0.6,
+            "temporal_range": "last_10_years",
+            "language_preference": ["english", "spanish"],
+            "instrumental_tolerance": 0.4
+        }
     }
-  }
 }
 ```
 
@@ -58,32 +58,32 @@ Load user personality preferences.
 **Response:**
 ```json
 {
-  "personality": {
-    "music_taste": {
-      "preferred_genres": ["pop", "rock", "electronic"],
-      "disliked_genres": ["country", "heavy metal"],
-      "openness_to_new_music": 0.8,
-      "mainstream_vs_underground": 0.3
+    "personality": {
+        "music_taste": {
+            "preferred_genres": ["pop", "rock", "electronic"],
+            "disliked_genres": ["country", "heavy metal"],
+            "openness_to_new_music": 0.8,
+            "mainstream_vs_underground": 0.3
+        },
+        "listening_habits": {
+            "typical_listening_time": "evening",
+            "preferred_playlist_length": 45,
+            "skip_frequency": "rarely",
+            "volume_preference": "moderate"
+        },
+        "mood_preferences": {
+            "energy_level": 0.7,
+            "emotional_tone": "positive",
+            "preferred_activities": ["working", "relaxing", "exercising"]
+        },
+        "discovery_preferences": {
+            "artist_diversity": 0.6,
+            "temporal_range": "last_10_years",
+            "language_preference": ["english", "spanish"],
+            "instrumental_tolerance": 0.4
+        }
     },
-    "listening_habits": {
-      "typical_listening_time": "evening",
-      "preferred_playlist_length": 45,
-      "skip_frequency": "rarely",
-      "volume_preference": "moderate"
-    },
-    "mood_preferences": {
-      "energy_level": 0.7,
-      "emotional_tone": "positive",
-      "preferred_activities": ["working", "relaxing", "exercising"]
-    },
-    "discovery_preferences": {
-      "artist_diversity": 0.6,
-      "temporal_range": "last_10_years",
-      "language_preference": ["english", "spanish"],
-      "instrumental_tolerance": 0.4
-    }
-  },
-  "last_updated": "2024-01-15T10:30:00Z"
+    "last_updated": "2024-01-15T10:30:00Z"
 }
 ```
 
@@ -144,7 +144,7 @@ The personality object contains the following categories:
 **Error Format:**
 ```json
 {
-  "detail": "string",
-  "error": "string"
+    "detail": "string",
+    "error": "string"
 }
 ```

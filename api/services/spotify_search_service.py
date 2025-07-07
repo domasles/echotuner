@@ -73,7 +73,7 @@ class SpotifySearchService(SingletonServiceBase):
         except Exception as e:
             raise Exception(f"Spotify API test failed: {e}")
 
-    async def search_songs_by_mood(self, mood_keywords: List[str], genres: Optional[List[str]] = None, energy_level: Optional[str] = None, user_context: Optional['UserContext'] = None, count: int = 30, discovery_strategy: str = "balanced") -> List[Song]:
+    async def search_songs_by_mood(self, mood_keywords: List[str], genres: Optional[List[str]] = None, energy_level: Optional[str] = None, user_context: Optional[UserContext] = None, count: int = 30, discovery_strategy: str = "balanced") -> List[Song]:
         """
         Search for songs based on mood keywords and preferences.
         

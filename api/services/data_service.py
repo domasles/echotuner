@@ -154,13 +154,19 @@ class DataLoader(SingletonServiceBase):
         self._load_json_file.cache_clear()
         logger.info("Configuration cache cleared - files will be reloaded on next access")
 
-    def __del__(self):
-        """Cleanup executor on destruction"""
+    async def cleanup(self):
+        """Clean up resources and shutdown the service."""
 
-        try:
-            self._executor.shutdown(wait=False)
+        self._patterns = {}
+        self._artist_data = {}
+        self._activity_patterns = {}
+        self._mood_patterns = {}
+        self._genre_patterns = {}
+        self._activity_energy_mapping = {}
+        self._broader_keywords = []
 
-        except:
-            pass
+        self._executor.shutdown(wait=False)
+
+        logger.info("Data service cleanup completed")
 
 data_loader = DataLoader()

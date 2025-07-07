@@ -9,22 +9,22 @@ Create a Spotify playlist from a draft.
 **Request Body:**
 ```json
 {
-  "session_id": "string",
-  "device_id": "string", 
-  "playlist_id": "string",
-  "name": "string",
-  "description": "string",
-  "public": false
+    "session_id": "string",
+    "device_id": "string", 
+    "playlist_id": "string",
+    "name": "string",
+    "description": "string",
+    "public": false
 }
 ```
 
 **Response:**
 ```json
 {
-  "success": true,
-  "spotify_playlist_id": "string",
-  "spotify_url": "string",
-  "message": "string"
+    "success": true,
+    "spotify_playlist_id": "string",
+    "spotify_url": "string",
+    "message": "string"
 }
 ```
 
@@ -40,18 +40,18 @@ Get tracks from a Spotify playlist.
 **Response:**
 ```json
 {
-  "tracks": [
-    {
-      "id": "string",
-      "name": "string", 
-      "artists": ["string"],
-      "album": "string",
-      "uri": "string",
-      "external_urls": {
-        "spotify": "string"
-      }
-    }
-  ]
+    "tracks": [
+        {
+            "id": "string",
+            "name": "string", 
+            "artists": ["string"],
+            "album": "string",
+            "uri": "string",
+            "external_urls": {
+                "spotify": "string"
+            }
+        }
+    ]
 }
 ```
 

@@ -15,7 +15,7 @@ Welcome to the EchoTuner documentation! EchoTuner is an AI-powered playlist gene
 - [Spotify Endpoints](api/endpoints/spotify.md) - Spotify integration endpoints
 - [User Endpoints](api/endpoints/user.md) - User data and artist search
 - [Personality Endpoints](api/endpoints/personality.md) - User personality preferences
-- [AI Endpoints](api/endpoints/ai.md) - AI model management (debug mode)
+- [AI Endpoints](api/endpoints/ai.md) - AI model management
 - [Server Endpoints](api/endpoints/server.md) - Server status and mode information
 
 ### API Customization

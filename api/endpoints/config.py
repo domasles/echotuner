@@ -51,7 +51,7 @@ async def get_config():
     }
 
 async def reload_config():
-    """Reload JSON configuration files without restarting the server (Debug mode only)"""
+    """Reload JSON configuration files without restarting the server"""
     try:
         data_loader.reload_cache()
         logger.info("Configuration files reloaded successfully")

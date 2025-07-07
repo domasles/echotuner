@@ -254,37 +254,6 @@ linuxdeploy --appdir build/linux/x64/release/bundle --create-desktop-file --icon
 
 ## Environment Configuration
 
-### Production vs Development
-
-#### `lib/config/environment.dart`:
-
-```dart
-enum Environment { development, staging, production }
-
-class EnvironmentConfig {
-  static const Environment _environment = Environment.production;
-  
-  static String get apiBaseUrl {
-    switch (_environment) {
-      case Environment.development:
-        return 'http://localhost:8000';
-      case Environment.staging:
-        return 'https://staging-api.echotuner.com';
-      case Environment.production:
-        return 'https://api.echotuner.com';
-    }
-  }
-  
-  static bool get debugMode {
-    return _environment == Environment.development;
-  }
-  
-  static bool get enableAnalytics {
-    return _environment == Environment.production;
-  }
-}
-```
-
 ### Build Flavors
 
 #### Configure flavors in `android/app/build.gradle`:
@@ -328,66 +297,80 @@ flutter build apk --flavor production
 name: Build and Deploy
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    push:
+        branches: [ main ]
+    pull_request:
+        branches: [ main ]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.16.0'
-      - run: flutter pub get
-      - run: flutter test
-      - run: flutter analyze
+    test:
+        runs-on: ubuntu-latest
 
-  build_android:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.16.0'
-      - run: flutter pub get
-      - run: flutter build apk --release
-      - uses: actions/upload-artifact@v3
-        with:
-          name: android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+        steps:
+        - uses: actions/checkout@v3
+        - uses: subosito/flutter-action@v2
 
-  build_ios:
-    needs: test
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.16.0'
-      - run: flutter pub get
-      - run: flutter build ios --release --no-codesign
+        flutter-version: '3.16.0'
 
-  build_web:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: subosito/flutter-action@v2
+        - run: flutter pub get
+        - run: flutter test
+        - run: flutter analyze
+
+    build_android:
+        needs: test
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v3
+            - uses: subosito/flutter-action@v2
+
+            with:
+            flutter-version: '3.16.0'
+
+            - run: flutter pub get
+            - run: flutter build apk --release
+            - uses: actions/upload-artifact@v3
+
+            with:
+            name: android-apk
+            path: build/app/outputs/flutter-apk/app-release.apk
+
+    build_ios:
+        needs: test
+        runs-on: macos-latest
+
+        steps:
+        - uses: actions/checkout@v3
+        - uses: subosito/flutter-action@v2
+
         with:
-          flutter-version: '3.16.0'
-      - run: flutter pub get
-      - run: flutter build web --release
-      - name: Deploy to Firebase
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          channelId: live
-          projectId: your-project-id
+        flutter-version: '3.16.0'
+
+        - run: flutter pub get
+        - run: flutter build ios --release --no-codesign
+
+    build_web:
+        needs: test
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v3
+            - uses: subosito/flutter-action@v2
+
+            with:
+            flutter-version: '3.16.0'
+
+            - run: flutter pub get
+            - run: flutter build web --release
+            - name: Deploy to Firebase
+
+            uses: FirebaseExtended/action-hosting-deploy@v0
+            with:
+            repoToken: '${{ secrets.GITHUB_TOKEN }}'
+            firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+            channelId: live
+            projectId: your-project-id
 ```
 
 ## Performance Optimization
@@ -398,20 +381,21 @@ jobs:
 
 ```yaml
 flutter:
-  uses-material-design: true
-  
-  # Only include needed assets
-  assets:
-    - assets/icons/
-    - assets/logos/logo.png
-  
-  # Tree-shake unused icons
-  fonts:
-    - family: Roboto
-      fonts:
-        - asset: fonts/Roboto-Regular.ttf
-        - asset: fonts/Roboto-Bold.ttf
-          weight: 700
+    uses-material-design: true
+
+    # Only include needed assets
+    assets:
+        - assets/icons/
+        - assets/logos/logo.png
+
+    # Tree-shake unused icons
+    fonts:
+        - family: Roboto
+            fonts:
+                - asset: fonts/Roboto-Regular.ttf
+                - asset: fonts/Roboto-Bold.ttf
+
+                weight: 700
 ```
 
 #### Build flags:
@@ -457,14 +441,14 @@ flutter build apk --release --obfuscate --split-debug-info=debug-info
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  if (!kDebugMode) {
-    FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
-  }
-  
-  runApp(MyApp());
+    WidgetsFlutterBinding.ensureInitialized();
+
+    if (!kDebugMode) {
+        FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
+        FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
+    }
+
+    runApp(MyApp());
 }
 ```
 

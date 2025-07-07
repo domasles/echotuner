@@ -2,109 +2,95 @@
 
 These endpoints provide access to AI-related functionality and debugging features.
 
-## GET /ai/models
+## GET /ai/models (debug only)
 
-**[DEBUG ONLY]** Get available AI models and their configurations.
+Get available AI models and their configurations.
 
 **Response:**
 ```json
 {
-  "providers": [
-    {
-      "name": "openai",
-      "display_name": "OpenAI",
-      "models": [
+    "providers": [
         {
-          "id": "gpt-4",
-          "name": "GPT-4",
-          "max_tokens": 8192,
-          "supports_embeddings": true
+            "name": "openai",
+            "display_name": "OpenAI",
+            "models": [
+                {
+                    "id": "gpt-4",
+                    "name": "GPT-4",
+                    "max_tokens": 8192,
+                    "supports_embeddings": true
+                },
+                {
+                    "id": "gpt-3.5-turbo",
+                    "name": "GPT-3.5 Turbo", 
+                    "max_tokens": 4096,
+                    "supports_embeddings": true
+                }
+            ],
+            "status": "available",
+            "configuration": {
+                "api_key_configured": true,
+                "base_url": "https://api.openai.com/v1"
+            }
         },
         {
-          "id": "gpt-3.5-turbo",
-          "name": "GPT-3.5 Turbo", 
-          "max_tokens": 4096,
-          "supports_embeddings": true
+            "name": "ollama",
+            "display_name": "Ollama",
+            "models": [
+                {
+                    "id": "llama2",
+                    "name": "Llama 2",
+                    "max_tokens": 4096,
+                    "supports_embeddings": true
+                }
+            ],
+            "status": "available",
+            "configuration": {
+                "base_url": "http://localhost:11434"
+            }
         }
-      ],
-      "status": "available",
-      "configuration": {
-        "api_key_configured": true,
-        "base_url": "https://api.openai.com/v1"
-      }
-    },
-    {
-      "name": "ollama",
-      "display_name": "Ollama",
-      "models": [
-        {
-          "id": "llama2",
-          "name": "Llama 2",
-          "max_tokens": 4096,
-          "supports_embeddings": true
-        }
-      ],
-      "status": "available",
-      "configuration": {
-        "base_url": "http://localhost:11434"
-      }
-    }
-  ],
-  "current_provider": "openai",
-  "total_providers": 3
+    ],
+    "current_provider": "openai",
+    "total_providers": 3
 }
 ```
 
-## POST /ai/test
+## POST /ai/test (debug only)
 
-**[DEBUG ONLY]** Test AI model with a simple prompt.
+Test AI model with a simple prompt.
 
 **Request Body:**
 ```json
 {
-  "provider": "openai",
-  "model": "gpt-4",
-  "prompt": "Generate a 5-song playlist for a rainy day",
-  "max_tokens": 500
+    "provider": "openai",
+    "model": "gpt-4",
+    "prompt": "Generate a 5-song playlist for a rainy day",
+    "max_tokens": 500
 }
 ```
 
 **Response:**
 ```json
 {
-  "success": true,
-  "provider": "openai",
-  "model": "gpt-4",
-  "response": {
-    "content": "Here's a perfect rainy day playlist:\n1. The Sound of Silence - Simon & Garfunkel\n2. Mad World - Gary Jules\n3. Black - Pearl Jam\n4. The Night We Met - Lord Huron\n5. Skinny Love - Bon Iver",
-    "usage": {
-      "prompt_tokens": 15,
-      "completion_tokens": 85,
-      "total_tokens": 100
-    }
-  },
-  "response_time": 1.2
+    "success": true,
+    "provider": "openai",
+    "model": "gpt-4",
+    "response": {
+        "content": "Here's a perfect rainy day playlist:
+            1. The Sound of Silence - Simon & Garfunkel
+            2. Mad World - Gary Jules
+            3. Black - Pearl Jam
+            4. The Night We Met - Lord Huron
+            5. Skinny Love - Bon Iver",
+        "usage": {
+        "prompt_tokens": 15,
+        "completion_tokens": 85,
+        "total_tokens": 100
+        }
+    },
+    "response_time": 1.2
 }
 ```
-
-## Provider Information
-
-The AI system supports multiple providers:
-
-### OpenAI
-- **Models**: GPT-4, GPT-3.5 Turbo
-- **Features**: Chat completion, embeddings
-- **Configuration**: Requires `CLOUD_API_KEY`
-
-### Google
-- **Models**: Gemini Pro
-- **Features**: Chat completion, embeddings
-- **Configuration**: Requires `CLOUD_API_KEY`
-
-### Ollama
-- **Models**: Local models (Llama 2, Mistral, etc.)
-- **Features**: Chat completion, embeddings
-- **Configuration**: Requires local Ollama installation
 
 ## Error Responses
 
@@ -118,9 +104,9 @@ The AI system supports multiple providers:
 **Error Format:**
 ```json
 {
-  "detail": "string",
-  "error": "string",
-  "provider": "string"
+    "detail": "string",
+    "error": "string",
+    "provider": "string"
 }
 ```
 

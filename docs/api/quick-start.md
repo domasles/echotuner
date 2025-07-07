@@ -28,25 +28,25 @@ The API will be available at `http://localhost:8000`
 ### Installation
 
 1. **Navigate to API directory**
-   ```bash
-   cd api
-   ```
+    ```bash
+    cd api
+    ```
 
 2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+    ```bash
+    pip install -r requirements.txt
+    ```
 
 3. **Configure environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env file with your settings
-   ```
+    ```bash
+    cp .env.example .env
+    # Edit .env file with your settings
+    ```
 
 4. **Start the API**
-   ```bash
-   python main.py
-   ```
+    ```bash
+    python main.py
+    ```
 
 ## Configuration
 
@@ -70,42 +70,40 @@ CLOUD_API_KEY=your_api_key           # OpenAI or Google API key
 ### Ollama Setup (Local AI)
 
 1. **Install Ollama**
-   ```bash
-   # macOS/Linux
-   curl -fsSL https://ollama.ai/install.sh | sh
-   
-   # Windows: Download from https://ollama.ai
-   ```
+    ```bash
+    # macOS/Linux
+    curl -fsSL https://ollama.ai/install.sh | sh
+
+    # Windows: Download from https://ollama.ai
+    ```
 
 2. **Pull required models**
-   ```bash
-   ollama pull phi3:mini                    # Generation model
-   ollama pull nomic-embed-text:latest      # Embedding model
-   ```
+    ```bash
+    ollama pull phi3:mini                    # Generation model
+    ollama pull nomic-embed-text:latest      # Embedding model
+    ```
 
 3. **Start Ollama service**
-   ```bash
-   ollama serve
-   ```
+    ```bash
+    ollama serve
+    ```
 
 ## Testing the API
 
 1. **Health Check**
-   ```bash
-   curl http://localhost:8000/config/health
-   ```
+    ```bash
+    curl http://localhost:8000/config/health
+    ```
 
 2. **Get Configuration**
-   ```bash
-   curl http://localhost:8000/config
-   ```
+    ```bash
+    curl http://localhost:8000/config
+    ```
 
-3. **Test AI (Debug Mode)**
-   ```bash
-   curl -X POST http://localhost:8000/ai/test \
-     -H "Content-Type: application/json" \
-     -d '{"prompt": "Hello, world!"}'
-   ```
+3. **Test AI (debug only)**
+    ```bash
+    curl -X POST http://localhost:8000/ai/test -H "Content-Type: application/json" -d '{"prompt": "Hello, world!"}'
+    ```
 
 ## Debug Mode
 
@@ -137,18 +135,18 @@ For production deployment:
 ### Common Issues
 
 1. **AI Provider Connection Failed**
-   - Check if Ollama is running: `ollama list`
-   - Verify API endpoints and credentials
-   - Check firewall settings
+    - Check if Ollama is running: `ollama list`
+    - Verify API endpoints and credentials
+    - Check firewall settings
 
 2. **Spotify Authentication Issues**
-   - Verify client ID and secret
-   - Check redirect URI configuration
-   - Ensure app is properly registered with Spotify
+    - Verify client ID and secret
+    - Check redirect URI configuration
+    - Ensure app is properly registered with Spotify
 
 3. **Database Issues**
-   - Check file permissions for `echotuner.db`
-   - Verify SQLite installation
+    - Check file permissions for `echotuner.db`
+    - Verify SQLite installation
 
 ### Logs
 

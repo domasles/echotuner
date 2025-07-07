@@ -15,19 +15,19 @@ Initialize Spotify OAuth flow.
 **Request Body:**
 ```json
 {
-  "device_id": "string",
-  "device_info": {
-    "platform": "string",
-    "version": "string"
-  }
+    "device_id": "string",
+    "device_info": {
+        "platform": "string",
+        "version": "string"
+    }
 }
 ```
 
 **Response:**
 ```json
 {
-  "auth_url": "https://accounts.spotify.com/authorize?...",
-  "state": "unique_state_token"
+    "auth_url": "https://accounts.spotify.com/authorize?...",
+    "state": "unique_state_token"
 }
 ```
 
@@ -51,18 +51,18 @@ Validate an existing session.
 **Request Body:**
 ```json
 {
-  "session_id": "string",
-  "device_id": "string"
+    "session_id": "string",
+    "device_id": "string"
 }
 ```
 
 **Response:**
 ```json
 {
-  "valid": true,
-  "user_id": "string",
-  "account_type": "premium|free",
-  "expires_at": "2024-01-01T00:00:00Z"
+    "valid": true,
+    "user_id": "string",
+    "account_type": "premium|free",
+    "expires_at": "2024-01-01T00:00:00Z"
 }
 ```
 
@@ -76,8 +76,8 @@ Check if a session exists for polling.
 **Response:**
 ```json
 {
-  "session_exists": true,
-  "session_id": "string"
+    "session_exists": true,
+    "session_id": "string"
 }
 ```
 
@@ -88,17 +88,17 @@ Get rate limit status for authenticated user.
 **Request Body:**
 ```json
 {
-  "session_id": "string",
-  "device_id": "string"
+    "session_id": "string",
+    "device_id": "string"
 }
 ```
 
 **Response:**
 ```json
 {
-  "playlists_remaining": 5,
-  "refinements_remaining": 3,
-  "reset_time": "2024-01-01T00:00:00Z"
+    "playlists_remaining": 5,
+    "refinements_remaining": 3,
+    "reset_time": "2024-01-01T00:00:00Z"
 }
 ```
 
@@ -109,19 +109,19 @@ Register a new device with the system.
 **Request Body:**
 ```json
 {
-  "device_info": {
-    "platform": "iOS|Android",
-    "version": "1.0.0",
-    "model": "iPhone 14"
-  }
+    "device_info": {
+        "platform": "iOS|Android",
+        "version": "1.0.0",
+        "model": "iPhone 14"
+    }
 }
 ```
 
 **Response:**
 ```json
 {
-  "device_id": "uuid-generated-device-id",
-  "registered_at": "2024-01-01T00:00:00Z"
+    "device_id": "uuid-generated-device-id",
+    "registered_at": "2024-01-01T00:00:00Z"
 }
 ```
 
@@ -132,9 +132,9 @@ Get current authentication mode.
 **Response:**
 ```json
 {
-  "mode": "demo|normal",
-  "auth_required": true,
-  "demo_info": "Demo mode uses shared account"
+    "mode": "demo|normal",
+    "auth_required": true,
+    "demo_info": "Demo mode uses shared account"
 }
 ```
 
@@ -145,17 +145,17 @@ Get refinement count for demo playlists.
 **Request Body:**
 ```json
 {
-  "playlist_id": "string",
-  "device_id": "string"
+    "playlist_id": "string",
+    "device_id": "string"
 }
 ```
 
 **Response:**
 ```json
 {
-  "refinements_used": 2,
-  "refinements_remaining": 1,
-  "max_refinements": 3
+    "refinements_used": 2,
+    "refinements_remaining": 1,
+    "max_refinements": 3
 }
 ```
 
@@ -166,16 +166,16 @@ Logout and clear all device data.
 **Request Body:**
 ```json
 {
-  "device_id": "string",
-  "session_id": "string"
+    "device_id": "string",
+    "session_id": "string"
 }
 ```
 
 **Response:**
 ```json
 {
-  "success": true,
-  "message": "Logged out successfully"
+    "success": true,
+    "message": "Logged out successfully"
 }
 ```
 
@@ -189,23 +189,23 @@ Get account type for a session.
 **Response:**
 ```json
 {
-  "account_type": "premium|free",
-  "features": ["playlist_creation", "high_quality_audio"]
+    "account_type": "premium|free",
+    "features": ["playlist_creation", "high_quality_audio"]
 }
 ```
 
 ## Debug Endpoints
 
-### POST `/auth/cleanup`
+### POST `/auth/cleanup` (debug only)
 
-Clean up expired sessions and auth attempts (debug mode only).
+Clean up expired sessions and auth attempts.
 
 **Response:**
 ```json
 {
-  "cleaned_sessions": 15,
-  "cleaned_attempts": 8,
-  "timestamp": "2024-01-01T00:00:00Z"
+    "cleaned_sessions": 15,
+    "cleaned_attempts": 8,
+    "timestamp": "2024-01-01T00:00:00Z"
 }
 ```
 
@@ -232,9 +232,9 @@ Clean up expired sessions and auth attempts (debug mode only).
 
 ```json
 {
-  "error": "invalid_session",
-  "message": "Session has expired or is invalid",
-  "code": 401
+    "error": "invalid_session",
+    "message": "Session has expired or is invalid",
+    "code": 401
 }
 ```
 

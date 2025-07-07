@@ -4,19 +4,13 @@ These endpoints provide server status and mode information.
 
 ## GET /server/mode
 
-Get current server mode (debug or production).
+Get current server mode.
 
 **Response:**
 ```json
 {
-  "mode": "debug",
-  "debug_enabled": true,
-  "version": "1.0.0",
-  "features": {
-    "debug_endpoints": true,
-    "rate_limiting": true,
-    "secure_headers": true
-  }
+    "demo_mode": false,
+    "mode": "normal",
 }
 ```
 
@@ -40,7 +34,7 @@ Get current server mode (debug or production).
 **Error Format:**
 ```json
 {
-  "detail": "string",
-  "error": "string"
+    "detail": "string",
+    "error": "string"
 }
 ```

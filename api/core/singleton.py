@@ -1,8 +1,11 @@
 """Singleton pattern implementation for EchoTuner services."""
 
 import threading
+import logging
+
 from typing import Dict, Type, Any
 
+logger = logging.getLogger(__name__)
 
 class ServiceSingleton:
     """Thread-safe singleton metaclass for services."""
@@ -36,3 +39,13 @@ class SingletonServiceBase:
         """Log initialization only once per singleton instance."""
 
         logger.info(message)
+
+    async def cleanup(self):
+        """Clean up resources and shutdown the service."""
+
+        logger.info("Service cleanup completed.")
+
+    def __del__(self):
+        """Cleanup resources on destruction"""
+
+        self.cleanup()

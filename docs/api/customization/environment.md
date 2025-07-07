@@ -149,21 +149,11 @@ AI_MODEL_PULL_TIMEOUT=300
 
 #### OpenAI
 ```env
-AI_PROVIDER=openai
-CLOUD_API_KEY=sk-your-openai-api-key
-AI_GENERATION_MODEL=gpt-4
-AI_EMBEDDING_MODEL=text-embedding-ada-002
+AI_PROVIDER=your-cloud-provider
+CLOUD_API_KEY=your-cloud-ai-api-key
+AI_GENERATION_MODEL=your-generation-model
+AI_EMBEDDING_MODEL=your-embedding-model
 AI_MAX_TOKENS=2000
-AI_TEMPERATURE=0.7
-```
-
-#### Google AI
-```env
-AI_PROVIDER=google
-CLOUD_API_KEY=your-google-ai-api-key
-AI_GENERATION_MODEL=gemini-pro
-AI_EMBEDDING_MODEL=embedding-001
-AI_MAX_TOKENS=2048
 AI_TEMPERATURE=0.7
 ```
 
@@ -313,10 +303,10 @@ API_PORT=8000                                   # Default: 8000
 Add custom settings to `config/settings.py`:
 
 ```python
-class Settings(BaseSettings):
+class Settings:
     # Custom feature flags
     ENABLE_EXPERIMENTAL_FEATURES: bool = Field(default=False, env="ENABLE_EXPERIMENTAL_FEATURES")
-    
+
     # Custom rate limits
     PREMIUM_USER_RATE_LIMIT: int = Field(default=120, env="PREMIUM_USER_RATE_LIMIT")
     
@@ -334,46 +324,6 @@ Configuration is loaded in this order (later values override earlier ones):
 3. `.env` file values
 4. Runtime configuration (if any)
 
-### Configuration Templates
-
-#### Local Development Template
-
-```bash
-cp .env.example .env.local
-# Edit .env.local with your local settings
-```
-
-#### Production Template
-
-```bash
-cp .env.example .env.production
-# Edit .env.production with your production settings
-```
-
-#### Docker Compose Template
-
-```yaml
-# docker-compose.yml
-version: '3.8'
-services:
-  api:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      - DEBUG=false
-      - DATABASE_URL=postgresql://user:pass@db:5432/echotuner
-    env_file:
-      - .env.docker
-  
-  db:
-    image: postgres:15
-    environment:
-      - POSTGRES_DB=echotuner
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=pass
-```
-
 ## Troubleshooting
 
 ### Configuration Errors
@@ -382,8 +332,8 @@ services:
 
 ```bash
 ERROR: Configuration validation failed:
-  - SPOTIFY_CLIENT_ID is required
-  - AI provider 'openai' requires OPENAI_API_KEY
+    - SPOTIFY_CLIENT_ID is required
+    - AI provider 'openai' requires OPENAI_API_KEY
 ```
 
 **Solution:** Add the missing environment variables to your `.env` file.

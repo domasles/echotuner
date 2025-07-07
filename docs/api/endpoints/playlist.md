@@ -11,45 +11,45 @@ Generate a new playlist using AI-powered real-time song search.
 **Request Body:**
 ```json
 {
-  "prompt": "upbeat pop songs for working out",
-  "session_id": "string",
-  "device_id": "string",
-  "preferences": {
-    "length": 20,
-    "energy_level": "high",
-    "explicit": false,
-    "genres": ["pop", "electronic"],
-    "decades": ["2020s", "2010s"]
-  }
+    "prompt": "upbeat pop songs for working out",
+    "session_id": "string",
+    "device_id": "string",
+    "preferences": {
+        "length": 20,
+        "energy_level": "high",
+        "explicit": false,
+        "genres": ["pop", "electronic"],
+        "decades": ["2020s", "2010s"]
+    }
 }
 ```
 
 **Response:**
 ```json
 {
-  "playlist_id": "uuid-playlist-id",
-  "title": "Workout Pop Vibes",
-  "description": "Upbeat pop songs perfect for your workout",
-  "tracks": [
-    {
-      "id": "spotify-track-id",
-      "name": "Song Title",
-      "artist": "Artist Name",
-      "album": "Album Name",
-      "duration_ms": 210000,
-      "preview_url": "https://p.scdn.co/mp3-preview/...",
-      "external_urls": {
-        "spotify": "https://open.spotify.com/track/..."
-      },
-      "energy": 0.8,
-      "valence": 0.7,
-      "danceability": 0.9
-    }
-  ],
-  "total_tracks": 20,
-  "total_duration_ms": 4200000,
-  "created_at": "2024-01-01T00:00:00Z",
-  "refinements_remaining": 3
+    "playlist_id": "uuid-playlist-id",
+    "title": "Workout Pop Vibes",
+    "description": "Upbeat pop songs perfect for your workout",
+    "tracks": [
+        {
+            "id": "spotify-track-id",
+            "name": "Song Title",
+            "artist": "Artist Name",
+            "album": "Album Name",
+            "duration_ms": 210000,
+            "preview_url": "https://p.scdn.co/mp3-preview/...",
+            "external_urls": {
+                "spotify": "https://open.spotify.com/track/..."
+            },
+            "energy": 0.8,
+            "valence": 0.7,
+            "danceability": 0.9
+        }
+    ],
+    "total_tracks": 20,
+    "total_duration_ms": 4200000,
+    "created_at": "2024-01-01T00:00:00Z",
+    "refinements_remaining": 3
 }
 ```
 
@@ -60,31 +60,31 @@ Refine an existing playlist based on user feedback.
 **Request Body:**
 ```json
 {
-  "playlist_id": "uuid-playlist-id",
-  "session_id": "string",
-  "device_id": "string",
-  "feedback": {
-    "remove_tracks": ["spotify-track-id-1", "spotify-track-id-2"],
-    "feedback_text": "Add more energetic songs, remove slow ones",
-    "target_length": 25,
-    "adjust_energy": "higher"
-  }
+    "playlist_id": "uuid-playlist-id",
+    "session_id": "string",
+    "device_id": "string",
+    "feedback": {
+        "remove_tracks": ["spotify-track-id-1", "spotify-track-id-2"],
+        "feedback_text": "Add more energetic songs, remove slow ones",
+        "target_length": 25,
+        "adjust_energy": "higher"
+    }
 }
 ```
 
 **Response:**
 ```json
 {
-  "playlist_id": "uuid-playlist-id",
-  "title": "Workout Pop Vibes (Refined)",
-  "tracks": [...],
-  "changes": {
-    "added": 7,
-    "removed": 2,
-    "kept": 18
-  },
-  "refinements_used": 1,
-  "refinements_remaining": 2
+    "playlist_id": "uuid-playlist-id",
+    "title": "Workout Pop Vibes (Refined)",
+    "tracks": [...],
+    "changes": {
+        "added": 7,
+        "removed": 2,
+        "kept": 18
+    },
+    "refinements_used": 1,
+    "refinements_remaining": 2
 }
 ```
 
@@ -95,18 +95,18 @@ Update playlist draft without AI refinement (no refinement count increase).
 **Request Body:**
 ```json
 {
-  "playlist_id": "uuid-playlist-id",
-  "session_id": "string",
-  "device_id": "string",
-  "updates": {
-    "title": "My Custom Playlist",
-    "description": "Custom description",
-    "remove_tracks": ["spotify-track-id"],
-    "reorder_tracks": [
-      {"track_id": "spotify-track-id-1", "new_position": 0},
-      {"track_id": "spotify-track-id-2", "new_position": 1}
-    ]
-  }
+    "playlist_id": "uuid-playlist-id",
+    "session_id": "string",
+    "device_id": "string",
+    "updates": {
+        "title": "My Custom Playlist",
+        "description": "Custom description",
+        "remove_tracks": ["spotify-track-id"],
+        "reorder_tracks": [
+            {"track_id": "spotify-track-id-1", "new_position": 0},
+            {"track_id": "spotify-track-id-2", "new_position": 1}
+        ]
+    }
 }
 ```
 
@@ -136,18 +136,18 @@ Get a specific draft playlist.
 **Response:**
 ```json
 {
-  "playlist_id": "uuid-playlist-id",
-  "title": "Workout Pop Vibes",
-  "description": "AI-generated playlist description",
-  "tracks": [...],
-  "metadata": {
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z",
-    "refinements_used": 1,
-    "refinements_remaining": 2,
-    "original_prompt": "upbeat pop songs for working out"
-  },
-  "spotify_playlist_id": null
+    "playlist_id": "uuid-playlist-id",
+    "title": "Workout Pop Vibes",
+    "description": "AI-generated playlist description",
+    "tracks": [...],
+    "metadata": {
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z",
+        "refinements_used": 1,
+        "refinements_remaining": 2,
+        "original_prompt": "upbeat pop songs for working out"
+    },
+    "spotify_playlist_id": null
 }
 ```
 
@@ -210,51 +210,51 @@ Delete a draft playlist.
 **Rate Limit Exceeded:**
 ```json
 {
-  "error": "rate_limit_exceeded",
-  "message": "Daily playlist limit reached",
-  "limits": {
-    "daily_playlists": 3,
-    "refinements_per_playlist": 3
-  },
-  "reset_time": "2024-01-02T00:00:00Z"
+    "error": "rate_limit_exceeded",
+    "message": "Daily playlist limit reached",
+    "limits": {
+        "daily_playlists": 3,
+        "refinements_per_playlist": 3
+    },
+    "reset_time": "2024-01-02T00:00:00Z"
 }
 ```
 
 **Playlist Not Found:**
 ```json
 {
-  "error": "playlist_not_found",
-  "message": "Playlist draft not found or access denied",
-  "playlist_id": "uuid-playlist-id"
+    "error": "playlist_not_found",
+    "message": "Playlist draft not found or access denied",
+    "playlist_id": "uuid-playlist-id"
 }
 ```
 
 **Invalid Session:**
 ```json
 {
-  "error": "invalid_session",
-  "message": "Session expired or invalid",
-  "session_id": "invalid-session-id"
+    "error": "invalid_session",
+    "message": "Session expired or invalid",
+    "session_id": "invalid-session-id"
 }
 ```
 
 **AI Generation Failed:**
 ```json
 {
-  "error": "generation_failed",
-  "message": "Failed to generate playlist due to AI service error",
-  "details": "Temporary service unavailable"
+    "error": "generation_failed",
+    "message": "Failed to generate playlist due to AI service error",
+    "details": "Temporary service unavailable"
 }
 ```
 
 **Insufficient Tracks:**
 ```json
 {
-  "error": "insufficient_tracks",
-  "message": "Not enough tracks found matching criteria",
-  "found_tracks": 5,
-  "requested_tracks": 20,
-  "suggestion": "Try broader search criteria or different genres"
+    "error": "insufficient_tracks",
+    "message": "Not enough tracks found matching criteria",
+    "found_tracks": 5,
+    "requested_tracks": 20,
+    "suggestion": "Try broader search criteria or different genres"
 }
 ```
 

@@ -9,7 +9,7 @@ from services.security import validate_production_readiness
 logger = logging.getLogger(__name__)
 
 async def get_ai_models():
-    """Get available AI models and their configurations (Debug mode only)."""
+    """Get available AI models and their configurations"""
 
     models = {}
 
@@ -26,7 +26,7 @@ async def get_ai_models():
     }
 
 async def test_ai_model(request):
-    """Test AI model with a simple prompt (Debug mode only)."""
+    """Test AI model with a simple prompt"""
 
     try:
         data = await request.json()
@@ -44,7 +44,7 @@ async def test_ai_model(request):
         raise HTTPException(status_code=500, detail=f"AI test failed: {str(e)}")
 
 async def production_readiness_check():
-    """Check if the API is ready for production deployment (Debug mode only)."""
+    """Check if the API is ready for production deployment"""
 
     issues = validate_production_readiness()
 

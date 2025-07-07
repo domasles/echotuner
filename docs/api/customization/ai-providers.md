@@ -24,15 +24,16 @@ class MyCustomProvider(BaseAIProvider):
     def __init__(self):
         """Initialize custom provider."""
         super().__init__()
-        
+
         self.name = "mycustom"  # Must be lowercase, no "Provider" suffix
-        
+
         # Override base settings if needed
         # self.endpoint = "https://api.your-provider.com"  # Override AI_ENDPOINT
         # self.headers = {"Authorization": f"Bearer {your_api_key}"}  # Add auth headers
     
     async def test_availability(self) -> bool:
         """Test if the custom provider is available."""
+
         try:
             async with self._session.get(
                 f"{self.endpoint}/health",
@@ -40,19 +41,21 @@ class MyCustomProvider(BaseAIProvider):
                 timeout=5
             ) as response:
                 return response.status == 200
+
         except Exception as e:
             logger.debug(f"Custom AI availability test failed: {e}")
             return False
     
     async def generate_text(self, prompt: str, **kwargs) -> str:
         """Generate text using your custom AI API."""
+
         payload = {
             "model": self.generation_model,
             "prompt": prompt,
             "max_tokens": kwargs.get("max_tokens", self.max_tokens),
             "temperature": kwargs.get("temperature", self.temperature)
         }
-        
+
         async with self._session.post(
             f"{self.endpoint}/generate",  # Replace with your API endpoint
             headers=self.headers,
@@ -62,20 +65,21 @@ class MyCustomProvider(BaseAIProvider):
             if response.status != 200:
                 error_text = await response.text()
                 raise Exception(f"Custom provider request failed: {error_text}")
-            
+
             result = await response.json()
             return result.get("text", "")  # Adjust based on your API response format
     
     async def get_embedding(self, text: str, **kwargs) -> list[float]:
         """Generate embeddings using your custom AI API."""
+
         if not self.embedding_model:
             raise Exception("No embedding model configured")
-            
+
         payload = {
             "model": self.embedding_model,
             "input": text
         }
-        
+
         async with self._session.post(
             f"{self.endpoint}/embeddings",  # Replace with your API endpoint
             headers=self.headers,
@@ -85,7 +89,7 @@ class MyCustomProvider(BaseAIProvider):
             if response.status != 200:
                 error_text = await response.text()
                 raise Exception(f"Custom provider embedding request failed: {error_text}")
-            
+
             result = await response.json()
             return result.get("embedding", [])  # Adjust based on your API response format
 ```
@@ -135,22 +139,24 @@ class MyCustomProvider(BaseAIProvider):
     def __init__(self):
         super().__init__()
         self.name = "mycustom"
-        
+
         # Validate configuration
         self._validate_config()
-    
+
     def _validate_config(self):
         """Validate provider configuration."""
+
         if not self.api_key:
             raise ValueError("CLOUD_API_KEY is required")
-        
+
         if not self.base_url:
             raise ValueError("AI_ENDPOINT is required")
-        
+
         # Test connection
         try:
             response = httpx.get(f"{self.base_url}/health")
             response.raise_for_status()
+
         except Exception as e:
             logger.warning(f"Custom AI health check failed: {e}")
 ```
@@ -162,24 +168,25 @@ class MyCustomProvider(BaseAIProvider):
     def __init__(self):
         super().__init__()
         self.name = "mycustom"
-        
+
         # Support multiple models
         self.models = {
             "fast": "custom-fast-v1",
             "balanced": "custom-balanced-v1", 
             "creative": "custom-creative-v1"
         }
-        
+
         self.default_model = self.models["balanced"]
     
     async def generate_text(self, prompt: str, model: str = None, **kwargs) -> str:
         """Generate text with model selection."""
+
         selected_model = model or self.default_model
-        
+
         if selected_model not in self.models.values():
             logger.warning(f"Unknown model {selected_model}, using default")
             selected_model = self.default_model
-        
+
         # Use selected_model in API call...
 ```
 
@@ -195,13 +202,17 @@ class MyCustomProvider(BaseAIProvider):
         try:
             # API call...
             pass
+
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:
                 raise CustomAIError("Rate limit exceeded")
+
             elif e.response.status_code == 401:
                 raise CustomAIError("Invalid API key")
+
             else:
                 raise CustomAIError(f"API error: {e.response.status_code}")
+
         except Exception as e:
             raise CustomAIError(f"Unexpected error: {e}")
 ```
@@ -212,6 +223,7 @@ class MyCustomProvider(BaseAIProvider):
 class MyCustomProvider(BaseAIProvider):
     async def generate_text_stream(self, prompt: str, **kwargs):
         """Generate text with streaming support."""
+
         payload = {
             "model": self.model,
             "prompt": prompt,
@@ -222,6 +234,7 @@ class MyCustomProvider(BaseAIProvider):
             async for line in response.aiter_lines():
                 if line.startswith("data: "):
                     data = json.loads(line[6:])
+
                     if "text" in data:
                         yield data["text"]
 ```
@@ -251,7 +264,7 @@ async def test_generate_text(provider):
         mock_response = AsyncMock()
         mock_response.json.return_value = {"text": "Generated text"}
         mock_post.return_value = mock_response
-        
+
         result = await provider.generate_text("Test prompt")
         assert result == "Generated text"
 
@@ -261,7 +274,7 @@ async def test_get_embedding(provider):
         mock_response = AsyncMock()
         mock_response.json.return_value = {"embedding": [0.1, 0.2, 0.3]}
         mock_post.return_value = mock_response
-        
+
         result = await provider.get_embedding("Test text")
         assert result == [0.1, 0.2, 0.3]
 ```
@@ -275,11 +288,12 @@ Test with a real API endpoint:
 @pytest.mark.asyncio
 async def test_real_api_integration():
     provider = MyCustomProvider()
-    
+
     if not provider.is_available():
         pytest.skip("Custom AI provider not configured")
-    
+
     result = await provider.generate_text("Hello, world!")
+
     assert isinstance(result, str)
     assert len(result) > 0
 ```
@@ -320,39 +334,6 @@ async def test_real_api_integration():
 - Use HTTPS for all API calls
 - Validate all inputs
 - Implement proper authentication
-
-## Example: OpenAI-Compatible Provider
-
-Many AI providers offer OpenAI-compatible APIs. Here's a template:
-
-```python
-class OpenAICompatibleProvider(BaseAIProvider):
-    def __init__(self):
-        self.name = "openai_compatible"
-        self.api_key = settings.CLOUD_API_KEY
-        self.base_url = settings.AI_ENDPOINT
-        
-        from openai import AsyncOpenAI
-        self.client = AsyncOpenAI(
-            api_key=self.api_key,
-            base_url=self.base_url
-        )
-    
-    async def generate_text(self, prompt: str, **kwargs) -> str:
-        response = await self.client.chat.completions.create(
-            model=kwargs.get("model", "gpt-3.5-turbo"),
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=kwargs.get("max_tokens", 1000)
-        )
-        return response.choices[0].message.content
-    
-    async def get_embedding(self, text: str) -> list[float]:
-        response = await self.client.embeddings.create(
-            model="text-embedding-ada-002",
-            input=text
-        )
-        return response.data[0].embedding
-```
 
 ## Troubleshooting
 

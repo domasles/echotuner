@@ -25,18 +25,7 @@ cd echotuner/app
 flutter pub get
 ```
 
-### 3. Configure the API
-
-Update the API configuration in `lib/config/api_config.dart`:
-
-```dart
-class ApiConfig {
-  static const String baseUrl = 'http://localhost:8000';  // Your API URL
-  static const bool debugMode = true;  // Set to false for production
-}
-```
-
-### 4. Run the App
+### 3. Run the App
 
 #### Development Mode
 ```bash
@@ -55,7 +44,7 @@ flutter run -d ios
 flutter run -d chrome
 
 # Desktop
-flutter run -d windows   # or macos, linux
+flutter run -d windows # or macos, linux
 ```
 
 ## Project Structure

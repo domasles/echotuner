@@ -195,7 +195,7 @@ async def logout(request):
         return {"message": "Logout failed", "success": False, "error": str(e)}
 
 async def cleanup_sessions():
-    """Clean up expired sessions and auth attempts (debug only)"""
+    """Clean up expired sessions and auth attempts"""
 
     try:
         await auth_service.cleanup_expired_sessions()
