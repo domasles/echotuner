@@ -98,22 +98,22 @@ lib/
 
 ## Key Features
 
-### 🎵 AI-Powered Playlist Generation
+### AI-Powered Playlist Generation
 - Generate playlists using natural language prompts
 - Personalized recommendations based on music taste
 - Real-time Spotify song search integration
 
-### 🔐 Spotify Authentication
+### Spotify Authentication
 - Secure OAuth flow
 - Session management
 - Device registration
 
-### 🎨 Modern UI
+### Modern UI
 - Material Design 3
 - Dark/Light theme support
 - Responsive design for all screen sizes
 
-### 📱 Cross-Platform
+### Cross-Platform
 - Android, iOS, Web, and Desktop support
 - Native performance
 - Platform-specific optimizations

@@ -196,7 +196,7 @@ Get account type for a session.
 
 ## Debug Endpoints
 
-### POST `/auth/cleanup` 🚧
+### POST `/auth/cleanup`
 
 Clean up expired sessions and auth attempts (debug mode only).
 

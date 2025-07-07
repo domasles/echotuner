@@ -56,7 +56,7 @@ Check API health and service status.
 
 ## Debug Endpoints
 
-### POST `/config/reload` 🚧
+### POST `/config/reload`
 
 Reload JSON configuration files without restarting the server (debug mode only).
 
@@ -82,7 +82,7 @@ Reload JSON configuration files without restarting the server (debug mode only).
 }
 ```
 
-### GET `/config/production-check` 🚧
+### GET `/config/production-check`
 
 Check if the API is ready for production deployment (debug mode only).
 

@@ -19,7 +19,6 @@ async def health_check():
             "status": "healthy",
             "version": app_constants.API_VERSION,
             "features": {
-                "spotify_search": playlist_generator_service.spotify_search.is_ready(),
                 "rate_limiting": settings.PLAYLIST_LIMIT_ENABLED
             }
         }

@@ -1,76 +1,56 @@
-version: '3.8'
-
 services:
-    # Combined API + Web App
-    echotuner-full:
+    # API Backend Service
+    api:
         build:
-        context: .
-        dockerfile: Dockerfile
-        target: combined
+            context: ./api
+            dockerfile: Dockerfile
 
         ports:
-            - "80:80"       # Flutter web app
-            - "8000:8000"   # API backend
+            - "0.0.0.0:8000:8000"
 
-        environment:
-            - DEBUG=false
-            - AUTH_REQUIRED=true
-            - SECURE_HEADERS=true
-            - PLAYLIST_LIMIT_ENABLED=true
-            - REFINEMENT_LIMIT_ENABLED=true
-            - LOG_LEVEL=INFO
-            # Add your environment variables here
-            # - SPOTIFY_CLIENT_ID=your_client_id
-            # - SPOTIFY_CLIENT_SECRET=your_client_secret
-            # - SPOTIFY_REDIRECT_URI=http://localhost:8000/auth/callback
-            # - OPENAI_API_KEY=your_openai_key (optional)
-            # - ANTHROPIC_API_KEY=your_anthropic_key (optional)
-            # - AI_ENDPOINT=http://host.docker.internal:11434 (for local Ollama)
+        env_file:
+            - ./api/.env
 
         volumes:
-            - ./data:/app/data
-            - ./logs:/app/logs
+            - ./api:/api
+
+        # Use host.docker.internal to access host services like Ollama
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
 
         restart: unless-stopped
+
         healthcheck:
-        test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-        interval: 30s
-        timeout: 10s
-        retries: 3
-        start_period: 60s
+            test: ["CMD", "curl", "-f", "http://localhost:8000/config/health"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 60s
 
-    # API only
-    echotuner-api:
+    # Web App Service
+    webapp:
         build:
-        context: .
-        dockerfile: Dockerfile
-        target: api
+            context: ./app
+            dockerfile: Dockerfile
 
         ports:
-            - "8001:8000"
+            - "0.0.0.0:80:80"
 
-        environment:
-            - DEBUG=false
-            - AUTH_REQUIRED=true
-            - SECURE_HEADERS=true
-            - PLAYLIST_LIMIT_ENABLED=true
-
-        volumes:
-            - ./data:/app/data
-            - ./logs:/app/logs
+        env_file:
+            - ./app/.env
 
         restart: unless-stopped
-        profiles: ["api-only"]
 
-    # Web app only
-    echotuner-webapp:
-        build:
-        context: .
-        dockerfile: Dockerfile
-        target: webapp
+    # Full Stack (launches both services)
+    full:
+        image: hello-world
 
-        ports:
-            - "8080:80"
+        depends_on:
+            - api
+            - webapp
 
-        restart: unless-stopped
-        profiles: ["webapp-only"]
+        profiles: ["full"]
+
+volumes:
+    api-data:
+    api-logs:

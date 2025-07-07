@@ -132,9 +132,8 @@ class PlaylistGeneratorService(SingletonServiceBase):
 
             if user_context:
                 if user_context.disliked_artists:
-                    context += f"NEVER INCLUDE songs by these artists (user explicitly dislikes them): {', '.join(user_context.disliked_artists)}\n"
-                    context += f"STRICTLY FORBIDDEN artists that must be avoided at ALL COSTS: {', '.join(user_context.disliked_artists)}\n"
-                    context += f"Before recommending ANY song, verify the artist is NOT in this list: {', '.join(user_context.disliked_artists)}\n\n"
+                    context += f"STRICTLY FORBIDDEN artists that must be avoided at ALL COSTS: {', '.join(user_context.disliked_artists)}\n\n"
+                    # context += f"Before recommending ANY song, verify the artist is NOT in this list: {', '.join(user_context.disliked_artists)}\n\n"
 
                 context += "USER PREFERENCES:\n"
 

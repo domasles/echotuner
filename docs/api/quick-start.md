@@ -2,7 +2,7 @@
 
 This guide will help you get the EchoTuner API running locally or with Docker.
 
-## 🐳 Docker Setup (Recommended)
+## Docker Setup (Recommended)
 
 The fastest way to get started is using Docker:
 
@@ -17,7 +17,7 @@ docker-compose up --build
 
 The API will be available at `http://localhost:8000`
 
-## 🔧 Local Development Setup
+## Local Development Setup
 
 ### Prerequisites
 
@@ -48,9 +48,7 @@ The API will be available at `http://localhost:8000`
    python main.py
    ```
 
-The API will start on `http://localhost:8000`
-
-## ⚙️ Configuration
+## Configuration
 
 ### Required Environment Variables
 
@@ -90,7 +88,7 @@ CLOUD_API_KEY=your_api_key           # OpenAI or Google API key
    ollama serve
    ```
 
-## 🚀 Testing the API
+## Testing the API
 
 1. **Health Check**
    ```bash
@@ -109,7 +107,7 @@ CLOUD_API_KEY=your_api_key           # OpenAI or Google API key
      -d '{"prompt": "Hello, world!"}'
    ```
 
-## 🐛 Debug Mode
+## Debug Mode
 
 Enable debug mode for additional endpoints and features:
 
@@ -124,7 +122,7 @@ Debug endpoints include:
 - `/config/production-check` - Production readiness check
 - `/auth/cleanup` - Clean up expired sessions
 
-## 📊 Production Deployment
+## Production Deployment
 
 For production deployment:
 
@@ -134,7 +132,7 @@ For production deployment:
 4. Set up proper logging and monitoring
 5. Use a reverse proxy (nginx) for SSL termination
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 

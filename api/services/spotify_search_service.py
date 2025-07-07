@@ -268,7 +268,7 @@ class SpotifySearchService(SingletonServiceBase):
             spotify_user = spotipy.Spotify(auth=access_token)
             results = spotify_user.current_user_followed_artists(limit=limit)
             artists = results.get('artists', {}).get('items', [])
-            logger.info(f"Retrieved {len(artists)} followed artists")
+            logger.debug(f"Retrieved {len(artists)} followed artists")
 
             return artists
 
@@ -283,7 +283,7 @@ class SpotifySearchService(SingletonServiceBase):
             spotify_user = spotipy.Spotify(auth=access_token)
             results = spotify_user.current_user_top_artists(time_range=time_range, limit=limit)
             artists = results.get('items', [])
-            logger.info(f"Retrieved {len(artists)} top artists for time range: {time_range}")
+            logger.debug(f"Retrieved {len(artists)} top artists for time range: {time_range}")
 
             return artists
             
@@ -298,7 +298,7 @@ class SpotifySearchService(SingletonServiceBase):
             spotify_user = spotipy.Spotify(auth=access_token)
             results = spotify_user.search(q=query, type='artist', limit=limit)
             artists = results.get('artists', {}).get('items', [])
-            logger.info(f"Found {len(artists)} artists for query: {query}")
+            logger.debug(f"Found {len(artists)} artists for query: {query}")
 
             return artists
 
