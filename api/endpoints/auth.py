@@ -17,6 +17,8 @@ from services.auth_middleware import auth_middleware
 from services.database_service import db_service
 from services.auth_service import auth_service
 
+from utils.input_validator import InputValidator
+
 logger = logging.getLogger(__name__)
 
 async def auth_init(request: AuthInitRequest):
@@ -93,11 +95,14 @@ async def validate_session(request: SessionValidationRequest):
     """Validate session"""
 
     try:
-        user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
-        
+        session_id = InputValidator.validate_session_id(request.session_id)
+        device_id = InputValidator.validate_device_id(request.device_id)
+
+        user_info = await auth_service.validate_session_and_get_user(session_id, device_id)
+
         if user_info is None:
-            basic_valid = await auth_service.validate_session(request.session_id, request.device_id)
-            
+            basic_valid = await auth_service.validate_session(session_id, device_id)
+
             if basic_valid:
                 raise HTTPException(status_code=401, detail="Session invalid due to server mode mismatch")
 
@@ -106,6 +111,9 @@ async def validate_session(request: SessionValidationRequest):
 
         return SessionValidationResponse(valid=True)
 
+    except ValueError as e:
+        logger.warning(f"Session validation input error: {e}")
+        raise HTTPException(status_code=400, detail="Invalid input parameters")
     except HTTPException:
         raise
 
@@ -211,13 +219,20 @@ async def get_account_type(request: SessionValidationRequest):
     """Get account type for a session"""
 
     try:
-        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
+        session_id = InputValidator.validate_session_id(request.session_id)
+        device_id = InputValidator.validate_device_id(request.device_id)
+
+        user_info = await auth_middleware.validate_session_from_request(session_id, device_id)
 
         if not user_info:
             raise HTTPException(status_code=404, detail="Session not found")
 
         account_type = user_info.get('account_type', 'normal')
         return {"account_type": account_type}
+
+    except ValueError as e:
+        logger.warning(f"Account type validation input error: {e}")
+        raise HTTPException(status_code=400, detail="Invalid input parameters")
 
     except HTTPException:
         raise

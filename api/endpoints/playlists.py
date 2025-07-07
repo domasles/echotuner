@@ -18,38 +18,11 @@ from services.auth_middleware import auth_middleware
 from services.database_service import db_service
 from services.auth_service import auth_service
 
+from utils.input_validator import InputValidator
+
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
-
-def sanitize_user_input(text: str, max_length: int = 500) -> str:
-    """Sanitize user input to prevent injection attacks"""
-
-    if not text:
-        return ""
-
-    if max_length is None:
-        max_length = settings.MAX_PROMPT_LENGTH
-
-    text = text[:max_length]
-    text = re.sub(r'\s+', ' ', text).strip()
-  
-    dangerous_patterns = [
-        r'<script[^>]*>.*?</script>',
-        r'<iframe[^>]*>.*?</iframe>',
-        r'javascript:',
-        r'vbscript:',
-        r'on\w+\s*=',
-        r'expression\s*\(',
-        r'eval\s*\(',
-        r'<.*?onerror.*?>',
-        r'<.*?onload.*?>',
-    ]
-    
-    for pattern in dangerous_patterns:
-        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
-    
-    return text
 
 async def require_auth(request: PlaylistRequest):
     if not settings.AUTH_REQUIRED:
@@ -76,18 +49,18 @@ async def generate_playlist(request: PlaylistRequest):
     """Generate a playlist using AI-powered real-time song search"""
 
     try:
-        sanitized_prompt = sanitize_user_input(request.prompt)
-
-        if not sanitized_prompt:
-            raise HTTPException(status_code=400, detail="Invalid or empty prompt")
+        sanitized_prompt = InputValidator.validate_prompt(request.prompt)
+        validated_device_id = InputValidator.validate_device_id(request.device_id)
+        validated_session_id = InputValidator.validate_session_id(request.session_id)
+        validated_count = InputValidator.validate_count(request.count, min_count=1, max_count=100)
 
         user_info = await require_auth(request)
 
         if user_info and user_info.get('account_type') == 'demo':
-            rate_limit_key = request.device_id
+            rate_limit_key = validated_device_id
 
         else:
-            rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
+            rate_limit_key = user_info["spotify_user_id"] if user_info else validated_device_id
 
         if settings.PLAYLIST_LIMIT_ENABLED and not await rate_limiter_service.can_make_request(rate_limit_key):
             raise HTTPException(
@@ -115,11 +88,11 @@ async def generate_playlist(request: PlaylistRequest):
             except Exception as e:
                 logger.warning(f"Failed to load user personality: {e}")
 
-        if user_context and request.session_id:
+        if user_context and validated_session_id:
             try:
                 merged_artists = await personality_service.get_merged_favorite_artists(
-                    session_id=request.session_id,
-                    device_id=request.device_id,
+                    session_id=validated_session_id,
+                    device_id=validated_device_id,
                     user_context=user_context
                 )
 
@@ -131,7 +104,7 @@ async def generate_playlist(request: PlaylistRequest):
         songs = await playlist_generator_service.generate_playlist(
             prompt=sanitized_prompt,
             user_context=user_context,
-            count=request.count if settings.DEBUG else settings.MAX_SONGS_PER_PLAYLIST,
+            count=validated_count if settings.DEBUG else settings.MAX_SONGS_PER_PLAYLIST,
             discovery_strategy=request.discovery_strategy or "balanced"
         )
 
@@ -165,11 +138,16 @@ async def generate_playlist(request: PlaylistRequest):
             playlist_id=playlist_id
         )
 
+    except ValueError as e:
+        logger.warning(f"Playlist generation input validation failed: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
     except HTTPException:
         raise
-
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating playlist: {str(e)}")
+        logger.error(f"Playlist generation failed: {e}")
+        sanitized_error = InputValidator.sanitize_error_message(str(e))
+
+        raise HTTPException(status_code=500, detail=f"Error generating playlist: {sanitized_error}")
 
 async def refine_playlist(request: PlaylistRequest):
     """Refine an existing playlist based on user feedback"""

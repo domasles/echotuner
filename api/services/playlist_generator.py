@@ -16,6 +16,8 @@ from services.spotify_search_service import spotify_search_service
 from services.data_service import data_loader
 from services.ai_service import ai_service
 
+from utils.input_validator import InputValidator
+
 logger = logging.getLogger(__name__)
 
 class PlaylistGeneratorService(SingletonServiceBase):
@@ -57,6 +59,12 @@ class PlaylistGeneratorService(SingletonServiceBase):
         """
 
         try:
+            prompt = InputValidator.validate_prompt(prompt)
+            count = InputValidator.validate_count(count, min_count=1, max_count=100)
+
+            if discovery_strategy not in ["new_music", "existing_music", "balanced"]:
+                discovery_strategy = "balanced"
+
             search_strategy = await self._generate_search_strategy(prompt, user_context, discovery_strategy)
 
             songs = await self.spotify_search.search_songs_by_mood(
@@ -68,7 +76,6 @@ class PlaylistGeneratorService(SingletonServiceBase):
                 discovery_strategy=discovery_strategy
             )
 
-            # Ensure we always return exactly the requested count
             if len(songs) < count:
                 additional_songs = await self._get_additional_songs(
                     existing_songs=songs, 
@@ -78,7 +85,6 @@ class PlaylistGeneratorService(SingletonServiceBase):
 
                 songs.extend(additional_songs)
 
-            # If we still don't have enough songs, use fallback strategies
             if len(songs) < count:
                 fallback_songs = await self._get_fallback_songs(
                     existing_songs=songs,
@@ -97,7 +103,6 @@ class PlaylistGeneratorService(SingletonServiceBase):
                     if not any(disliked.lower() in song.artist.lower() for disliked in disliked_artists_lower):
                         filtered_songs.append(song)
 
-                    # Ensure we still meet the target count after filtering
                     if len(filtered_songs) < count:
                         additional_needed = count - len(filtered_songs)
                         additional_songs = await self._get_additional_songs(
@@ -113,14 +118,13 @@ class PlaylistGeneratorService(SingletonServiceBase):
                                 if len(filtered_songs) >= count:
                                     break
 
-                        # If we still don't have enough after filtering, use fallback
                         if len(filtered_songs) < count:
                             fallback_songs = await self._get_fallback_songs(
                                 existing_songs=filtered_songs,
                                 target_count=count,
                                 search_strategy=search_strategy
                             )
-                            
+
                             for song in fallback_songs:
                                 if not any(disliked.lower() in song.artist.lower() for disliked in disliked_artists_lower):
                                     filtered_songs.append(song)
@@ -130,17 +134,21 @@ class PlaylistGeneratorService(SingletonServiceBase):
                     songs = filtered_songs[:count]
 
             random.shuffle(songs)
-            
-            # Final check to ensure we have the exact count requested
+
             if len(songs) < count:
                 logger.warning(f"Generated only {len(songs)} songs instead of requested {count}. This should not happen.")
-                
+
             logger.debug(f"Generated {len(songs)} songs using AI + Spotify search (requested: {count})")
             return songs
 
+        except ValueError as e:
+            logger.warning(f"Input validation failed: {e}")
+            raise ValueError(f"Invalid input: {e}")
+
         except Exception as e:
             logger.error(f"Playlist generation failed: {e}")
-            raise RuntimeError(f"Playlist generation failed: {e}")
+            sanitized_error = InputValidator.sanitize_error_message(str(e))
+            raise RuntimeError(f"Playlist generation failed: {sanitized_error}")
 
     async def _generate_search_strategy(self, prompt: str, user_context: Optional[UserContext] = None, discovery_strategy: str = "balanced") -> Dict[str, Any]:
         """

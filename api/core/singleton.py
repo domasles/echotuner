@@ -1,6 +1,7 @@
 """Singleton pattern implementation for EchoTuner services."""
 
 import threading
+import asyncio
 import logging
 
 from typing import Dict, Type, Any
@@ -48,4 +49,4 @@ class SingletonServiceBase:
     def __del__(self):
         """Cleanup resources on destruction"""
 
-        self.cleanup()
+        asyncio.run(self.cleanup())
