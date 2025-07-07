@@ -4,9 +4,9 @@ import uvicorn
 import click
 import sys
 
-from fastapi import FastAPI, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request
 
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -136,7 +136,6 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     """Add security headers to all responses."""
-
     response = await call_next(request)
     headers = get_security_headers()
     
@@ -153,19 +152,6 @@ app.add_middleware(
     allow_headers=["*"],
     max_age=600,
 )
-
-@app.middleware("http")
-async def add_security_headers(request, call_next):
-    response = await call_next(request)
-
-    if settings.SECURE_HEADERS:
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
-
-    return response
 
 @app.get("/")
 async def root_endpoint():
@@ -233,11 +219,11 @@ async def cleanup_sessions_endpoint():
 
     return await cleanup_sessions()
 
-@app.get("/auth/account_type/{session_id}")
-async def get_account_type_endpoint(session_id: str):
+@app.post("/auth/account-type")
+async def get_account_type_endpoint(request: SessionValidationRequest):
     """Get account type for a session"""
 
-    return await get_account_type(session_id)
+    return await get_account_type(request)
 
 @app.get("/config")
 @debug_only

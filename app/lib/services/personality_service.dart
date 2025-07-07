@@ -23,11 +23,17 @@ class PersonalityService {
             final sessionId = await _getSessionId();
             if (sessionId == null) return false;
             
+            final deviceId = await _getDeviceId();
+            if (deviceId == null) return false;
+            
             AppLogger.personality('Checking account type for session: ${sessionId.substring(0, 8)}...');
 
-            final response = await _apiService.get('/auth/account_type/$sessionId');
-            final isDemo = response['account_type'] == 'demo';
+            final response = await _apiService.post('/auth/account-type', body: {
+                'session_id': sessionId,
+                'device_id': deviceId
+            });
 
+            final isDemo = response['account_type'] == 'demo';
             AppLogger.personality('Account type check result: isDemo=$isDemo');
 
             return isDemo;

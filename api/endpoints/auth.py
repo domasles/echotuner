@@ -207,15 +207,16 @@ async def cleanup_sessions():
         logger.error(f"Cleanup failed: {e}")
         raise HTTPException(status_code=500, detail="Cleanup failed")
 
-async def get_account_type(session_id: str):
+async def get_account_type(request: SessionValidationRequest):
     """Get account type for a session"""
 
     try:
-        account_type = await auth_service.get_account_type(session_id)
+        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
 
-        if account_type is None:
+        if not user_info:
             raise HTTPException(status_code=404, detail="Session not found")
 
+        account_type = user_info.get('account_type', 'normal')
         return {"account_type": account_type}
 
     except HTTPException:
