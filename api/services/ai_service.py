@@ -7,7 +7,7 @@ import logging
 from typing import Dict, Any, Optional, List
 
 from core.singleton import SingletonServiceBase
-from config.ai_models import ai_model_manager
+from providers.registry import provider_registry
 from providers.base import BaseAIProvider
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class AIService(SingletonServiceBase):
             
         try:
             logger.debug("Initializing AI service...")
-            self._current_provider = ai_model_manager.get_provider()
+            self._current_provider = provider_registry.get_provider()
             await self._current_provider.initialize()
             
             logger.info(f"AI Service initialized with {self._current_provider.name}")
@@ -62,7 +62,7 @@ class AIService(SingletonServiceBase):
         try:
             if provider_id and provider_id != getattr(self._current_provider, 'name', '').lower():
                 # Different provider requested, create new instance
-                provider = ai_model_manager.get_provider(provider_id)
+                provider = provider_registry.get_provider(provider_id)
                 await provider.initialize()
             else:
                 # Use current provider
@@ -92,7 +92,7 @@ class AIService(SingletonServiceBase):
         try:
             if provider_id and provider_id != getattr(self._current_provider, 'name', '').lower():
                 # Different provider requested, create new instance
-                provider = ai_model_manager.get_provider(provider_id)
+                provider = provider_registry.get_provider(provider_id)
                 await provider.initialize()
             else:
                 # Use current provider
@@ -109,11 +109,11 @@ class AIService(SingletonServiceBase):
 
     def list_available_providers(self) -> List[str]:
         """List all available AI providers."""
-        return ai_model_manager.list_providers()
+        return provider_registry.list_providers()
 
     def get_provider_info(self, provider_id: Optional[str] = None) -> Dict[str, Any]:
         """Get information about a specific provider."""
-        provider = ai_model_manager.get_provider(provider_id)
+        provider = provider_registry.get_provider(provider_id)
         return provider.get_info()
 
     # Legacy compatibility methods for smooth transition

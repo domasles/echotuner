@@ -7,12 +7,25 @@ This module implements the Ollama provider for local AI models.
 import logging
 from typing import List
 
+from config.settings import settings
+
 from .base import BaseAIProvider
 
 logger = logging.getLogger(__name__)
 
 class OllamaProvider(BaseAIProvider):
     """Ollama AI provider implementation."""
+    
+    @classmethod
+    def create_default(cls):
+        """Create a default Ollama provider instance from settings."""
+
+        return cls(
+            endpoint=settings.AI_ENDPOINT,
+            generation_model=settings.AI_GENERATION_MODEL,
+            embedding_model=settings.AI_EMBEDDING_MODEL,
+            timeout=settings.AI_TIMEOUT
+        )
     
     @property
     def name(self) -> str:

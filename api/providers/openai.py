@@ -14,6 +14,19 @@ logger = logging.getLogger(__name__)
 class OpenAIProvider(BaseAIProvider):
     """OpenAI AI provider implementation."""
     
+    @classmethod
+    def create_default(cls):
+        """Create a default OpenAI provider instance from settings."""
+        from config.settings import settings
+        return cls(
+            endpoint=settings.AI_ENDPOINT,
+            generation_model=settings.AI_GENERATION_MODEL,
+            embedding_model=settings.AI_EMBEDDING_MODEL,
+            headers={"Authorization": f"Bearer {settings.CLOUD_API_KEY}"},
+            max_tokens=settings.AI_MAX_TOKENS,
+            temperature=settings.AI_TEMPERATURE
+        )
+    
     @property
     def name(self) -> str:
         return "OpenAI"

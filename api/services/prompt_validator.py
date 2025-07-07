@@ -10,7 +10,7 @@ import httpx
 
 from core.singleton import SingletonServiceBase
 
-from config.ai_models import ai_model_manager
+from providers.registry import provider_registry
 from config.settings import settings
 
 from services.data_service import data_loader
@@ -27,7 +27,7 @@ class PromptValidatorService(SingletonServiceBase):
     def _setup_service(self):
         """Initialize the PromptValidatorService."""
 
-        self.model_config = ai_model_manager.get_provider()
+        self.model_config = provider_registry.get_provider()
         self.prompt_validation_threshold = settings.PROMPT_VALIDATION_THRESHOLD
         self.prompt_validation_timeout = settings.PROMPT_VALIDATION_TIMEOUT
 

@@ -16,10 +16,7 @@ logger = logging.getLogger(__name__)
 class BaseAIProvider(ABC):
     """Abstract base class for AI providers."""
     
-    def __init__(self, endpoint: str, headers: Optional[Dict[str, str]] = None, 
-                 generation_model: str = "", embedding_model: Optional[str] = None,
-                 max_tokens: Optional[int] = None, temperature: Optional[float] = None,
-                 timeout: int = 30):
+    def __init__(self, endpoint: str, headers: Optional[Dict[str, str]] = None, generation_model: str = "", embedding_model: Optional[str] = None, max_tokens: Optional[int] = None, temperature: Optional[float] = None, timeout: int = 30):
         """
         Initialize the AI provider.
         
