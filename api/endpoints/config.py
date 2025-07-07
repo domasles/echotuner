@@ -73,16 +73,16 @@ async def root():
         "demo_mode": settings.DEMO,
         "demo_info": "Demo mode uses a shared Spotify account with device-specific experiences" if settings.DEMO else None,
         "endpoints": {
-            "generate": "/generate-playlist",
-            "refine": "/refine-playlist",
-            "update_draft": "/update-playlist-draft",
-            "health": "/health",
+            "generate": "/playlist/generate",
+            "refine": "/playlist/refine",
+            "update_draft": "/playlist/update-draft",
+            "health": "/config/health",
             "rate_limit": "/auth/rate-limit-status",
             "auth_init": "/auth/init",
             "auth_callback": "/auth/callback",
             "auth_validate": "/auth/validate",
             "library": "/library/playlists",
             "add_to_spotify": "/spotify/create-playlist",
-            "get_draft": "/drafts/{playlist_id}"
+            "get_draft": "/playlist/drafts/{playlist_id}"
         }
     }

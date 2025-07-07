@@ -192,44 +192,7 @@ async def validate_session_endpoint(request: SessionValidationRequest):
 @app.get("/auth/check-session")
 async def check_session_endpoint(request: Request):
     """Check if a session exists for the given device ID (for session polling)"""
-
     return await check_session(request)
-
-@app.get("/health")
-async def health_check_endpoint():
-    """Check API health and service status"""
-
-    return await health_check()
-
-@app.get("/config")
-async def get_config_endpoint():
-    """Get client configuration values"""
-
-    return await get_config()
-
-@app.post("/reload-config")
-async def reload_config_endpoint():
-    """Reload JSON configuration files without restarting the server (Debug mode only)"""
-
-    return await reload_config()
-
-@app.post("/generate-playlist", response_model=PlaylistResponse)
-async def generate_playlist_endpoint(request: PlaylistRequest):
-    """Generate a playlist using AI-powered real-time song search"""
-
-    return await generate_playlist(request)
-
-@app.post("/refine-playlist", response_model=PlaylistResponse)
-async def refine_playlist_endpoint(request: PlaylistRequest):
-    """Refine an existing playlist based on user feedback"""
-
-    return await refine_playlist(request)
-
-@app.post("/update-playlist-draft", response_model=PlaylistResponse)
-async def update_playlist_draft_endpoint(request: PlaylistRequest):
-    """Update an existing playlist draft without AI refinement (no refinement count increase)"""
-
-    return await update_playlist_draft(request)
 
 @app.post("/auth/rate-limit-status", response_model=RateLimitStatus)
 async def get_authenticated_rate_limit_status_endpoint(request: SessionValidationRequest):
@@ -237,35 +200,105 @@ async def get_authenticated_rate_limit_status_endpoint(request: SessionValidatio
 
     return await get_authenticated_rate_limit_status(request)
 
+
 @app.post("/auth/register-device", response_model=DeviceRegistrationResponse)
 async def register_device_endpoint(request: DeviceRegistrationRequest):
-    """Register a new device and get server-generated UUID"""
+    """Register a new device"""
 
     return await register_device(request)
+
+@app.get("/auth/mode")
+async def get_auth_mode_endpoint():
+    """Get current authentication mode"""
+
+    return await get_auth_mode()
+
+@app.post("/auth/demo-playlist-refinements")
+async def get_demo_playlist_refinements_endpoint(request: DemoPlaylistRefinementsRequest):
+    """Get refinement count for a specific demo playlist"""
+
+    return await get_demo_playlist_refinements(request)
+
+@app.post("/auth/logout")
+async def logout_endpoint(request: Request):
+    """Logout and completely clear all device data"""
+
+    return await logout(request)
+
+@app.post("/auth/cleanup")
+@debug_only
+async def cleanup_sessions_endpoint():
+    """Clean up expired sessions and auth attempts (debug only)"""
+
+    return await cleanup_sessions()
+
+@app.get("/auth/account_type/{session_id}")
+async def get_account_type_endpoint(session_id: str):
+    """Get account type for a session"""
+
+    return await get_account_type(session_id)
+
+@app.get("/config")
+@debug_only
+async def get_config_endpoint():
+    """Get client configuration values"""
+
+    return await get_config()
+
+@app.get("/config/health")
+async def health_check_endpoint():
+    """Check API health and service status"""
+
+    return await health_check()
+
+@app.post("/config/reload")
+@debug_only
+async def reload_config_endpoint():
+    """Reload JSON configuration files without restarting the server"""
+
+    return await reload_config()
+
+@app.post("/playlist/generate", response_model=PlaylistResponse)
+async def generate_playlist_endpoint(request: PlaylistRequest):
+    """Generate a playlist using AI-powered real-time song search"""
+
+    return await generate_playlist(request)
+
+@app.post("/playlist/refine", response_model=PlaylistResponse)
+async def refine_playlist_endpoint(request: PlaylistRequest):
+    """Refine an existing playlist based on user feedback"""
+
+    return await refine_playlist(request)
+
+@app.post("/playlist/update-draft", response_model=PlaylistResponse)
+async def update_playlist_draft_endpoint(request: PlaylistRequest):
+    """Update an existing playlist draft without AI refinement (no refinement count increase)"""
+
+    return await update_playlist_draft(request)
+
+@app.post("/playlist/library", response_model=LibraryPlaylistsResponse)
+async def get_library_playlists_endpoint(request: LibraryPlaylistsRequest):
+    """Get user's Spotify playlists."""
+
+    return await get_library_playlists(request)
+
+@app.get("/playlist/drafts/{playlist_id}")
+async def get_draft_playlist_endpoint(playlist_id: str, device_id: str = None):
+    """Get a specific draft playlist."""
+
+    return await get_draft_playlist(playlist_id, device_id)
+
+@app.delete("/playlist/drafts/{playlist_id}")
+async def delete_draft_playlist_endpoint(playlist_id: str, device_id: str = None):
+    """Delete a draft playlist."""
+
+    return await delete_draft_playlist(playlist_id, device_id)
 
 @app.post("/spotify/create-playlist", response_model=SpotifyPlaylistResponse)
 async def create_spotify_playlist_endpoint(request: SpotifyPlaylistRequest):
     """Create a Spotify playlist from a draft."""
 
     return await create_spotify_playlist(request)
-
-@app.post("/library/playlists", response_model=LibraryPlaylistsResponse)
-async def get_library_playlists_endpoint(request: LibraryPlaylistsRequest):
-    """Get user's Spotify playlists."""
-
-    return await get_library_playlists(request)
-
-@app.get("/drafts/{playlist_id}")
-async def get_draft_playlist_endpoint(playlist_id: str, device_id: str = None):
-    """Get a specific draft playlist."""
-
-    return await get_draft_playlist(playlist_id, device_id)
-
-@app.delete("/drafts/{playlist_id}")
-async def delete_draft_playlist_endpoint(playlist_id: str, device_id: str = None):
-    """Delete a draft playlist."""
-
-    return await delete_draft_playlist(playlist_id, device_id)
 
 @app.get("/spotify/playlist/{playlist_id}/tracks")
 async def get_spotify_playlist_tracks_endpoint(playlist_id: str, session_id: str = None, device_id: str = None):
@@ -282,11 +315,12 @@ async def delete_spotify_playlist_endpoint(playlist_id: str, session_id: str = N
 @app.post("/personality/save", response_model=UserPersonalityResponse)
 async def save_user_personality_endpoint(request: UserPersonalityRequest):
     """Save user personality preferences"""
-
     return await save_user_personality(request)
 
 @app.get("/personality/load")
 async def load_user_personality_endpoint(request: Request):
+    """Load user personality preferences"""
+
     return await load_user_personality(request)
 
 @app.post("/personality/clear")
@@ -314,59 +348,31 @@ async def remove_track_from_spotify_playlist_endpoint(playlist_id: str, track_ur
     return await remove_track_from_spotify_playlist(playlist_id, track_uri, session_id, device_id)
     
 @app.get("/ai/models")
+@debug_only
 async def get_ai_models_endpoint():
-    """Get available AI models and their configurations (Debug mode only)."""
+    """Get available AI models and their configurations"""
 
     return await get_ai_models()
 
 @app.post("/ai/test")
+@debug_only
 async def test_ai_model_endpoint(request: Request):
-    """Test AI model with a simple prompt (Debug mode only)."""
+    """Test AI model with a simple prompt"""
 
     return await test_ai_model(request)
 
-@app.get("/production-check")
+@app.get("/config/production-check")
+@debug_only
 async def production_readiness_check_endpoint():
-    """Check if the API is ready for production deployment (Debug mode only)."""
+    """Check if the API is ready for production deployment"""
 
     return await production_readiness_check()
-
-@app.post("/auth/logout")
-async def logout_endpoint(request: Request):
-    """Logout and completely clear all device data"""
-
-    return await logout(request)
-
-@app.post("/auth/cleanup")
-async def cleanup_sessions_endpoint():
-    """Clean up expired sessions and auth attempts (debug only)"""
-
-    return await cleanup_sessions()
-
-@app.get("/auth/account_type/{session_id}")
-async def get_account_type_endpoint(session_id: str):
-    """Get account type for a session"""
-
-    return await get_account_type(session_id)
 
 @app.get("/server/mode")
 async def get_server_mode_endpoint():
     """Get current server mode"""
 
     return await get_server_mode()
-
-@app.get("/auth/mode")
-async def get_auth_mode_endpoint():
-    """Get current authentication mode"""
-
-    return await get_auth_mode()
-
-@app.post("/auth/demo-playlist-refinements")
-async def get_demo_playlist_refinements_endpoint(request: DemoPlaylistRefinementsRequest):
-    """Get refinement count for a specific demo playlist"""
-
-    return await get_demo_playlist_refinements(request)
-
 if __name__ == "__main__":
     logger.info(app_constants.STARTUP_MESSAGE)
 

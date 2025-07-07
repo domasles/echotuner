@@ -90,7 +90,7 @@ class ApiService {
 
     Future<PlaylistResponse> generatePlaylist(PlaylistRequest request) async {
         final response = await _client.post(
-            Uri.parse(AppConfig.apiUrl('/generate-playlist')),
+            Uri.parse(AppConfig.apiUrl('/playlist/generate')),
 
             headers: {
                 'Content-Type': 'application/json',
@@ -124,7 +124,7 @@ class ApiService {
 
     Future<PlaylistResponse> refinePlaylist(PlaylistRequest request) async {
         final response = await _client.post(
-            Uri.parse(AppConfig.apiUrl('/refine-playlist')),
+            Uri.parse(AppConfig.apiUrl('/playlist/refine')),
 
             headers: {
                 'Content-Type': 'application/json',
@@ -204,7 +204,7 @@ class ApiService {
         try {
             AppLogger.api('Checking API health');
 
-            final response = await _client.get(Uri.parse(AppConfig.apiUrl('/health'))).timeout(const Duration(seconds: 5));
+            final response = await _client.get(Uri.parse(AppConfig.apiUrl('/config/health'))).timeout(const Duration(seconds: 5));
             final isHealthy = response.statusCode == 200;
 
             AppLogger.api('API health check: ${isHealthy ? 'Healthy' : 'Unhealthy'}');
@@ -377,7 +377,7 @@ class ApiService {
 
     Future<PlaylistResponse> refineSpotifyPlaylist({required String spotifyPlaylistId, required String prompt, required String deviceId, required String sessionId}) async {
         final response = await _client.post(
-            Uri.parse(AppConfig.apiUrl('/spotify/refine-playlist')),
+            Uri.parse(AppConfig.apiUrl('/playlist/refine')),
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -416,7 +416,7 @@ class ApiService {
 
     Future<PlaylistResponse> updatePlaylistDraft(PlaylistRequest request) async {
         final response = await _client.post(
-            Uri.parse(AppConfig.apiUrl('/update-playlist-draft')),
+            Uri.parse(AppConfig.apiUrl('/playlist/update-draft')),
             headers: {
                 'Content-Type': 'application/json',
             },
