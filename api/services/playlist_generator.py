@@ -68,6 +68,7 @@ class PlaylistGeneratorService(SingletonServiceBase):
                 discovery_strategy=discovery_strategy
             )
 
+            # Ensure we always return exactly the requested count
             if len(songs) < count:
                 additional_songs = await self._get_additional_songs(
                     existing_songs=songs, 
@@ -76,6 +77,15 @@ class PlaylistGeneratorService(SingletonServiceBase):
                 )
 
                 songs.extend(additional_songs)
+
+            # If we still don't have enough songs, use fallback strategies
+            if len(songs) < count:
+                fallback_songs = await self._get_fallback_songs(
+                    existing_songs=songs,
+                    target_count=count,
+                    search_strategy=search_strategy
+                )
+                songs.extend(fallback_songs)
 
             songs = songs[:count]
 
@@ -87,26 +97,45 @@ class PlaylistGeneratorService(SingletonServiceBase):
                     if not any(disliked.lower() in song.artist.lower() for disliked in disliked_artists_lower):
                         filtered_songs.append(song)
 
-                if len(filtered_songs) < count * 0.8:
-                    additional_needed = count - len(filtered_songs)
-                    additional_songs = await self._get_additional_songs(
-                        existing_songs=songs, 
-                        target_count=additional_needed,
-                        search_strategy=search_strategy
-                    )
+                    # Ensure we still meet the target count after filtering
+                    if len(filtered_songs) < count:
+                        additional_needed = count - len(filtered_songs)
+                        additional_songs = await self._get_additional_songs(
+                            existing_songs=songs, 
+                            target_count=additional_needed,
+                            search_strategy=search_strategy
+                        )
 
-                    for song in additional_songs:
-                        if not any(disliked.lower() in song.artist.lower() for disliked in disliked_artists_lower):
-                            filtered_songs.append(song)
+                        for song in additional_songs:
+                            if not any(disliked.lower() in song.artist.lower() for disliked in disliked_artists_lower):
+                                filtered_songs.append(song)
 
-                            if len(filtered_songs) >= count:
-                                break
+                                if len(filtered_songs) >= count:
+                                    break
 
-                songs = filtered_songs[:count]
+                        # If we still don't have enough after filtering, use fallback
+                        if len(filtered_songs) < count:
+                            fallback_songs = await self._get_fallback_songs(
+                                existing_songs=filtered_songs,
+                                target_count=count,
+                                search_strategy=search_strategy
+                            )
+                            
+                            for song in fallback_songs:
+                                if not any(disliked.lower() in song.artist.lower() for disliked in disliked_artists_lower):
+                                    filtered_songs.append(song)
+                                    if len(filtered_songs) >= count:
+                                        break
+
+                    songs = filtered_songs[:count]
 
             random.shuffle(songs)
-
-            logger.info(f"Generated {len(songs)} songs using AI + Spotify search")
+            
+            # Final check to ensure we have the exact count requested
+            if len(songs) < count:
+                logger.warning(f"Generated only {len(songs)} songs instead of requested {count}. This should not happen.")
+                
+            logger.debug(f"Generated {len(songs)} songs using AI + Spotify search (requested: {count})")
             return songs
 
         except Exception as e:
@@ -388,6 +417,54 @@ class PlaylistGeneratorService(SingletonServiceBase):
 
         return additional_songs
 
+    async def _get_fallback_songs(self, existing_songs: List[Song], target_count: int, search_strategy: Dict[str, Any]) -> List[Song]:
+        """Get fallback songs using broader search criteria when targeted search fails"""
+
+        needed = target_count - len(existing_songs)
+
+        if needed <= 0:
+            return []
+
+        fallback_songs = []
+        broader_genres = ["pop", "rock", "hip-hop", "electronic", "indie", "alternative"]
+
+        for genre in broader_genres:
+            if len(fallback_songs) >= needed:
+                break
+
+            try:
+                songs = await self.spotify_search.search_songs_by_mood(
+                    mood_keywords=["popular", "trending"],
+                    genres=[genre],
+                    energy_level="medium",
+                    count=needed
+                )
+
+                new_songs = [s for s in songs if s not in existing_songs and s not in fallback_songs]
+                fallback_songs.extend(new_songs[:needed - len(fallback_songs)])
+
+            except Exception as e:
+                logger.warning(f"Fallback search for genre {genre} failed: {e}")
+                continue
+
+        if len(fallback_songs) < needed:
+            try:
+                generic_songs = await self.spotify_search.search_songs_by_mood(
+                    mood_keywords=["music", "song"],
+                    genres=None,
+                    energy_level=None,
+                    count=needed
+                )
+
+                new_songs = [s for s in generic_songs if s not in existing_songs and s not in fallback_songs]
+                fallback_songs.extend(new_songs[:needed - len(fallback_songs)])
+
+            except Exception as e:
+                logger.warning(f"Generic fallback search failed: {e}")
+
+        logger.debug(f"Fallback search provided {len(fallback_songs)} additional songs")
+        return fallback_songs
+
     async def refine_playlist(self, original_songs: List[Song], refinement_prompt: str, user_context: Optional[UserContext] = None, count: int = 30, discovery_strategy: str = "balanced") -> List[Song]:
         """Refine an existing playlist based on user feedback with improved accuracy."""
 
@@ -511,7 +588,7 @@ class PlaylistGeneratorService(SingletonServiceBase):
         random.shuffle(final_songs)
         return final_songs[:count]
 
-    async def _smart_mix_refinement(self, original_songs: List[Song], search_strategy: Dict[str, Any], count: int, user_context: Optional[UserContext]) -> List[Song]:
+    async def _smart_mix_refinement(self, original_songs: List[Song], search_strategy: Dict[str, Any], count: int, user_context: Optional[UserContext] = None) -> List[Song]:
         """Default smart mix approach - balanced refinement."""
 
         keep_count = count // 2

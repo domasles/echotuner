@@ -183,7 +183,7 @@ async def refine_playlist(request: PlaylistRequest):
         if playlist_id:
             if user_info and user_info.get('account_type') == 'demo':
                 refinements_used = await db_service.get_demo_playlist_refinements(playlist_id)
-                logger.info(f"Demo playlist {playlist_id} has {refinements_used} refinements used")
+                logger.debug(f"Demo playlist {playlist_id} has {refinements_used} refinements used")
                 current_songs = request.current_songs or []
 
                 if settings.REFINEMENT_LIMIT_ENABLED and refinements_used >= settings.MAX_REFINEMENTS_PER_PLAYLIST:
@@ -264,7 +264,7 @@ async def refine_playlist(request: PlaylistRequest):
         if playlist_id:
             if user_info and user_info.get('account_type') == 'demo':
                 await db_service.increment_demo_playlist_refinements(playlist_id)
-                logger.info(f"Incremented demo playlist {playlist_id} refinement count")
+                logger.debug(f"Incremented demo playlist {playlist_id} refinement count")
 
             else:
                 await playlist_draft_service.update_draft(
@@ -299,7 +299,7 @@ async def refine_playlist(request: PlaylistRequest):
                 else:
                     rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
 
-                logger.info(f"Recording refinement for rate_limit_key: {rate_limit_key}")
+                logger.debug(f"Recording refinement for rate_limit_key: {rate_limit_key}")
                 await rate_limiter_service.record_refinement(rate_limit_key)
 
         return PlaylistResponse(
@@ -374,7 +374,7 @@ async def get_library_playlists(request: LibraryPlaylistsRequest):
             logger.warning(f"Failed to get user drafts for {spotify_user_id}: {e}")
 
         if not drafts:
-            logger.info(f"No user-based drafts found for {spotify_user_id}, falling back to device drafts")
+            logger.debug(f"No user-based drafts found for {spotify_user_id}, falling back to device drafts")
 
             try:
                 drafts = await playlist_draft_service.get_device_drafts(

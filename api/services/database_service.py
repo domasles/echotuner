@@ -984,7 +984,7 @@ class DatabaseService(SingletonServiceBase):
                 await db.execute("""DELETE FROM rate_limits WHERE user_id = ?""", (user_hash,))
                 await db.commit()
 
-                logger.info(f"Cleaned up rate limits for user {user_id}")
+                logger.debug(f"Cleaned up rate limits for user {user_id}")
 
         except Exception as e:
             logger.error(f"Failed to cleanup user rate limits: {e}")
@@ -999,7 +999,7 @@ class DatabaseService(SingletonServiceBase):
                 await db.execute("""DELETE FROM rate_limits WHERE user_id = ?""", (device_hash,))
                 await db.commit()
 
-                logger.info(f"Cleaned up rate limits for device {device_id[:8]}...")
+                logger.debug(f"Cleaned up rate limits for device {device_id[:8]}...")
 
         except Exception as e:
             logger.error(f"Failed to cleanup device rate limits: {e}")
@@ -1016,7 +1016,7 @@ class DatabaseService(SingletonServiceBase):
                 """, (playlist_id, device_id, session_id, prompt))
 
                 await db.commit()
-                logger.info(f"Added demo playlist {playlist_id} for device {device_id}")
+                logger.debug(f"Added demo playlist {playlist_id} for device {device_id}")
 
         except Exception as e:
             logger.error(f"Failed to add demo playlist {playlist_id}: {e}")
@@ -1048,7 +1048,7 @@ class DatabaseService(SingletonServiceBase):
                 """, (playlist_id,))
 
                 await db.commit()
-                logger.info(f"Incremented refinement count for demo playlist {playlist_id}")
+                logger.debug(f"Incremented refinement count for demo playlist {playlist_id}")
 
         except Exception as e:
             logger.error(f"Failed to increment refinements for demo playlist {playlist_id}: {e}")
@@ -1091,7 +1091,7 @@ class DatabaseService(SingletonServiceBase):
                 await db.execute("""DELETE FROM demo_playlists WHERE device_id = ?""", (device_id,))
                 await db.commit()
 
-                logger.info(f"Cleaned up demo playlists for device {device_id}")
+                logger.debug(f"Cleaned up demo playlists for device {device_id}")
 
         except Exception as e:
             logger.error(f"Failed to cleanup demo playlists for device {device_id}: {e}")

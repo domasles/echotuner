@@ -42,7 +42,7 @@ class PersonalityService(SingletonServiceBase):
         """Save user personality preferences"""
 
         try:
-            logger.info(f"Starting personality save for session: {session_id}")
+            logger.debug(f"Starting personality save for session: {session_id}")
             user_info = await self.auth_service.get_user_from_session(session_id)
 
             if not user_info:
@@ -52,15 +52,15 @@ class PersonalityService(SingletonServiceBase):
             spotify_user_id = user_info.get('spotify_user_id')
 
             if settings.DEMO and spotify_user_id.startswith("demo_user_"):
-                logger.info(f"Demo mode: personality not stored server-side for device {device_id}")
+                logger.debug(f"Demo mode: personality not stored server-side for device {device_id}")
                 return True
 
             user_id = spotify_user_id
-            logger.info(f"Saving personality for user {user_id}")
+            logger.debug(f"Saving personality for user {user_id}")
             success = await db_service.save_user_personality(user_id, spotify_user_id, user_context)
 
             if success:
-                logger.info(f"Successfully saved personality for user {user_id}")
+                logger.debug(f"Successfully saved personality for user {user_id}")
 
             else:
                 logger.error(f"Failed to save personality for user {user_id}")
@@ -84,7 +84,7 @@ class PersonalityService(SingletonServiceBase):
             spotify_user_id = user_info.get('spotify_user_id')
 
             if settings.DEMO and spotify_user_id.startswith("demo_user_"):
-                logger.info(f"Demo mode: personality retrieved from client-side for device {device_id}")
+                logger.debug(f"Demo mode: personality retrieved from client-side for device {device_id}")
                 return None
 
             user_id = spotify_user_id
@@ -112,7 +112,7 @@ class PersonalityService(SingletonServiceBase):
             spotify_user_id = user_info.get('spotify_user_id')
 
             if settings.DEMO and spotify_user_id and spotify_user_id.startswith("demo_user_"):
-                logger.info(f"Demo mode: skipping Spotify followed artists for device {device_id}")
+                logger.debug(f"Demo mode: skipping Spotify followed artists for device {device_id}")
                 return []
 
             access_token = await self.auth_service.get_access_token(session_id)
@@ -145,6 +145,18 @@ class PersonalityService(SingletonServiceBase):
         """Get user's top artists from their listening history"""
 
         try:
+            user_info = await self.auth_service.get_user_from_session(session_id)
+
+            if not user_info:
+                logger.error("Failed to get user info for top artists")
+                return []
+
+            spotify_user_id = user_info.get('spotify_user_id')
+
+            if settings.DEMO and spotify_user_id and spotify_user_id.startswith("demo_user_"):
+                logger.debug(f"Demo mode: skipping Spotify top artists for device {device_id}")
+                return []
+
             access_token = await self.auth_service.get_access_token(session_id)
 
             if not access_token:
@@ -166,7 +178,7 @@ class PersonalityService(SingletonServiceBase):
 
                 artists.append(artist)
 
-            logger.info(f"Retrieved {len(artists)} top artists for {time_range}")
+            logger.debug(f"Retrieved {len(artists)} top artists for {time_range}")
             return artists
 
         except Exception as e:
@@ -227,7 +239,7 @@ class PersonalityService(SingletonServiceBase):
                     spotify_added += 1
 
             if spotify_added > 0:
-                logger.info(f"Enhanced AI taste understanding: merged {len(followed_artists)} followed + {len(top_artists)} top artists (with overlap removal) = {spotify_added} unique Spotify artists + {len(user_context.favorite_artists or [])} custom artists = {len(favorite_artists)} total")
+                logger.debug(f"Enhanced AI taste understanding: merged {len(followed_artists)} followed + {len(top_artists)} top artists (with overlap removal) = {spotify_added} unique Spotify artists + {len(user_context.favorite_artists or [])} custom artists = {len(favorite_artists)} total")
 
             return favorite_artists
 

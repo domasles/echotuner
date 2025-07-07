@@ -187,7 +187,7 @@ async def logout(request):
 
         await auth_service.invalidate_device_completely(device_id)
         
-        logger.info(f"Successfully cleared all data for device {device_id[:8]}...")
+        logger.debug(f"Successfully cleared all data for device {device_id[:8]}...")
         return {"message": "Logged out successfully and cleared device data", "success": True}
 
     except Exception as e:

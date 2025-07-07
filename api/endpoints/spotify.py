@@ -48,9 +48,9 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
             current_user_spotify_id = user_info.get('spotify_user_id')
             draft_user_spotify_id = draft_user_info.get('spotify_user_id') if draft_user_info else None
 
-            logger.info(f"Cross-device check: draft user {draft_user_spotify_id}, current user {current_user_spotify_id}")
-            logger.info(f"Draft user info: {draft_user_info}")
-            logger.info(f"Current user info: {user_info}")
+            logger.debug(f"Cross-device check: draft user {draft_user_spotify_id}, current user {current_user_spotify_id}")
+            logger.debug(f"Draft user info: {draft_user_info}")
+            logger.debug(f"Current user info: {user_info}")
 
             if current_user_spotify_id != draft_user_spotify_id:
                 logger.warning(f"Access denied: draft belongs to user {draft_user_spotify_id}, current user is {current_user_spotify_id}")

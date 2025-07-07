@@ -14,7 +14,7 @@ async def save_user_personality(request: UserPersonalityRequest):
     """Save user personality preferences"""
 
     try:
-        logger.info(f"Saving personality for session {request.session_id}")
+        logger.debug(f"Saving personality for session {request.session_id}")
 
         user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
 
@@ -25,7 +25,7 @@ async def save_user_personality(request: UserPersonalityRequest):
         )
 
         if success:
-            logger.info("Personality saved successfully")
+            logger.debug("Personality saved successfully")
             return UserPersonalityResponse(success=True, message="Personality saved successfully")
 
         else:

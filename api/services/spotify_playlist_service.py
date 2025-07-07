@@ -137,7 +137,7 @@ class SpotifyPlaylistService(SingletonServiceBase):
                 if track_uris:
                     await self._add_tracks_to_playlist(session, headers, playlist_id, track_uris)
 
-                logger.info(f"Created Spotify playlist {playlist_id} with {len(track_uris)} tracks")
+                logger.debug(f"Created Spotify playlist {playlist_id} with {len(track_uris)} tracks")
                 return playlist_id, playlist_url
 
         except Exception as e:
@@ -177,41 +177,6 @@ class SpotifyPlaylistService(SingletonServiceBase):
 
             if i + batch_size < len(track_uris):
                 await asyncio.sleep(0.1)
-
-    async def update_playlist_tracks(self, access_token: str, playlist_id: str, songs: List[Song]) -> str:
-        """Update tracks in an existing Spotify playlist."""
-
-        try:
-            async with aiohttp.ClientSession() as session:
-                headers = {'Authorization': f'Bearer {access_token}'}
-                new_track_uris = []
-
-                for song in songs:
-                    if song.spotify_id:
-                        new_track_uris.append(f'spotify:track:{song.spotify_id}')
-
-                if new_track_uris:
-                    url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
-                    data = {'uris': new_track_uris}
-
-                    async with session.put(url, headers=headers, json=data) as response:
-                        if response.status not in [200, 201]:
-                            logger.warning(f"Replace tracks failed with status {response.status}, falling back to clear + add")
-
-                            await self._clear_playlist_tracks(session, headers, playlist_id)
-                            await self._add_tracks_to_playlist(session, headers, playlist_id, new_track_uris)
-
-                else:
-                    await self._clear_playlist_tracks(session, headers, playlist_id)
-
-                playlist_url = f'https://open.spotify.com/playlist/{playlist_id}'
-                logger.info(f"Updated Spotify playlist {playlist_id} with {len(new_track_uris)} tracks")
-
-                return playlist_url
-
-        except Exception as e:
-            logger.error(f"Failed to update Spotify playlist: {e}")
-            raise
 
     async def _clear_playlist_tracks(self, session: aiohttp.ClientSession, headers: Dict[str, str], playlist_id: str):
         """Remove all tracks from a Spotify playlist."""
@@ -270,13 +235,13 @@ class SpotifyPlaylistService(SingletonServiceBase):
                                 current_user_id = user_data.get('id')
 
                                 if owner_id == current_user_id:
-                                    logger.info(f"User owns playlist {playlist_id}, unfollowing instead of deleting")
+                                    logger.debug(f"User owns playlist {playlist_id}, unfollowing instead of deleting")
 
                                 unfollow_url = f'https://api.spotify.com/v1/playlists/{playlist_id}/followers'
 
                                 async with session.delete(unfollow_url, headers=headers) as unfollow_response:
                                     if unfollow_response.status in [200, 204]:
-                                        logger.info(f"Successfully unfollowed playlist {playlist_id}")
+                                        logger.debug(f"Successfully unfollowed playlist {playlist_id}")
                                         return True
 
                                     else:
@@ -338,7 +303,7 @@ class SpotifyPlaylistService(SingletonServiceBase):
 
                 async with session.delete(url, headers=headers, json=data) as response:
                     if response.status in [200, 201]:
-                        logger.info(f"Successfully removed track from playlist {playlist_id}")
+                        logger.debug(f"Successfully removed track from playlist {playlist_id}")
                         return True
 
                     else:

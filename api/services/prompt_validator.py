@@ -144,7 +144,7 @@ class PromptValidatorService(SingletonServiceBase):
                 similarities = np.dot(self.music_reference_embeddings, prompt_embedding)
                 max_similarity = np.max(similarities)
                 is_similar = max_similarity > self.prompt_validation_threshold
-                logger.info(f"Semantic similarity: {max_similarity:.3f}, threshold: {self.prompt_validation_threshold}, valid: {is_similar}")
+                logger.debug(f"Semantic similarity: {max_similarity:.3f}, threshold: {self.prompt_validation_threshold}, valid: {is_similar}")
 
                 return is_similar
 

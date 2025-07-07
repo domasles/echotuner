@@ -243,7 +243,7 @@ class AuthService(SingletonServiceBase):
             if not success:
                 raise Exception("Device registration failed")
 
-            logger.info(f"Registered new device: {device_id} on {platform}")
+            logger.debug(f"Registered new device: {device_id} on {platform}")
             return device_id, registration_timestamp
 
         except Exception as e:
@@ -454,11 +454,11 @@ class AuthService(SingletonServiceBase):
             current_mode_demo = settings.DEMO
 
             if current_mode_demo and account_type != 'demo':
-                logger.info(f"Session {session_id[:8]}... rejected: normal account in demo mode")
+                logger.debug(f"Session {session_id[:8]}... rejected: normal account in demo mode")
                 return False
 
             if not current_mode_demo and account_type == 'demo':
-                logger.info(f"Session {session_id[:8]}... rejected: demo account in normal mode")
+                logger.debug(f"Session {session_id[:8]}... rejected: demo account in normal mode")
                 return False
 
             return True
@@ -477,13 +477,13 @@ class AuthService(SingletonServiceBase):
             for session in sessions:
                 session_id = session['session_id']
                 await db_service.invalidate_session(session_id)
-                logger.info(f"Invalidated session {session_id[:8]}... for device {device_id[:8]}...")
+                logger.debug(f"Invalidated session {session_id[:8]}... for device {device_id[:8]}...")
 
             if demo_sessions:
                 await self._delete_demo_account_data(device_id, demo_sessions)
 
             await db_service.cleanup_device_auth_states(device_id)
-            logger.info(f"Completely invalidated device {device_id[:8]}...")
+            logger.debug(f"Completely invalidated device {device_id[:8]}...")
 
         except Exception as e:
             logger.error(f"Failed to completely invalidate device: {e}")
@@ -504,7 +504,7 @@ class AuthService(SingletonServiceBase):
 
                 await db_service.execute_query(f"DELETE FROM playlist_drafts WHERE session_id IN ({placeholders})", session_ids)
 
-            logger.info(f"Deleted demo account data for device {device_id[:8]}...")
+            logger.debug(f"Deleted demo account data for device {device_id[:8]}...")
 
         except Exception as e:
             logger.error(f"Failed to delete demo account data: {e}")
@@ -533,7 +533,7 @@ class AuthService(SingletonServiceBase):
             await db_service.execute_query("DELETE FROM auth_sessions WHERE account_type = 'demo'")
             await db_service.execute_query("DELETE FROM user_personalities WHERE user_id LIKE 'demo_user_%'")
 
-            logger.info("Cleaned up demo accounts for normal mode")
+            logger.debug("Cleaned up demo accounts for normal mode")
 
         except Exception as e:
             logger.error(f"Failed to cleanup demo accounts: {e}")

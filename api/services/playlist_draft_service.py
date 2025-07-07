@@ -104,7 +104,7 @@ class PlaylistDraftService(SingletonServiceBase):
 
             success = await db_service.save_playlist_draft(draft_data)
             if success:
-                logger.info(f"Saved draft playlist {playlist_id} for device {device_id}")
+                logger.debug(f"Saved draft playlist {playlist_id} for device {device_id}")
                 return playlist_id
             else:
                 raise Exception("Failed to save to database")
@@ -141,7 +141,7 @@ class PlaylistDraftService(SingletonServiceBase):
             success = await db_service.save_playlist_draft(draft_data)
 
             if success:
-                logger.info(f"Updated draft playlist {playlist_id}")
+                logger.debug(f"Updated draft playlist {playlist_id}")
 
             else:
                 logger.warning(f"Failed to update draft playlist {playlist_id} - database error")
@@ -190,7 +190,7 @@ class PlaylistDraftService(SingletonServiceBase):
                 conn.commit()
 
             if success:
-                logger.info(f"Marked playlist {playlist_id} as added to Spotify ({spotify_playlist_id})")
+                logger.debug(f"Marked playlist {playlist_id} as added to Spotify ({spotify_playlist_id})")
 
             else:
                 logger.warning(f"Failed to mark playlist {playlist_id} as added to Spotify - not found")
@@ -358,7 +358,7 @@ class PlaylistDraftService(SingletonServiceBase):
                 conn.commit()
 
             if success:
-                logger.info(f"Deleted draft playlist {playlist_id}")
+                logger.debug(f"Deleted draft playlist {playlist_id}")
 
             else:
                 logger.warning(f"Failed to delete draft playlist {playlist_id} - not found or not draft")
@@ -430,7 +430,7 @@ class PlaylistDraftService(SingletonServiceBase):
                 conn.commit()
 
                 if success:
-                    logger.info(f"Removed tracking for Spotify playlist {spotify_playlist_id}")
+                    logger.debug(f"Removed tracking for Spotify playlist {spotify_playlist_id}")
 
                 else:
                     logger.warning(f"Spotify playlist {spotify_playlist_id} not found in tracking")

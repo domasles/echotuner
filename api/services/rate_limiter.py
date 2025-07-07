@@ -144,24 +144,24 @@ class RateLimiterService(SingletonServiceBase):
         try:
             device_hash = self._get_device_hash(device_id)
             current_date = datetime.now().date().isoformat()
-            logger.info(f"Recording refinement for device_id: {device_id}, device_hash: {device_hash}")
+            logger.debug(f"Recording refinement for device_id: {device_id}, device_hash: {device_hash}")
             rate_data = await db_service.get_rate_limit_status(device_hash, current_date)
 
             if rate_data:
                 refinement_count = rate_data.get('refinements_count', 0)
                 last_request_date = rate_data.get('last_request_date', '')
-                logger.info(f"Existing rate data: refinement_count={refinement_count}, last_request_date={last_request_date}")
+                logger.debug(f"Existing rate data: refinement_count={refinement_count}, last_request_date={last_request_date}")
 
                 if not self._is_same_day(last_request_date):
                     refinement_count = 0
-                    logger.info(f"Reset refinement count to 0 due to new day")
+                    logger.debug(f"Reset refinement count to 0 due to new day")
 
                 new_count = refinement_count + 1
-                logger.info(f"Updating refinement count to: {new_count}")
+                logger.debug(f"Updating refinement count to: {new_count}")
                 await db_service.update_rate_limit_refinements(device_hash, current_date, new_count)
 
             else:
-                logger.info(f"No existing rate data, creating new record with refinement count: 1")
+                logger.debug(f"No existing rate data, creating new record with refinement count: 1")
                 await db_service.update_rate_limit_refinements(device_hash, current_date, 1)
 
         except Exception as e:
