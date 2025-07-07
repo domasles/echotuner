@@ -1,12 +1,8 @@
-"""
-Endpoint implementations for EchoTuner API.
-
-This package contains modular endpoint implementations organized by functionality.
-"""
+# A file used to make endpoints a Python package
 
 from .auth import (
     auth_init, auth_callback, validate_session, check_session, 
-    get_authenticated_rate_limit_status, register_device, logout, logout_all,
+    get_authenticated_rate_limit_status, register_device, logout,
     cleanup_sessions, get_account_type, get_auth_mode, get_demo_playlist_refinements
 )
 

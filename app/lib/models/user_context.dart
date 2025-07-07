@@ -147,7 +147,9 @@ class UserContext {
 class SpotifyArtist {
     final String id;
     final String name;
+
     @JsonKey(name: 'image_url')
+
     final String? imageUrl;
     final List<String>? genres;
     final int? popularity;
@@ -155,6 +157,7 @@ class SpotifyArtist {
     SpotifyArtist({
         required this.id,
         required this.name,
+
         this.imageUrl,
         this.genres,
         this.popularity,

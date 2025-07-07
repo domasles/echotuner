@@ -1,12 +1,14 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import '../utils/app_logger.dart';
+import 'app_constants.dart';
 
 class AppConfig {
     static String get apiHost => 
-        dotenv.env['API_HOST'] ?? 'localhost';
+        dotenv.env['API_HOST'] ?? AppConstants.defaultApiHost;
 
     static int get apiPort => 
-        int.tryParse(dotenv.env['API_PORT'] ?? '') ?? 8000;
+        int.tryParse(dotenv.env['API_PORT'] ?? '') ?? AppConstants.defaultApiPort;
 
     static String get apiBaseUrl => 
         ("http://$apiHost:$apiPort");

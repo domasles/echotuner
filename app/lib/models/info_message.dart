@@ -8,7 +8,7 @@ class InfoMessage {
 
     final DateTime timestamp;
     final Duration? duration;
-    
+
     final String? actionLabel;
     final VoidCallback? onAction;
     final String? actionUrl;

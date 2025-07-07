@@ -1,3 +1,8 @@
+"""
+Rate limiter service.
+Enforces rate limits on user requests.
+"""
+
 import hashlib
 import logging
 
@@ -44,6 +49,7 @@ class RateLimiterService(SingletonServiceBase):
 
     def _is_same_day(self, timestamp: str) -> bool:
         """Check if a timestamp is from the same day as today"""
+
         try:
             request_date = datetime.fromisoformat(timestamp).date()
             today = datetime.now().date()
@@ -138,9 +144,7 @@ class RateLimiterService(SingletonServiceBase):
         try:
             device_hash = self._get_device_hash(device_id)
             current_date = datetime.now().date().isoformat()
-            
             logger.info(f"Recording refinement for device_id: {device_id}, device_hash: {device_hash}")
-
             rate_data = await db_service.get_rate_limit_status(device_hash, current_date)
 
             if rate_data:

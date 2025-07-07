@@ -1,6 +1,4 @@
-"""
-AI-related endpoint implementations
-"""
+"""AI-related endpoint implementations"""
 
 import logging
 from fastapi import HTTPException
@@ -15,14 +13,14 @@ async def get_ai_models():
 
     models = {}
 
-    for model_id in ai_service.list_available_models():
+    for model_id in ai_service.list_available_providers():
         try:
-            model_info = ai_service.get_model_info(model_id)
+            model_info = ai_service.get_provider_info(model_id)
             models[model_id] = model_info
 
         except Exception as e:
             models[model_id] = {"error": str(e)}
-    
+
     return {
         "available_models": models,
     }
@@ -38,7 +36,7 @@ async def test_ai_model(request):
 
         return {
             "success": True,
-            "model_used": ai_service.get_model_info(model_id),
+            "model_used": ai_service.get_provider_info(model_id),
             "response": response
         }
 

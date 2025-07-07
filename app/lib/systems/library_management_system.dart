@@ -77,18 +77,12 @@ mixin LibraryManagementMixin on State {
 
     Future<void> loadLibraryData() async {
         await _librarySystem.loadLibraryData(context);
-
-        if (mounted) {
-            setState(() {});
-        }
+        if (mounted) setState(() {});
     }
 
     Future<void> silentRefreshLibrary() async {
         await _librarySystem.silentRefresh(context);
-
-        if (mounted) {
-            setState(() {});
-        }
+        if (mounted) setState(() {});
     }
 
     void updateLibraryState({List<PlaylistDraft>? drafts, List<SpotifyPlaylistInfo>? spotifyPlaylists, bool? isLoading, String? error}) {
@@ -99,16 +93,11 @@ mixin LibraryManagementMixin on State {
             error: error,
         );
 
-        if (mounted) {
-            setState(() {});
-        }
+        if (mounted) setState(() {});
     }
 
     void clearLibraryError() {
         _librarySystem.clearError();
-
-        if (mounted) {
-            setState(() {});
-        }
+        if (mounted) setState(() {});
     }
 }

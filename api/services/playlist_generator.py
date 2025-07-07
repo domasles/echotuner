@@ -12,8 +12,6 @@ from typing import List, Dict, Any, Optional
 from core.singleton import SingletonServiceBase
 from core.models import Song, UserContext
 
-from config.settings import settings
-
 from services.spotify_search_service import spotify_search_service
 from services.data_service import data_loader
 from services.ai_service import ai_service
@@ -30,14 +28,12 @@ class PlaylistGeneratorService(SingletonServiceBase):
         """Initialize the PlaylistGeneratorService."""
 
         self.spotify_search = spotify_search_service
-
         self._log_initialization("Playlist generator service initialized successfully", logger)
 
     async def initialize(self):
         """Initialize the AI model and Spotify search service"""
 
         try:
-            # AI service is initialized in main.py, no need to initialize again
             await self.spotify_search.initialize()
 
             logger.info("AI Playlist Generation initialized successfully!")
@@ -125,7 +121,6 @@ class PlaylistGeneratorService(SingletonServiceBase):
             Dictionary with mood_keywords, genres, energy_level, etc.
         """
 
-        # AI service handles connectivity - no need to check here
         return await self._ai_generate_strategy(prompt, user_context)
 
     async def _ai_generate_strategy(self, prompt: str, user_context: Optional[UserContext] = None, discovery_strategy: str = "balanced") -> Dict[str, Any]:
@@ -556,10 +551,6 @@ class PlaylistGeneratorService(SingletonServiceBase):
         """Universal method to call different AI models"""
 
         try:
-            # Import here to avoid circular imports
-            from services.ai_service import ai_service
-            
-            # Use the AI service abstraction instead of direct API calls
             return await ai_service.generate_text(prompt, model_id=None)
 
         except Exception as e:

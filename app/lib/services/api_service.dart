@@ -12,13 +12,14 @@ import 'auth_service.dart';
 class ApiService {
     final http.Client _client = http.Client();
     AuthService? _authService;
-    
+
     void setAuthService(AuthService authService) {
         _authService = authService;
     }
 
     Future<void> _handle401() async {
         AppLogger.api('Received 401 - triggering logout');
+
         if (_authService != null) {
             await _authService!.logout();
         }
@@ -26,7 +27,7 @@ class ApiService {
 
     Future<Map<String, dynamic>> get(String endpoint, {Map<String, String>? headers}) async {
         AppLogger.api('GET $endpoint');
-        
+
         final response = await _client.get(
             Uri.parse(AppConfig.apiUrl(endpoint)),
             headers: headers,
@@ -55,7 +56,7 @@ class ApiService {
 
     Future<Map<String, dynamic>> post(String endpoint, {Map<String, dynamic>? body, Map<String, String>? headers}) async {
         AppLogger.api('POST $endpoint');
-        
+
         final defaultHeaders = {'Content-Type': 'application/json'};
         final mergedHeaders = headers != null ? {...defaultHeaders, ...headers} : defaultHeaders;
 
@@ -222,10 +223,14 @@ class ApiService {
         
         if (response.statusCode == 200) {
             return AppConfigData.fromJson(jsonDecode(response.body));
-        } else if (response.statusCode == 401) {
+        }
+
+        else if (response.statusCode == 401) {
             await _handle401();
             throw ApiException('Authentication required');
-        } else {
+        }
+
+        else {
             throw ApiException('Failed to get configuration');
         }
     }
@@ -422,21 +427,21 @@ class ApiService {
             return PlaylistResponse.fromJson(jsonDecode(response.body));
         }
 
-		else if (response.statusCode == 401) {
+        else if (response.statusCode == 401) {
             await _handle401();
             throw ApiException('Authentication required');
         }
 
-		else if (response.statusCode == 404) {
+        else if (response.statusCode == 404) {
             throw ApiException('Draft playlist not found.');
         }
 
-		else if (response.statusCode == 400) {
+        else if (response.statusCode == 400) {
             final error = jsonDecode(response.body);
             throw ApiException(error['detail'] ?? 'Invalid update request');
         }
 
-		else {
+        else {
             throw ApiException('Failed to update draft playlist. Please try again.');
         }
     }

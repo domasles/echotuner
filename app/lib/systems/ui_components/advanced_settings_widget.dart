@@ -32,7 +32,7 @@ class AdvancedSettingsWidget extends StatefulWidget {
 }
 
 class _AdvancedSettingsWidgetState extends State<AdvancedSettingsWidget> with AdvancedSettingsMixin {
-    
+
     @override
     void initState() {
         super.initState();
@@ -233,9 +233,7 @@ class _AdvancedSettingsWidgetState extends State<AdvancedSettingsWidget> with Ad
             context: context,
             builder: (dialogContext) => AlertDialog(
                 title: const Text('Reset All Settings'),
-                content: const Text(
-                    'This will clear all your saved preferences, including favorite artists, genres, and personality answers. This action cannot be undone.',
-                ),
+                content: const Text('This will clear all your saved preferences, including favorite artists, genres, and personality answers. This action cannot be undone.'),
 
                 actions: [
                     TextButton(
@@ -275,15 +273,11 @@ class _AdvancedSettingsWidgetState extends State<AdvancedSettingsWidget> with Ad
                 widget.onDataChanged!();
             }
 
-            if (mounted) {
-                MessageService.showSuccess(context, 'All settings reset successfully');
-            }
+            if (mounted) MessageService.showSuccess(context, 'All settings reset successfully');
         }
 
         catch (e) {
-            if (mounted) {
-                MessageService.showError(context, 'Failed to reset settings');
-            }
+            if (mounted) MessageService.showError(context, 'Failed to reset settings');
         }
     }
 }

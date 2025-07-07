@@ -272,10 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         try {
             final uri = Uri.parse(authResponse.authUrl);
-
-            if (!await canLaunchUrl(uri)) {
-                throw Exception('No application available to handle this URL');
-            }
+            if (!await canLaunchUrl(uri)) throw Exception('No application available to handle this URL');
 
             await launchUrl(
                 uri,
@@ -304,7 +301,7 @@ class _LoginScreenState extends State<LoginScreen> {
             }
         }
 
-		catch (e) {
+        catch (e) {
             if (mounted) {
                 AppLogger.error('Failed to launch browser: $e');
                 _showErrorDialog('Failed to open browser. Please ensure you have a default browser set and try again.');

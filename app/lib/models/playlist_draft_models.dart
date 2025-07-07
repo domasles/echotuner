@@ -68,7 +68,7 @@ class SpotifyPlaylistRequest {
     final String name;
     final String? description;
     final bool? public;
-    final List<Song>? songs; // For demo accounts to provide current song list
+    final List<Song>? songs;
 
     SpotifyPlaylistRequest({
         required this.playlistId,
@@ -107,7 +107,6 @@ class SpotifyPlaylistResponse {
     Map<String, dynamic> toJson() => _$SpotifyPlaylistResponseToJson(this);
 }
 
-@JsonSerializable()
 @JsonSerializable()
 class LibraryPlaylistsRequest {
     @JsonKey(name: 'device_id')

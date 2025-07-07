@@ -54,7 +54,7 @@ class PersonalityService(SingletonServiceBase):
             if settings.DEMO and spotify_user_id.startswith("demo_user_"):
                 logger.info(f"Demo mode: personality not stored server-side for device {device_id}")
                 return True
-            
+
             user_id = spotify_user_id
             logger.info(f"Saving personality for user {user_id}")
             success = await db_service.save_user_personality(user_id, spotify_user_id, user_context)
@@ -82,14 +82,12 @@ class PersonalityService(SingletonServiceBase):
                 return None
 
             spotify_user_id = user_info.get('spotify_user_id')
-            
-            # Check if this is a demo account
+
             if settings.DEMO and spotify_user_id.startswith("demo_user_"):
                 logger.info(f"Demo mode: personality retrieved from client-side for device {device_id}")
                 return None
-            
-            user_id = spotify_user_id
 
+            user_id = spotify_user_id
             user_context_json = await db_service.get_user_personality(user_id)
 
             if user_context_json:
@@ -105,13 +103,14 @@ class PersonalityService(SingletonServiceBase):
         """Get user's followed artists from Spotify"""
 
         try:
-            # Check if this is a demo account - if so, return empty list
             user_info = await self.auth_service.get_user_from_session(session_id)
+
             if not user_info:
                 logger.error("Failed to get user info for followed artists")
                 return []
 
             spotify_user_id = user_info.get('spotify_user_id')
+
             if settings.DEMO and spotify_user_id and spotify_user_id.startswith("demo_user_"):
                 logger.info(f"Demo mode: skipping Spotify followed artists for device {device_id}")
                 return []
@@ -123,7 +122,6 @@ class PersonalityService(SingletonServiceBase):
                 return []
 
             followed_artists = await self.spotify_search.get_followed_artists(access_token, limit)
-
             artists = []
 
             for artist_data in followed_artists:
@@ -252,6 +250,7 @@ class PersonalityService(SingletonServiceBase):
                 context_parts.append(f"User's favorite genres: {', '.join(user_personality.favorite_genres)}")
 
             merged_artists = await self.get_merged_favorite_artists(session_id, device_id, user_personality)
+
             if merged_artists:
                 context_parts.append(f"User's favorite artists: {', '.join(merged_artists)}")
 

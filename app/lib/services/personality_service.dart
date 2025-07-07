@@ -21,24 +21,26 @@ class PersonalityService {
     Future<bool> _isDemoAccount() async {
         try {
             final sessionId = await _getSessionId();
-            if (sessionId == null) {
-                return false;
-            }
+            if (sessionId == null) return false;
             
             AppLogger.personality('Checking account type for session: ${sessionId.substring(0, 8)}...');
+
             final response = await _apiService.get('/auth/account_type/$sessionId');
             final isDemo = response['account_type'] == 'demo';
+
             AppLogger.personality('Account type check result: isDemo=$isDemo');
+
             return isDemo;
-        } catch (e) {
+        }
+
+        catch (e) {
             AppLogger.personality('Failed to get account type: $e');
-            
-            // If session not found (404) or unauthorized (401), trigger re-auth
+
             if (e.toString().contains('404') || e.toString().contains('401')) {
                 AppLogger.personality('Session invalid, triggering logout for re-authentication');
                 await _authService.logout();
             }
-            
+
             return false;
         }
     }
@@ -49,13 +51,16 @@ class PersonalityService {
 
     Future<void> saveUserContext(UserContext context) async {
         final isDemoAccount = await _isDemoAccount();
-        
+
         if (isDemoAccount) {
             AppLogger.personality('Demo account: Saving context locally...');
             AppLogger.personality('Demo account: Context to save: ${context.toJson()}');
+
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString(_demoPersonalityKey, jsonEncode(context.toJson()));
+
             AppLogger.personality('Demo account: Context saved locally successfully');
+
             return;
         }
 
@@ -79,25 +84,30 @@ class PersonalityService {
 
     Future<UserContext?> loadUserContext() async {
         final isDemoAccount = await _isDemoAccount();
-        
+
         if (isDemoAccount) {
             AppLogger.personality('Demo account: Loading context from local storage...');
+
             final prefs = await SharedPreferences.getInstance();
             final personalityJson = prefs.getString(_demoPersonalityKey);
-            
+
             AppLogger.personality('Demo account: Raw data from storage: $personalityJson');
-            
+
             if (personalityJson != null) {
                 try {
                     final contextData = jsonDecode(personalityJson);
                     final context = UserContext.fromJson(contextData);
+
                     AppLogger.personality('Demo account: Loaded context from local storage: ${context.toJson()}');
+
                     return context;
-                } catch (e) {
+                }
+
+                catch (e) {
                     AppLogger.personality('Demo account: Failed to parse local personality: $e');
                 }
             }
-            
+
             AppLogger.personality('Demo account: No local personality found - returning null');
             return null;
         }
@@ -119,15 +129,16 @@ class PersonalityService {
 
             AppLogger.personality('No context found in API');
             return null;
-        } catch (e) {
+        }
+
+        catch (e) {
             AppLogger.personality('Failed to load context from API: $e');
-            
-            // If unauthorized, trigger re-auth
+
             if (e.toString().contains('401') || e.toString().contains('404')) {
                 AppLogger.personality('Session invalid, triggering logout for re-authentication');
                 await _authService.logout();
             }
-            
+
             return null;
         }
     }
@@ -145,18 +156,15 @@ class PersonalityService {
 
     Future<List<SpotifyArtist>> fetchFollowedArtists({String? sessionId}) async {
         try {
-            // Check if this is a demo account first
             final isDemoAccount = await _isDemoAccount();
+
             if (isDemoAccount) {
                 AppLogger.personality('Demo account: Skipping followed artists fetch');
                 return [];
             }
             
             final sessionIdToUse = sessionId ?? await _getSessionId();
-
-            if (sessionIdToUse == null) {
-                throw Exception('No session ID available');
-            }
+            if (sessionIdToUse == null) throw Exception('No session ID available');
 
             final response = await _apiService.get('/user/followed-artists', headers: {
                 'session_id': sessionIdToUse,
@@ -168,16 +176,15 @@ class PersonalityService {
 
             return artistsJson.map((json) => SpotifyArtist.fromJson(json)).take(config.maxFavoriteArtists).toList();
         }
-        
+
         catch (e) {
             AppLogger.personality('Failed to fetch followed artists: $e');
-            
-            // If unauthorized, trigger re-auth
+
             if (e.toString().contains('401') || e.toString().contains('404')) {
                 AppLogger.personality('Session invalid, triggering logout for re-authentication');
                 await _authService.logout();
             }
-            
+
             return [];
         }
     }
@@ -206,13 +213,12 @@ class PersonalityService {
 
         catch (e) {
             AppLogger.personality('Failed to search artists: $e');
-            
-            // If unauthorized, trigger re-auth
+
             if (e.toString().contains('401') || e.toString().contains('404')) {
                 AppLogger.personality('Session invalid, triggering logout for re-authentication');
                 await _authService.logout();
             }
-            
+
             return [];
         }
     }

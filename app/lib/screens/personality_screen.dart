@@ -74,7 +74,7 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
             }
         }
 
-		catch (e) {
+        catch (e) {
             AppLogger.personality('Silent refresh failed: $e', error: e);
         }
     }
@@ -137,9 +137,8 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
             _followedArtists = await personalityService.fetchFollowedArtists(sessionId: authService.sessionId);
 
             if (_userContext == null) {
-                // Only create default context for non-demo accounts
                 final isDemo = await personalityService.isDemoAccount();
-                
+
                 if (!isDemo) {
                     final defaultContext = await personalityService.getDefaultPersonalityContext(sessionId: authService.sessionId);
                     _userContext = defaultContext;

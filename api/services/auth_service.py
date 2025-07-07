@@ -3,6 +3,7 @@ Auth service.
 Manages Spotify OAuth authentication, user sessions, and device registration.
 """
 
+import asyncio
 import logging
 import secrets
 import spotipy
@@ -37,7 +38,7 @@ class AuthService(SingletonServiceBase):
 
         if not settings.DEMO:
             self._cleanup_demo_accounts()
-        
+
         self._log_initialization("Auth service initialized successfully", logger)
 
     def _initialize_spotify_oauth(self):
@@ -111,15 +112,16 @@ class AuthService(SingletonServiceBase):
             user_info = spotify.current_user()
             
             session_id = str(uuid.uuid4())
-            device_id = device_info['device_id']  # Use the device_id from auth state
-            
+            device_id = device_info['device_id']
+
             if settings.DEMO:
                 demo_user_id = f"demo_user_{device_id}"
                 account_type = "demo"
+
             else:
                 demo_user_id = user_info['id']
                 account_type = "normal"
-                
+
             await self.create_session(
                 session_id=session_id,
                 device_id=device_id,
@@ -141,19 +143,17 @@ class AuthService(SingletonServiceBase):
         """Create a new auth session"""
 
         try:
-            # Handle session cleanup based on account type being created
             existing_sessions = await db_service.get_sessions_by_device(device_id)
+
             for session in existing_sessions:
                 existing_account_type = session.get('account_type', 'normal')
-                
-                # If creating demo session, only remove demo sessions (keep normal ones)
+
                 if account_type == "demo" and existing_account_type == "demo":
                     await db_service.invalidate_session(session['session_id'])
-                
-                # If creating normal session, only remove normal sessions (keep demo ones)
+
                 elif account_type == "normal" and existing_account_type == "normal":
                     await db_service.invalidate_session(session['session_id'])
-            
+
             now = int(datetime.now().timestamp())
 
             session_data = {
@@ -302,7 +302,6 @@ class AuthService(SingletonServiceBase):
             spotify_user_id = session_info['spotify_user_id']
             account_type = session_info.get('account_type', 'normal')
 
-            # Block access when account type doesn't match API mode
             if settings.DEMO and account_type == 'normal':
                 return None
 
@@ -445,132 +444,106 @@ class AuthService(SingletonServiceBase):
 
     async def is_session_compatible_with_mode(self, session_id: str) -> bool:
         """Check if session account type is compatible with current server mode"""
-        
+
         try:
             session_info = await db_service.get_session_info(session_id)
             if not session_info:
                 return False
-                
+
             account_type = session_info.get('account_type', 'normal')
             current_mode_demo = settings.DEMO
-            
-            # Demo mode: only allow demo accounts
+
             if current_mode_demo and account_type != 'demo':
                 logger.info(f"Session {session_id[:8]}... rejected: normal account in demo mode")
                 return False
-                
-            # Normal mode: only allow normal accounts  
+
             if not current_mode_demo and account_type == 'demo':
                 logger.info(f"Session {session_id[:8]}... rejected: demo account in normal mode")
                 return False
-                
+
             return True
-            
+
         except Exception as e:
             logger.error(f"Mode compatibility check failed: {e}")
             return False
 
     async def invalidate_device_completely(self, device_id: str):
         """Completely invalidate all sessions and data for a device"""
-        
+
         try:
-            # Get all sessions for this device
             sessions = await db_service.get_all_sessions_for_device(device_id)
-            
-            # Check if any sessions are demo accounts
             demo_sessions = [s for s in sessions if s.get('account_type') == 'demo']
-            
-            # Invalidate each session
+
             for session in sessions:
                 session_id = session['session_id']
                 await db_service.invalidate_session(session_id)
                 logger.info(f"Invalidated session {session_id[:8]}... for device {device_id[:8]}...")
-            
-            # If there were demo sessions, delete demo account data
+
             if demo_sessions:
                 await self._delete_demo_account_data(device_id, demo_sessions)
-                
-            # Clear any device-specific auth states
+
             await db_service.cleanup_device_auth_states(device_id)
-            
-            # For normal accounts: Rate limits are shared across devices by spotify_user_id, so don't clear them
-            # For demo accounts: Rate limits are per device, but we don't clear them to prevent abuse
-            # (Users would have to re-enter context anyway, so the rate limit protection is still valuable)
-            
             logger.info(f"Completely invalidated device {device_id[:8]}...")
-            
+
         except Exception as e:
             logger.error(f"Failed to completely invalidate device: {e}")
 
     async def _delete_demo_account_data(self, device_id: str, demo_sessions: list):
         """Delete all demo account data for a specific device"""
+
         try:
-            # Delete demo user personality
             demo_user_id = f"demo_user_{device_id}"
             await db_service.execute_query(
                 "DELETE FROM user_personalities WHERE user_id = ?",
                 (demo_user_id,)
             )
-            
-            # Delete playlist drafts for demo sessions
+
             if demo_sessions:
                 session_ids = [session['session_id'] for session in demo_sessions]
                 placeholders = ','.join(['?' for _ in session_ids])
-                await db_service.execute_query(
-                    f"DELETE FROM playlist_drafts WHERE session_id IN ({placeholders})",
-                    session_ids
-                )
-            
+
+                await db_service.execute_query(f"DELETE FROM playlist_drafts WHERE session_id IN ({placeholders})", session_ids)
+
             logger.info(f"Deleted demo account data for device {device_id[:8]}...")
-            
+
         except Exception as e:
             logger.error(f"Failed to delete demo account data: {e}")
 
     def _cleanup_demo_accounts(self):
         """Remove all demo accounts and related data when starting in normal mode"""
+
         try:
-            import asyncio
             loop = asyncio.get_event_loop()
             loop.run_until_complete(self._async_cleanup_demo_accounts())
+
         except Exception as e:
             logger.error(f"Failed to cleanup demo accounts: {e}")
 
     async def _async_cleanup_demo_accounts(self):
         """Async cleanup of demo accounts"""
         try:
-            # First get all demo session IDs before deleting them
-            demo_sessions = await db_service.fetch_all(
-                "SELECT session_id FROM auth_sessions WHERE account_type = 'demo'"
-            )
-            
-            # Delete demo playlist drafts (these use session_id from demo sessions)
+            demo_sessions = await db_service.fetch_all("SELECT session_id FROM auth_sessions WHERE account_type = 'demo'")
+
             if demo_sessions:
                 session_ids = [session['session_id'] for session in demo_sessions]
                 placeholders = ','.join(['?' for _ in session_ids])
-                await db_service.execute_query(
-                    f"DELETE FROM playlist_drafts WHERE session_id IN ({placeholders})",
-                    session_ids
-                )
-            
-            # Delete demo sessions
-            await db_service.execute_query(
-                "DELETE FROM auth_sessions WHERE account_type = 'demo'"
-            )
-            
-            # Delete demo user personalities (these use user_id like 'demo_user_deviceid')
-            await db_service.execute_query(
-                "DELETE FROM user_personalities WHERE user_id LIKE 'demo_user_%'"
-            )
-            
+
+                await db_service.execute_query(f"DELETE FROM playlist_drafts WHERE session_id IN ({placeholders})", session_ids)
+
+            await db_service.execute_query("DELETE FROM auth_sessions WHERE account_type = 'demo'")
+            await db_service.execute_query("DELETE FROM user_personalities WHERE user_id LIKE 'demo_user_%'")
+
             logger.info("Cleaned up demo accounts for normal mode")
+
         except Exception as e:
             logger.error(f"Failed to cleanup demo accounts: {e}")
 
     async def create_demo_session(self, device_id: str, platform: str) -> str:
         """Create a demo session for the device"""
+
         session_id = str(uuid.uuid4())
         demo_user_id = f"demo_user_{device_id}"
-        
+
         await self.create_session(
             session_id=session_id,
             device_id=device_id,
@@ -581,7 +554,7 @@ class AuthService(SingletonServiceBase):
             expires_at=int((datetime.now() + timedelta(days=30)).timestamp()),
             account_type="demo"
         )
-        
+
         return session_id
 
 auth_service = AuthService()

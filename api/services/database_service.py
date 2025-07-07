@@ -4,6 +4,7 @@ Centralizedly manages all database operations.
 """
 
 import aiosqlite
+import hashlib
 import logging
 
 from typing import Optional, Dict, List, Any
@@ -555,7 +556,6 @@ class DatabaseService(SingletonServiceBase):
         """Update rate limit requests count"""
 
         try:
-            # Get existing data to preserve refinements count
             existing = await self.get_rate_limit_status(user_id, current_date)
             refinements_count = existing['refinements_count'] if existing else 0
 
@@ -874,7 +874,6 @@ class DatabaseService(SingletonServiceBase):
 
         try:
             async with aiosqlite.connect(self.db_path) as db:
-                # Migrate playlist_drafts table
                 cursor = await db.execute("PRAGMA table_info(playlist_drafts)")
                 columns = await cursor.fetchall()
                 existing_columns = [col[1] for col in columns]
@@ -892,11 +891,10 @@ class DatabaseService(SingletonServiceBase):
                 if 'spotify_playlist_url' not in existing_columns:
                     migrations.append("ALTER TABLE playlist_drafts ADD COLUMN spotify_playlist_url TEXT")
 
-                # Migrate auth_sessions table
                 cursor = await db.execute("PRAGMA table_info(auth_sessions)")
                 columns = await cursor.fetchall()
                 auth_columns = [col[1] for col in columns]
-                
+
                 if 'account_type' not in auth_columns:
                     migrations.append("ALTER TABLE auth_sessions ADD COLUMN account_type TEXT DEFAULT 'normal'")
 
@@ -915,37 +913,31 @@ class DatabaseService(SingletonServiceBase):
 
     async def cleanup_demo_sessions(self):
         """Clean up all demo account sessions"""
-        
+
         try:
             async with aiosqlite.connect(self.db_path) as db:
-                await db.execute("""
-                    DELETE FROM auth_sessions 
-                    WHERE account_type = 'demo'
-                """)
+                await db.execute("""DELETE FROM auth_sessions WHERE account_type = 'demo'""")
                 await db.commit()
-                
+
         except Exception as e:
             logger.error(f"Failed to cleanup demo sessions: {e}")
             raise
 
     async def cleanup_normal_sessions(self):
         """Clean up all normal account sessions"""
-        
+
         try:
             async with aiosqlite.connect(self.db_path) as db:
-                await db.execute("""
-                    DELETE FROM auth_sessions 
-                    WHERE account_type = 'normal' OR account_type IS NULL
-                """)
+                await db.execute("""DELETE FROM auth_sessions WHERE account_type = 'normal' OR account_type IS NULL""")
                 await db.commit()
-                
+
         except Exception as e:
             logger.error(f"Failed to cleanup normal sessions: {e}")
             raise
 
     async def get_all_sessions_for_device(self, device_id: str) -> List[Dict[str, Any]]:
         """Get all sessions for a specific device"""
-        
+
         try:
             async with aiosqlite.connect(self.db_path) as db:
                 cursor = await db.execute("""
@@ -953,8 +945,9 @@ class DatabaseService(SingletonServiceBase):
                     FROM auth_sessions 
                     WHERE device_id = ?
                 """, (device_id,))
-                
+
                 rows = await cursor.fetchall()
+
                 return [
                     {
                         "session_id": row[0],
@@ -964,68 +957,56 @@ class DatabaseService(SingletonServiceBase):
                     }
                     for row in rows
                 ]
-                
+
         except Exception as e:
             logger.error(f"Failed to get sessions for device: {e}")
             return []
 
     async def cleanup_device_auth_states(self, device_id: str):
         """Clean up all auth states for a specific device"""
-        
+
         try:
             async with aiosqlite.connect(self.db_path) as db:
-                await db.execute("""
-                    DELETE FROM auth_states 
-                    WHERE device_id = ?
-                """, (device_id,))
+                await db.execute("""DELETE FROM auth_states WHERE device_id = ?""", (device_id,))
                 await db.commit()
-                
+
         except Exception as e:
             logger.error(f"Failed to cleanup device auth states: {e}")
             raise
 
     async def cleanup_user_rate_limits(self, user_id: str):
         """Clean up all rate limit data for a specific user ID (for demo accounts)"""
-        
+
         try:
-            # Get the user hash (same as rate limiter service uses)
-            import hashlib
             user_hash = hashlib.sha256(user_id.encode()).hexdigest()
-            
+
             async with aiosqlite.connect(self.db_path) as db:
-                await db.execute("""
-                    DELETE FROM rate_limits 
-                    WHERE user_id = ?
-                """, (user_hash,))
+                await db.execute("""DELETE FROM rate_limits WHERE user_id = ?""", (user_hash,))
                 await db.commit()
+
                 logger.info(f"Cleaned up rate limits for user {user_id}")
-                
+
         except Exception as e:
             logger.error(f"Failed to cleanup user rate limits: {e}")
 
     async def cleanup_device_rate_limits(self, device_id: str):
         """Clean up all rate limit data for a specific device"""
-        
+
         try:
-            # Get the device hash (same as rate limiter service uses)
-            import hashlib
             device_hash = hashlib.sha256(device_id.encode()).hexdigest()
-            
+
             async with aiosqlite.connect(self.db_path) as db:
-                await db.execute("""
-                    DELETE FROM rate_limits 
-                    WHERE user_id = ?
-                """, (device_hash,))
+                await db.execute("""DELETE FROM rate_limits WHERE user_id = ?""", (device_hash,))
                 await db.commit()
+
                 logger.info(f"Cleaned up rate limits for device {device_id[:8]}...")
-                
+
         except Exception as e:
             logger.error(f"Failed to cleanup device rate limits: {e}")
 
-    # Demo playlist management
     async def add_demo_playlist(self, playlist_id: str, device_id: str, session_id: str, prompt: str):
         """Add a demo playlist ID to track refinement counts"""
-        
+
         try:
             async with aiosqlite.connect(self.db_path) as db:
                 await db.execute("""
@@ -1033,33 +1014,31 @@ class DatabaseService(SingletonServiceBase):
                     (playlist_id, device_id, session_id, prompt, refinements_used, created_at, updated_at)
                     VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, (playlist_id, device_id, session_id, prompt))
+
                 await db.commit()
                 logger.info(f"Added demo playlist {playlist_id} for device {device_id}")
-                
+
         except Exception as e:
             logger.error(f"Failed to add demo playlist {playlist_id}: {e}")
             raise
 
     async def get_demo_playlist_refinements(self, playlist_id: str) -> int:
         """Get the refinement count for a demo playlist"""
-        
+
         try:
             async with aiosqlite.connect(self.db_path) as db:
-                cursor = await db.execute("""
-                    SELECT refinements_used FROM demo_playlists 
-                    WHERE playlist_id = ?
-                """, (playlist_id,))
-                
+                cursor = await db.execute("""SELECT refinements_used FROM demo_playlists WHERE playlist_id = ?""", (playlist_id,))
                 row = await cursor.fetchone()
+
                 return row[0] if row else 0
-                
+
         except Exception as e:
             logger.error(f"Failed to get demo playlist refinements for {playlist_id}: {e}")
             return 0
 
     async def increment_demo_playlist_refinements(self, playlist_id: str):
         """Increment the refinement count for a demo playlist"""
-        
+
         try:
             async with aiosqlite.connect(self.db_path) as db:
                 await db.execute("""
@@ -1067,16 +1046,17 @@ class DatabaseService(SingletonServiceBase):
                     SET refinements_used = refinements_used + 1, updated_at = CURRENT_TIMESTAMP
                     WHERE playlist_id = ?
                 """, (playlist_id,))
+
                 await db.commit()
                 logger.info(f"Incremented refinement count for demo playlist {playlist_id}")
-                
+
         except Exception as e:
             logger.error(f"Failed to increment refinements for demo playlist {playlist_id}: {e}")
             raise
 
     async def get_demo_playlists_for_device(self, device_id: str) -> List[Dict[str, Any]]:
         """Get all demo playlist IDs for a device"""
-        
+
         try:
             async with aiosqlite.connect(self.db_path) as db:
                 cursor = await db.execute("""
@@ -1085,8 +1065,9 @@ class DatabaseService(SingletonServiceBase):
                     WHERE device_id = ?
                     ORDER BY created_at DESC
                 """, (device_id,))
-                
+
                 rows = await cursor.fetchall()
+
                 return [
                     {
                         'playlist_id': row[0],
@@ -1097,23 +1078,21 @@ class DatabaseService(SingletonServiceBase):
                     }
                     for row in rows
                 ]
-                
+
         except Exception as e:
             logger.error(f"Failed to get demo playlists for device {device_id}: {e}")
             return []
 
     async def cleanup_demo_playlists_for_device(self, device_id: str):
         """Clean up all demo playlists for a specific device"""
-        
+
         try:
             async with aiosqlite.connect(self.db_path) as db:
-                await db.execute("""
-                    DELETE FROM demo_playlists 
-                    WHERE device_id = ?
-                """, (device_id,))
+                await db.execute("""DELETE FROM demo_playlists WHERE device_id = ?""", (device_id,))
                 await db.commit()
+
                 logger.info(f"Cleaned up demo playlists for device {device_id}")
-                
+
         except Exception as e:
             logger.error(f"Failed to cleanup demo playlists for device {device_id}: {e}")
             raise

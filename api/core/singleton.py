@@ -21,7 +21,7 @@ class ServiceSingleton:
 
 class SingletonServiceBase:
     """Base class for singleton services with managed logging."""
-    
+
     def __init__(self):
         self._logger_name = self.__class__.__name__
 

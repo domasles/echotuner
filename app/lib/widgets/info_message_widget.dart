@@ -60,10 +60,7 @@ class InfoMessageWidget extends StatelessWidget {
 
                                 else if (message.actionUrl != null) {
                                     final uri = Uri.parse(message.actionUrl!);
-
-                                    if (await canLaunchUrl(uri)) {
-                                        await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                    }
+                                    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
                                 }
                             },
 

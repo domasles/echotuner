@@ -23,7 +23,7 @@ class AuthInitResponse {
     @JsonKey(name: 'auth_url')
     final String authUrl;
     final String state;
-    
+
     @JsonKey(name: 'device_id')
     final String deviceId;
 
@@ -66,7 +66,7 @@ class SessionValidationResponse {
 
     SessionValidationResponse({
         required this.valid,
-        
+
         this.userId,
         this.spotifyUserId,
     });

@@ -5,38 +5,29 @@ This module implements the OpenAI provider for cloud AI models.
 """
 
 import logging
+
 from typing import List
 
 from .base import BaseAIProvider
+
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 class OpenAIProvider(BaseAIProvider):
     """OpenAI AI provider implementation."""
     
-    @classmethod
-    def create_default(cls):
-        """Create a default OpenAI provider instance from settings."""
-        from config.settings import settings
-        return cls(
-            endpoint=settings.AI_ENDPOINT,
-            generation_model=settings.AI_GENERATION_MODEL,
-            embedding_model=settings.AI_EMBEDDING_MODEL,
-            headers={"Authorization": f"Bearer {settings.CLOUD_API_KEY}"},
-            max_tokens=settings.AI_MAX_TOKENS,
-            temperature=settings.AI_TEMPERATURE
-        )
-    
-    @property
-    def name(self) -> str:
-        return "OpenAI"
-    
-    @property
-    def supports_embeddings(self) -> bool:
-        return bool(self.embedding_model)
+    def __init__(self):
+        """Initialize OpenAI provider."""
+
+        super().__init__()
+        
+        self.name = "openai"
+        self.headers = {"Authorization": f"Bearer {settings.CLOUD_API_KEY}"}
     
     async def test_availability(self) -> bool:
         """Test if OpenAI is available."""
+
         try:
             headers = self.headers.copy()
             headers["Content-Type"] = "application/json"
@@ -54,13 +45,14 @@ class OpenAIProvider(BaseAIProvider):
                 timeout=10
             ) as response:
                 return response.status == 200
-                
+
         except Exception as e:
             logger.debug(f"OpenAI availability test failed: {e}")
             return False
-    
+
     async def generate_text(self, prompt: str, **kwargs) -> str:
         """Generate text using OpenAI."""
+
         headers = self.headers.copy()
         headers["Content-Type"] = "application/json"
 
@@ -83,12 +75,13 @@ class OpenAIProvider(BaseAIProvider):
 
             result = await response.json()
             return result["choices"][0]["message"]["content"]
-    
-    async def _get_embedding_impl(self, text: str, **kwargs) -> List[float]:
+
+    async def get_embedding(self, text: str, **kwargs) -> List[float]:
         """Get embedding using OpenAI."""
+
         if not self.embedding_model:
             raise Exception("No embedding model configured for OpenAI")
-        
+
         headers = self.headers.copy()
         headers["Content-Type"] = "application/json"
 

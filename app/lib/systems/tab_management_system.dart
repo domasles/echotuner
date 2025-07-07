@@ -4,7 +4,7 @@ class TabManagementSystem {
     TabController? _tabController;
     Function()? _refreshCallback;
     bool _showTabsDuringLoading = true;
-    
+
     TabController? get tabController => _tabController;
     bool get showTabsDuringLoading => _showTabsDuringLoading;
 
@@ -14,9 +14,7 @@ class TabManagementSystem {
         _showTabsDuringLoading = showTabsDuringLoading;
 
         _tabController!.addListener(() {
-            if (!_tabController!.indexIsChanging && _refreshCallback != null) {
-                _refreshCallback!();
-            }
+            if (!_tabController!.indexIsChanging && _refreshCallback != null) _refreshCallback!();
         });
     }
 
@@ -29,7 +27,7 @@ class TabManagementSystem {
     }
 
     int get currentIndex => _tabController?.index ?? 0;
-    
+
     void animateToTab(int index) {
         _tabController?.animateTo(index);
     }
@@ -38,7 +36,7 @@ class TabManagementSystem {
 mixin TabManagementMixin on State, TickerProviderStateMixin {
     final TabManagementSystem _tabSystem = TabManagementSystem();
     TabController? get tabController => _tabSystem.tabController;
-    
+
     void initializeTabSystem({required int tabCount, Function()? onTabChanged, bool showTabsDuringLoading = true}) {
         _tabSystem.initialize(
             tabCount: tabCount,
@@ -49,12 +47,7 @@ mixin TabManagementMixin on State, TickerProviderStateMixin {
     }
 
     void _defaultRefreshHandler() {
-        if (mounted) {
-            refreshCurrentTab();
-        }
-    }
-
-    void refreshCurrentTab() {
+        if (mounted) setState(() {});
     }
 
     @override
@@ -81,9 +74,7 @@ mixin TabManagementMixin on State, TickerProviderStateMixin {
     }
 
     Widget buildTabBar({required List<Widget> tabs, bool isLoading = false}) {
-        if (isLoading && !_tabSystem.showTabsDuringLoading) {
-            return const SizedBox.shrink();
-        }
+        if (isLoading && !_tabSystem.showTabsDuringLoading) return const SizedBox.shrink();
 
         return TabBar(
             controller: _tabSystem.tabController,

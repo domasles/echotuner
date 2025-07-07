@@ -3,8 +3,8 @@ Prompt validator service.
 Validates if user input is related to music, mood, or emotions.
 """
 
-import asyncio
 import numpy as np
+import asyncio
 import logging
 import httpx
 
@@ -42,11 +42,10 @@ class PromptValidatorService(SingletonServiceBase):
         try:
             self.http_client = httpx.AsyncClient(timeout=self.model_config.timeout)
 
-            if not await self._check_ai_model_connection():
+            if not await ai_service._current_provider.test_availability():
                 logger.error("AI model not running or not accessible")
                 raise RuntimeError("AI model is not running. Please check your AI model configuration and try again.")
 
-            # Initialize reference embeddings in background to speed up startup
             asyncio.create_task(self._compute_reference_embeddings_async())
 
             logger.info("Prompt validator initialized successfully!")
@@ -60,19 +59,14 @@ class PromptValidatorService(SingletonServiceBase):
 
     async def _compute_reference_embeddings_async(self):
         """Compute reference embeddings asynchronously without blocking startup"""
-        
+
         try:
             logger.info("Computing reference embeddings in background...")
             await self._compute_reference_embeddings()
             logger.info("Reference embeddings computed successfully")
+
         except Exception as e:
             logger.error(f"Failed to compute reference embeddings: {e}")
-            # Don't raise - this will be handled when validation is attempted
-
-    async def _check_ai_model_connection(self) -> bool:
-        """Check if AI model is running and accessible"""
-
-        return await ai_service._test_model_availability(self.model_config)
 
     def _normalize(self, vector: np.ndarray) -> np.ndarray:
         """Normalize a vector to unit length"""
@@ -85,31 +79,29 @@ class PromptValidatorService(SingletonServiceBase):
 
         try:
             music_references = data_loader.get_prompt_references()
-            
-            # Limit concurrent requests to avoid overwhelming the API
             semaphore = asyncio.Semaphore(5)  # Max 5 concurrent requests
-            
+
             async def get_embedding_with_semaphore(text):
                 async with semaphore:
                     try:
                         embedding = await self._get_embedding(text)
+
                         if embedding is not None:
                             return self._normalize(embedding)
+
                     except Exception as e:
                         logger.debug(f"Failed to get embedding for '{text[:30]}...': {e}")
                     return None
-            
-            # Process embeddings concurrently
+
             tasks = [get_embedding_with_semaphore(text) for text in music_references]
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            # Filter out None results and exceptions
-            embeddings = [result for result in results 
-                         if result is not None and not isinstance(result, Exception)]
+
+            embeddings = [result for result in results if result is not None and not isinstance(result, Exception)]
 
             if embeddings:
                 self.music_reference_embeddings = np.array(embeddings)
                 logger.info(f"Computed {len(embeddings)} reference embeddings")
+
             else:
                 logger.error("No reference embeddings computed")
                 raise RuntimeError("Failed to compute reference embeddings")
@@ -122,7 +114,6 @@ class PromptValidatorService(SingletonServiceBase):
         """Get embedding for text using AI model"""
 
         try:
-            # Use the AI service abstraction instead of direct API calls
             embedding = await ai_service.get_embedding(text, model_id=None)
             return np.array(embedding)
 

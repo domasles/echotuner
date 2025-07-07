@@ -1,24 +1,24 @@
-"""
-Playlist-related endpoint implementations
-"""
+"""Playlist-related endpoint implementations"""
 
 import logging
 import uuid
 import re
+
 from fastapi import HTTPException
 
-from core.models import (
-    PlaylistRequest, PlaylistResponse, LibraryPlaylistsRequest, LibraryPlaylistsResponse
-)
-from config.settings import settings
+from core.models import PlaylistRequest, PlaylistResponse, LibraryPlaylistsRequest, LibraryPlaylistsResponse, SpotifyPlaylistInfo
+
+from services.spotify_playlist_service import spotify_playlist_service
 from services.playlist_generator import playlist_generator_service
 from services.playlist_draft_service import playlist_draft_service
 from services.prompt_validator import prompt_validator_service
 from services.personality_service import personality_service
 from services.rate_limiter import rate_limiter_service
-from services.auth_service import auth_service
 from services.auth_middleware import auth_middleware
 from services.database_service import db_service
+from services.auth_service import auth_service
+
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ async def generate_playlist(request: PlaylistRequest):
 
         if not sanitized_prompt:
             raise HTTPException(status_code=400, detail="Invalid or empty prompt")
-        
+
         user_info = await require_auth(request)
 
         if user_info and user_info.get('account_type') == 'demo':
@@ -181,22 +181,17 @@ async def refine_playlist(request: PlaylistRequest):
         playlist_id = request.playlist_id
 
         if playlist_id:
-            # If playlist ID is provided, get refinement count from the appropriate source
             if user_info and user_info.get('account_type') == 'demo':
-                # For demo accounts, get refinement count from demo_playlists table
                 refinements_used = await db_service.get_demo_playlist_refinements(playlist_id)
                 logger.info(f"Demo playlist {playlist_id} has {refinements_used} refinements used")
-                
-                # For demo accounts, always use current_songs from request (not stored on API)
                 current_songs = request.current_songs or []
-                
+
                 if settings.REFINEMENT_LIMIT_ENABLED and refinements_used >= settings.MAX_REFINEMENTS_PER_PLAYLIST:
                     raise HTTPException(
                         status_code=429,
                         detail=f"Maximum of {settings.MAX_REFINEMENTS_PER_PLAYLIST} AI refinements reached for this playlist."
                     )
             else:
-                # For normal accounts, get refinement count from the draft on API
                 draft = await playlist_draft_service.get_draft(playlist_id)
 
                 if draft:
@@ -213,16 +208,12 @@ async def refine_playlist(request: PlaylistRequest):
                     logger.warning(f"Draft playlist {playlist_id} not found, using provided songs")
 
         else:
-            # No playlist ID - this is a new refinement without an existing draft
-            # Still need to check daily refinement limits
-            
-            # For demo accounts, use device_id for rate limiting (per device)
-            # For normal accounts, use spotify_user_id for rate limiting (shared across devices)
             if user_info and user_info.get('account_type') == 'demo':
                 rate_limit_key = request.device_id
+
             else:
                 rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
-                
+
             if settings.REFINEMENT_LIMIT_ENABLED and not await rate_limiter_service.can_refine_playlist(rate_limit_key):
                 raise HTTPException(
                     status_code=429,
@@ -271,13 +262,11 @@ async def refine_playlist(request: PlaylistRequest):
         )
 
         if playlist_id:
-            # For demo accounts, only increment demo playlist refinements
-            # For normal accounts, update the draft on API
             if user_info and user_info.get('account_type') == 'demo':
                 await db_service.increment_demo_playlist_refinements(playlist_id)
                 logger.info(f"Incremented demo playlist {playlist_id} refinement count")
+
             else:
-                # Update existing draft with new refinement count
                 await playlist_draft_service.update_draft(
                     playlist_id=playlist_id,
                     songs=songs,
@@ -285,7 +274,6 @@ async def refine_playlist(request: PlaylistRequest):
                 )
 
         else:
-            # Create new draft and record daily refinement limit
             playlist_id = await playlist_draft_service.save_draft(
                 device_id=request.device_id,
                 session_id=request.session_id,
@@ -293,8 +281,7 @@ async def refine_playlist(request: PlaylistRequest):
                 songs=songs,
                 refinements_used=1
             )
-            
-            # For demo accounts, also create a demo playlist entry for this refinement
+
             if user_info and user_info.get('account_type') == 'demo':
                 await db_service.add_demo_playlist(
                     playlist_id=playlist_id,
@@ -302,18 +289,16 @@ async def refine_playlist(request: PlaylistRequest):
                     session_id=request.session_id,
                     prompt=f"Refined: {request.prompt}"
                 )
-                # Start with 1 refinement since this IS a refinement
+
                 await db_service.increment_demo_playlist_refinements(playlist_id)
-            
-            # Only record daily refinement limits for new refinements (no playlist_id)
+
             if settings.REFINEMENT_LIMIT_ENABLED:
-                # For demo accounts, use device_id for rate limiting (per device)
-                # For normal accounts, use spotify_user_id for rate limiting (shared across devices)
                 if user_info and user_info.get('account_type') == 'demo':
                     rate_limit_key = request.device_id
+
                 else:
                     rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
-                    
+
                 logger.info(f"Recording refinement for rate_limit_key: {rate_limit_key}")
                 await rate_limiter_service.record_refinement(rate_limit_key)
 
@@ -338,7 +323,7 @@ async def update_playlist_draft(request: PlaylistRequest):
         user_info = await require_auth(request)
         playlist_id = request.playlist_id
         current_songs = request.current_songs or []
-        
+
         if not playlist_id:
             raise HTTPException(status_code=400, detail="Playlist ID is required for updates")
 
@@ -403,7 +388,6 @@ async def get_library_playlists(request: LibraryPlaylistsRequest):
 
         spotify_playlists = []
 
-        from services.spotify_playlist_service import spotify_playlist_service
         if spotify_playlist_service.is_ready():
             try:
                 access_token = await auth_service.get_access_token(request.session_id)
@@ -420,17 +404,13 @@ async def get_library_playlists(request: LibraryPlaylistsRequest):
                         for playlist in all_playlists:
                             if playlist.get('id') in echotuner_playlist_ids:
                                 try:
-                                    playlist_details = await spotify_playlist_service.get_playlist_details(
-                                        access_token, playlist['id']
-                                    )
-
+                                    playlist_details = await spotify_playlist_service.get_playlist_details(access_token, playlist['id'])
                                     tracks_count = playlist_details.get('tracks', {}).get('total', 0)
 
                                 except Exception as e:
                                     logger.warning(f"Failed to get fresh track count for playlist {playlist['id']}: {e}")
                                     tracks_count = playlist.get('tracks', {}).get('total', 0)
 
-                                from core.models import SpotifyPlaylistInfo
                                 spotify_playlist_info = SpotifyPlaylistInfo(
                                     id=playlist['id'],
                                     name=playlist.get('name', 'Unknown'),

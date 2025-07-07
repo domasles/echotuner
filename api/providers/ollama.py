@@ -5,9 +5,8 @@ This module implements the Ollama provider for local AI models.
 """
 
 import logging
-from typing import List
 
-from config.settings import settings
+from typing import List
 
 from .base import BaseAIProvider
 
@@ -15,37 +14,27 @@ logger = logging.getLogger(__name__)
 
 class OllamaProvider(BaseAIProvider):
     """Ollama AI provider implementation."""
-    
-    @classmethod
-    def create_default(cls):
-        """Create a default Ollama provider instance from settings."""
 
-        return cls(
-            endpoint=settings.AI_ENDPOINT,
-            generation_model=settings.AI_GENERATION_MODEL,
-            embedding_model=settings.AI_EMBEDDING_MODEL,
-            timeout=settings.AI_TIMEOUT
-        )
-    
-    @property
-    def name(self) -> str:
-        return "Ollama"
-    
-    @property
-    def supports_embeddings(self) -> bool:
-        return bool(self.embedding_model)
-    
+    def __init__(self):
+        """Initialize Ollama provider."""
+
+        super().__init__()
+        self.name = "ollama"
+
     async def test_availability(self) -> bool:
         """Test if Ollama is available."""
+
         try:
             async with self._session.get(f"{self.endpoint}/api/tags") as response:
                 return response.status == 200
+
         except Exception as e:
             logger.debug(f"Ollama availability test failed: {e}")
             return False
-    
+
     async def generate_text(self, prompt: str, **kwargs) -> str:
         """Generate text using Ollama."""
+
         payload = {
             "model": self.generation_model,
             "prompt": prompt,
@@ -67,12 +56,13 @@ class OllamaProvider(BaseAIProvider):
 
             result = await response.json()
             return result.get("response", "")
-    
-    async def _get_embedding_impl(self, text: str, **kwargs) -> List[float]:
+
+    async def get_embedding(self, text: str, **kwargs) -> List[float]:
         """Get embedding using Ollama."""
+
         if not self.embedding_model:
             raise Exception("No embedding model configured for Ollama")
-        
+
         payload = {
             "model": self.embedding_model,
             "prompt": text

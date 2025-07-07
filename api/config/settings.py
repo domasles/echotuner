@@ -64,7 +64,7 @@ class Settings:
     AUTH_ATTEMPT_WINDOW_MINUTES: int = int(os.getenv("AUTH_ATTEMPT_WINDOW_MINUTES", 60))
     SECURE_HEADERS: bool = os.getenv("SECURE_HEADERS", "true").lower() == "true"
 
-    MAX_PROMPT_LENGTH: int = int(os.getenv("MAX_PROMPT_LENGTH", 500))
+    MAX_PROMPT_LENGTH: int = int(os.getenv("MAX_PROMPT_LENGTH", 128))
     MAX_PLAYLIST_NAME_LENGTH: int = int(os.getenv("MAX_PLAYLIST_NAME_LENGTH", 100))
     
     def validate_required_settings(self) -> list[str]:

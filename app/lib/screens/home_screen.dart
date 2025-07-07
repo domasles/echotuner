@@ -24,7 +24,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Di
 
     int _selectedIndex = 0;
     bool _hasText = false;
-    Key _libraryKey = UniqueKey(); // Key to force library rebuild
+    Key _libraryKey = UniqueKey();
 
     final List<String> _quickPrompts = [
         "I'm feeling happy and energetic",
@@ -273,15 +273,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Di
     }
 
     Widget _buildBottomLimitIndicator(PlaylistProvider provider) {
-        if (!provider.showPlaylistLimits) {
-            return const SizedBox.shrink();
-        }
+        if (!provider.showPlaylistLimits) return const SizedBox.shrink();
 
         final rateLimitStatus = provider.rateLimitStatus;
 
-        if (rateLimitStatus == null) {
-            return const SizedBox.shrink();
-        }
+        if (rateLimitStatus == null) return const SizedBox.shrink();
 
         final requestsMade = rateLimitStatus.requestsMadeToday;
         final maxRequests = rateLimitStatus.maxRequestsPerDay;
@@ -362,16 +358,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Di
 
     Widget _buildBottomInfoMessages(PlaylistProvider provider) {
         final infoMessages = provider.infoMessages;
-
-        if (infoMessages.isEmpty) {
-            return const SizedBox.shrink();
-        }
+        if (infoMessages.isEmpty) return const SizedBox.shrink();
 
         double bottomPosition = 100;
 
-        if (provider.showPlaylistLimits && provider.rateLimitStatus != null) {
-            bottomPosition = 76;
-        }
+        if (provider.showPlaylistLimits && provider.rateLimitStatus != null) bottomPosition = 76;
 
         return Positioned(
             left: 16,
@@ -451,9 +442,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Di
                     _selectedIndex = index;
                 });
 
-                if (index == 0) {
-                    _refreshDailyLimit();
-                }
+                if (index == 0) _refreshDailyLimit();
 
                 if (index == 2) {
                     setState(() {

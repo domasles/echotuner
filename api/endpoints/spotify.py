@@ -1,18 +1,16 @@
-"""
-Spotify-related endpoint implementations
-"""
+"""Spotify-related endpoint implementations"""
 
 import logging
+
 from fastapi import HTTPException
 
-from core.models import (
-    SpotifyPlaylistRequest, SpotifyPlaylistResponse
-)
+from core.models import SpotifyPlaylistRequest, SpotifyPlaylistResponse
+
 from services.spotify_playlist_service import spotify_playlist_service
 from services.playlist_draft_service import playlist_draft_service
-from services.auth_service import auth_service
 from services.auth_middleware import auth_middleware
 from services.database_service import db_service
+from services.auth_service import auth_service
 
 logger = logging.getLogger(__name__)
 
@@ -25,28 +23,26 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
         if not spotify_playlist_service.is_ready():
             raise HTTPException(status_code=503, detail="Spotify playlist service not available")
 
-        # For demo accounts, don't look up draft on API since they store locally
-        # For normal accounts, get the draft from API
         if user_info and user_info.get('account_type') == 'demo':
-            # Demo accounts don't store drafts on API, so we use provided songs
             if not request.songs:
                 raise HTTPException(status_code=400, detail="Songs list required for demo accounts")
-            
-            # Verify the playlist exists in demo_playlists table
+
             demo_refinements = await db_service.get_demo_playlist_refinements(request.playlist_id)
-            if demo_refinements < 0:  # This would indicate playlist doesn't exist
+
+            if demo_refinements < 0:
                 raise HTTPException(status_code=404, detail="Demo playlist not found")
-            
+
             songs = request.songs
-            draft = None  # No draft for demo accounts
+            draft = None
+
         else:
-            # For normal accounts, get the draft from API
             draft = await playlist_draft_service.get_draft(request.playlist_id)
+
             if not draft:
                 raise HTTPException(status_code=404, detail="Draft playlist not found")
+
             songs = draft.songs
 
-        # Only do session validation for normal accounts with drafts
         if draft and draft.session_id and draft.session_id != request.session_id:
             draft_user_info = await auth_service.get_user_from_session(draft.session_id)
             current_user_spotify_id = user_info.get('spotify_user_id')
@@ -77,7 +73,6 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
             public=request.public or False
         )
 
-        # Only mark draft as added to Spotify for normal accounts (demo accounts handle this locally)
         if draft:
             await playlist_draft_service.mark_as_added_to_spotify(
                 playlist_id=request.playlist_id,

@@ -428,15 +428,9 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
     }
 
     Widget _buildRefinementIndicatorForDialog(PlaylistProvider provider) {
-        if (!provider.showRefinementLimits) {
-            return const SizedBox.shrink();
-        }
-
+        if (!provider.showRefinementLimits) return const SizedBox.shrink();
         final rateLimitStatus = provider.rateLimitStatus;
-
-        if (rateLimitStatus == null) {
-            return const SizedBox.shrink();
-        }
+        if (rateLimitStatus == null) return const SizedBox.shrink();
 
         final refinementsUsed = provider.refinementsUsed;
         final maxRefinements = rateLimitStatus.maxRefinements;
@@ -506,7 +500,7 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
         final provider = Provider.of<PlaylistProvider>(context, listen: false);
         final authService = Provider.of<AuthService>(context, listen: false);
         final currentPlaylist = provider.currentPlaylist;
-        
+
         if (currentPlaylist.isEmpty || index >= currentPlaylist.length) return;
         final song = currentPlaylist[index];
 
@@ -543,7 +537,7 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
 
         if (confirmed == true && context.mounted) {
             provider.removeSong(song);
-            
+
             if (provider.isPlaylistAddedToSpotify && provider.currentPlaylistId != null && authService.sessionId != null && authService.deviceId != null && song.uri.isNotEmpty) {
                 try {
                     final success = await provider.removeSongFromSpotifyPlaylist(
@@ -552,18 +546,24 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
                         authService.sessionId!,
                         authService.deviceId!,
                     );
-                    
+
                     if (success && context.mounted) {
                         MessageService.showSuccess(context, 'Song removed from playlist and Spotify');
-                    } else if (context.mounted) {
+                    }
+
+                    else if (context.mounted) {
                         MessageService.showWarning(context, 'Song removed locally but failed to remove from Spotify');
                     }
-                } catch (e) {
+                }
+
+                catch (e) {
                     if (context.mounted) {
                         MessageService.showWarning(context, 'Song removed locally but failed to remove from Spotify');
                     }
                 }
-            } else if (context.mounted) {
+            }
+
+            else if (context.mounted) {
                 MessageService.showSuccess(context, 'Song removed from playlist');
             }
         }

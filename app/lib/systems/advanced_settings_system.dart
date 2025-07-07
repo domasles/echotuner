@@ -57,7 +57,7 @@ class AdvancedSettingsSystem {
 
 mixin AdvancedSettingsMixin<T extends StatefulWidget> on State<T> {
     final AdvancedSettingsSystem _advancedSettings = AdvancedSettingsSystem();
-    
+
     List<String> get customFavoriteArtists => _advancedSettings.customFavoriteArtists;
     List<String> get customDislikedArtists => _advancedSettings.customDislikedArtists;
 
@@ -70,9 +70,7 @@ mixin AdvancedSettingsMixin<T extends StatefulWidget> on State<T> {
             dislikedArtists: dislikedArtists,
         );
 
-        if (mounted) {
-            setState(() {});
-        }
+        if (mounted) setState(() {});
     }
 
     void updateArtistLimits({int? maxFavorite, int? maxDisliked}) {
@@ -81,41 +79,27 @@ mixin AdvancedSettingsMixin<T extends StatefulWidget> on State<T> {
             maxDisliked: maxDisliked,
         );
 
-        if (mounted) {
-            setState(() {});
-        }
+        if (mounted) setState(() {});
     }
 
     void addFavoriteArtist(String artist) {
         _advancedSettings.addFavoriteArtist(artist);
-
-        if (mounted) {
-            setState(() {});
-        }
+        if (mounted) setState(() {});
     }
 
     void removeFavoriteArtist(String artist) {
         _advancedSettings.removeFavoriteArtist(artist);
-
-        if (mounted) {
-            setState(() {});
-        }
+        if (mounted) setState(() {});
     }
 
     void addDislikedArtist(String artist) {
         _advancedSettings.addDislikedArtist(artist);
-
-        if (mounted) {
-            setState(() {});
-        }
+        if (mounted) setState(() {});
     }
 
     void removeDislikedArtist(String artist) {
         _advancedSettings.removeDislikedArtist(artist);
-
-        if (mounted) {
-            setState(() {});
-        }
+        if (mounted) setState(() {});
     }
 
     Future<void> showAddArtistDialog({required bool isDisliked, required Function(SpotifyArtist) onArtistSelected}) async {
@@ -201,9 +185,7 @@ class _ArtistSearchDialogState extends State<_ArtistSearchDialog> {
                     children: [
                         Text(
                             widget.isDisliked ? 'Search Disliked Artists' : 'Search Artists',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                            ),
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                         ),
 
                         const SizedBox(height: AppConstants.mediumSpacing),
@@ -212,6 +194,7 @@ class _ArtistSearchDialogState extends State<_ArtistSearchDialog> {
                             decoration: InputDecoration(
                                 hintText: 'Type artist name...',
                                 prefixIcon: const Icon(Icons.search_rounded),
+
                                 suffixIcon: _isSearching ? Container(
                                     width: AppConstants.mediumIconSize,
                                     height: AppConstants.mediumIconSize,
@@ -224,9 +207,7 @@ class _ArtistSearchDialogState extends State<_ArtistSearchDialog> {
 
                             onChanged: (value) {
                                 Future.delayed(const Duration(milliseconds: 500), () {
-                                    if (_searchController.text == value) {
-                                        _searchArtists(value);
-                                    }
+                                    if (_searchController.text == value) _searchArtists(value);
                                 });
                             },
 
@@ -246,6 +227,7 @@ class _ArtistSearchDialogState extends State<_ArtistSearchDialog> {
                                 itemCount: _searchResults.length,
                                 itemBuilder: (context, index) {
                                     final artist = _searchResults[index];
+
                                     return ListTile(
                                         leading: artist.imageUrl != null ? CircleAvatar(
                                             backgroundImage: NetworkImage(artist.imageUrl!),

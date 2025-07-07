@@ -1,1 +1,1 @@
-# Empty file to make services a Python package
+# Empty file to make core a Python package

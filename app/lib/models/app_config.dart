@@ -22,13 +22,13 @@ class AppConfigData {
 class PersonalityConfig {
     @JsonKey(name: 'max_favorite_artists')
     final int maxFavoriteArtists;
-    
+
     @JsonKey(name: 'max_disliked_artists')
     final int maxDislikedArtists;
-    
+
     @JsonKey(name: 'max_favorite_genres')
     final int maxFavoriteGenres;
-    
+
     @JsonKey(name: 'max_preferred_decades')
     final int maxPreferredDecades;
 
@@ -47,10 +47,10 @@ class PersonalityConfig {
 class PlaylistConfig {
     @JsonKey(name: 'max_songs_per_playlist')
     final int maxSongsPerPlaylist;
-    
+
     @JsonKey(name: 'max_playlists_per_day')
     final int maxPlaylistsPerDay;
-    
+
     @JsonKey(name: 'max_refinements_per_playlist')
     final int maxRefinementsPerPlaylist;
 
@@ -68,10 +68,10 @@ class PlaylistConfig {
 class FeatureConfig {
     @JsonKey(name: 'auth_required')
     final bool authRequired;
-    
+
     @JsonKey(name: 'playlist_limit_enabled')
     final bool playlistLimitEnabled;
-    
+
     @JsonKey(name: 'refinement_limit_enabled')
     final bool refinementLimitEnabled;
 

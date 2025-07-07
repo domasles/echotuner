@@ -23,9 +23,9 @@ class LibraryScreen extends StatefulWidget {
 class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
     final TabManagementSystem _tabSystem = TabManagementSystem();
     final LibraryManagementSystem _librarySystem = LibraryManagementSystem();
-    
+
     TabController? get tabController => _tabSystem.tabController;
-    
+
     List<PlaylistDraft> get drafts => _librarySystem.drafts;
     List<SpotifyPlaylistInfo> get spotifyPlaylists => _librarySystem.spotifyPlaylists;
     bool get isLibraryLoading => _librarySystem.isLoading;
@@ -34,14 +34,14 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
     @override
     void initState() {
         super.initState();
-        
+
         _tabSystem.initialize(
             tabCount: 2,
             vsync: this,
             onTabChanged: _silentRefreshCurrentTab,
             showTabsDuringLoading: true,
         );
-        
+
         loadLibraryData();
     }
 
@@ -58,6 +58,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
     Future<void> loadLibraryData() async {
         await _librarySystem.loadLibraryData(context);
+
         if (mounted) {
             setState(() {});
         }
@@ -65,6 +66,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
     Future<void> silentRefreshLibrary() async {
         await _librarySystem.silentRefresh(context);
+
         if (mounted) {
             setState(() {});
         }
@@ -84,6 +86,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
         try {
             await provider.loadDraft(draft);
+
             if (mounted) {
                 await Navigator.push(
                     context,
@@ -138,15 +141,11 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                 await provider.deleteDraft(draft.id);
                 _silentRefreshCurrentTab();
 
-                if (mounted) {
-                    MessageService.showInfo(context, 'Draft deleted successfully');
-                }
+                if (mounted) MessageService.showInfo(context, 'Draft deleted successfully');
             }
 
             catch (e) {
-                if (mounted) {
-                    MessageService.showError(context, 'Failed to delete draft: $e');
-                }
+                if (mounted) MessageService.showError(context, 'Failed to delete draft: $e');
             }
         }
     }
@@ -180,15 +179,11 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                 await provider.deleteSpotifyPlaylist(playlist.id);
                 _silentRefreshCurrentTab();
 
-                if (mounted) {
-                    MessageService.showInfo(context, 'Playlist deleted successfully');
-                }
+                if (mounted) MessageService.showInfo(context, 'Playlist deleted successfully');
             }
 
             catch (e) {
-                if (mounted) {
-                    MessageService.showError(context, 'Failed to delete playlist: $e');
-                }
+                if (mounted) MessageService.showError(context, 'Failed to delete playlist: $e');
             }
         }
     }
@@ -228,7 +223,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                                 builder: (context, child) {
                                     final isSpotifyTabSelected = tabController!.index == 1;
                                     final iconColor = isSpotifyTabSelected ? AppColors.primary : Colors.white70;
-                                    
+
                                     return ColorFiltered(
                                         colorFilter: ColorFilter.mode(
                                             iconColor,
@@ -286,7 +281,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                 ),
             );
         }
-        
+
         if (drafts.isEmpty && !isLibraryLoading) {
             return const Center(
                 child: Column(

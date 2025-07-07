@@ -1,12 +1,11 @@
-"""
-Configuration-related endpoint implementations
-"""
+"""Configuration-related endpoint implementations"""
 
 import logging
 from fastapi import HTTPException
 
 from config.app_constants import app_constants
 from config.settings import settings
+
 from services.playlist_generator import playlist_generator_service
 from services.data_service import data_loader
 

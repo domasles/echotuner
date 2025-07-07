@@ -65,7 +65,7 @@ class SettingsScreen extends StatelessWidget {
                         subtitle: 'Get help and contact support',
                     ),
 
-					SettingsTile(
+                    SettingsTile(
                         icon: Icons.code,
                         title: 'Source Code',
                         subtitle: 'View on GitHub',
@@ -77,7 +77,7 @@ class SettingsScreen extends StatelessWidget {
                                 await launchUrl(url, mode: LaunchMode.externalApplication);
                             }
 
-							else {
+                            else {
                                 if (context.mounted) {
                                     MessageService.showError(context, 'Could not open GitHub repository');
                                 }

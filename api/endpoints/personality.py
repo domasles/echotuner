@@ -1,14 +1,9 @@
-"""
-Personality-related endpoint implementations
-"""
+"""Personality-related endpoint implementations"""
 
 import logging
 from fastapi import HTTPException
 
-from core.models import (
-    UserPersonalityRequest, UserPersonalityResponse, UserPersonalityClearRequest,
-    FollowedArtistsResponse, ArtistSearchRequest, ArtistSearchResponse
-)
+from core.models import UserPersonalityRequest, UserPersonalityResponse, UserPersonalityClearRequest, FollowedArtistsResponse, ArtistSearchRequest, ArtistSearchResponse
 from services.personality_service import personality_service
 from services.auth_middleware import auth_middleware
 from services.database_service import db_service
@@ -55,6 +50,7 @@ async def load_user_personality(request):
 
         if user_context:
             return {"user_context": user_context.model_dump()}
+
         else:
             return {"user_context": None}
 
