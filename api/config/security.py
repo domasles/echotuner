@@ -10,16 +10,18 @@ from config.settings import settings
 logger = logging.getLogger(__name__)
 
 class SecurityConfig:
-    def get_security_headers(self):
+    def get_security_headers(self, nonce: str = None):
         """Get security headers for production deployment."""
 
         if settings.SECURE_HEADERS:
+            script_src = f"'self' 'nonce-{nonce}'" if nonce else "'self'"
+
             return {
                 "X-Content-Type-Options": "nosniff",
                 "X-Frame-Options": "DENY", 
                 "X-XSS-Protection": "1; mode=block",
                 "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-                "Content-Security-Policy": "default-src 'self'",
+                "Content-Security-Policy": f"default-src 'self'; style-src 'self'; script-src {script_src}",
                 "Referrer-Policy": "strict-origin-when-cross-origin"
             }
 

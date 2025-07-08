@@ -3,6 +3,8 @@ Template service.
 This service is responsible for loading and rendering HTML templates.
 """
 
+import secrets
+
 from pathlib import Path
 
 from core.singleton import SingletonServiceBase
@@ -18,6 +20,11 @@ class TemplateService(SingletonServiceBase):
 
         self.templates_dir = Path(__file__).parent.parent / "templates"
         self._cache = {}
+
+    def generate_nonce(self) -> str:
+        """Generate a cryptographically secure nonce for CSP"""
+
+        return secrets.token_urlsafe(16)
 
     def load_template(self, template_name: str) -> str:
         """Load a template from file, with caching"""
@@ -37,6 +44,9 @@ class TemplateService(SingletonServiceBase):
         """Render a template with the given variables"""
 
         template_content = self.load_template(template_name)
+
+        if 'nonce' not in kwargs:
+            kwargs['nonce'] = self.generate_nonce()
 
         for key, value in kwargs.items():
             placeholder = f"{{{{{key}}}}}"

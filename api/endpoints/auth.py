@@ -60,7 +60,11 @@ async def auth_callback(code: str = None, state: str = None, error: str = None):
     try:
         if error:
             logger.warning(f"OAuth error: {error}")
-            html_content = template_service.render_template("auth_error.html", error=error)
+            html_content = template_service.render_template(
+                "html/auth_error.html", 
+                error_detail=f'<p class="auth-error-detail">Error: {error}</p>',
+                error_message="Please try again."
+            )
 
             return HTMLResponse(content=html_content)
 
@@ -78,7 +82,7 @@ async def auth_callback(code: str = None, state: str = None, error: str = None):
             raise HTTPException(status_code=400, detail="Failed to create session")
 
         session_id = result
-        html_content = template_service.render_template("auth_success.html", session_id=session_id, device_id=device_info['device_id'])
+        html_content = template_service.render_template("html/auth_success.html", session_id=session_id, device_id=device_info['device_id'])
 
         return HTMLResponse(content=html_content)
 
@@ -87,7 +91,11 @@ async def auth_callback(code: str = None, state: str = None, error: str = None):
 
     except Exception as e:
         logger.error(f"Auth callback failed: {e}")
-        html_content = template_service.render_template("auth_error.html")
+        html_content = template_service.render_template(
+            "html/auth_error.html",
+            error_detail="",
+            error_message="An error occurred during authentication."
+        )
 
         return HTMLResponse(content=html_content)
 

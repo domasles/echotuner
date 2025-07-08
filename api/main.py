@@ -3,9 +3,11 @@ import logging
 import uvicorn
 import click
 import sys
+import re
 
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, Request
 
 from contextlib import asynccontextmanager
@@ -130,14 +132,25 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+app.mount("/static", StaticFiles(directory="templates"), name="static")
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     """Add security headers to all responses."""
     response = await call_next(request)
-    headers = security_config.get_security_headers()
-    
+
+    nonce = None
+
+    if hasattr(response, 'body') and b'nonce=' in response.body:
+        body_str = response.body.decode('utf-8')
+        nonce_match = re.search(r'nonce="([^"]+)"', body_str)
+
+        if nonce_match:
+            nonce = nonce_match.group(1)
+
+    headers = security_config.get_security_headers(nonce)
+
     for header, value in headers.items():
         response.headers[header] = value
 
