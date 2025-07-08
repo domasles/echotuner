@@ -2,28 +2,13 @@
 
 This guide will help you get the EchoTuner API running locally or with Docker.
 
-## Docker Setup (Recommended)
-
-The fastest way to get started is using Docker:
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd echotuner
-
-# Build and start with Docker Compose
-docker-compose up --build
-```
-
-The API will be available at `http://localhost:8000`
-
 ## Local Development Setup
 
 ### Prerequisites
 
-- Python 3.8+
-- pip or conda
-- Ollama (for local AI models) or cloud AI API keys
+- **Python 3.8+** with **pip** (for API development)
+- **Ollama** (for local AI models) or **Cloud AI** API keys
+- **Docker** (optional, for deployment)
 
 ### Installation
 
@@ -32,21 +17,30 @@ The API will be available at `http://localhost:8000`
     cd api
     ```
 
-2. **Install dependencies**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-3. **Configure environment**
+2. **Configure environment**
     ```bash
     cp .env.example .env
     # Edit .env file with your settings
+    ```
+
+3. **Install dependencies**
+    ```bash
+    pip install -r requirements.txt
     ```
 
 4. **Start the API**
     ```bash
     python main.py
     ```
+
+### Docker Deployment
+Docker deployment is the recommended approach for both development and production environments to ensure consistent builds and easy deployment.
+For that you'll need to have Docker and Docker Compose installed.
+After you've set up the app and the API, you can build and run it using Docker:
+
+```bash
+docker compose up --build
+```
 
 ## Configuration
 

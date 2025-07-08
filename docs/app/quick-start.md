@@ -9,6 +9,7 @@ This guide will help you get the EchoTuner Flutter app up and running quickly.
 - **Android Studio** (for Android development)
 - **Xcode** (for iOS development, macOS only)
 - **VS Code** with Flutter extension (recommended)
+- **Docker** (optional, for deployment)
 
 ## Installation
 
@@ -19,28 +20,33 @@ git clone <repository-url>
 cd echotuner/app
 ```
 
-### 2. Create project files
+### 2. Copy Necessary Files
+```bash
+cp .env.example .env  # Copy environment configuration
+cp AndroidManifest.xml.sample android/app/src/profile/AndroidManifest.xml  # Copy Android manifest
+```
+
+### 3. Create Project Files
 ```bash
 flutter create .
 ```
 
-### 3. Install Dependencies
-
+### 4. Install Dependencies
 ```bash
 flutter pub get
 ```
 
-### 4. Build JSON Serializers
+### 5. Build JSON Serializers
 ```bash
 dart run build_runner build --delete-conflicting-outputs
 ```
 
-### 5. Generate icons
+### 6. Generate Icons
 ```bash
 dart run flutter_launcher_icons
 ```
 
-### 6. Run the App
+### 7. Run the App
 
 #### Development Mode
 ```bash
@@ -62,42 +68,13 @@ flutter run -d chrome
 flutter run -d windows # or macos, linux
 ```
 
-## Project Structure
+## Docker Deployment
+Docker deployment is the recommended approach for production environments to ensure consistent builds and easy deployment.
+For that you'll need to have Docker and Docker Compose installed.
+After you've set up the app and the API, you can build and run it using Docker:
 
-```
-lib/
-├── main.dart                 # App entry point
-├── config/                   # Configuration files
-│   ├── api_config.dart      # API endpoints and settings
-│   ├── app_config.dart      # App-wide configuration
-│   └── theme_config.dart    # UI theme configuration
-├── models/                   # Data models
-│   ├── playlist.dart        # Playlist models
-│   ├── track.dart          # Track models
-│   ├── user.dart           # User models
-│   └── auth.dart           # Authentication models
-├── providers/               # State management (Provider pattern)
-│   ├── auth_provider.dart  # Authentication state
-│   ├── playlist_provider.dart # Playlist state
-│   └── theme_provider.dart # Theme state
-├── screens/                 # UI screens
-│   ├── auth/               # Authentication screens
-│   ├── home/               # Home screen
-│   ├── playlist/           # Playlist screens
-│   └── settings/           # Settings screens
-├── services/               # Business logic and API calls
-│   ├── api_service.dart    # API communication
-│   ├── auth_service.dart   # Authentication logic
-│   ├── spotify_service.dart # Spotify integration
-│   └── storage_service.dart # Local storage
-├── utils/                  # Utility functions
-│   ├── constants.dart      # App constants
-│   ├── helpers.dart        # Helper functions
-│   └── validators.dart     # Input validation
-└── widgets/                # Reusable UI components
-    ├── common/             # Common widgets
-    ├── playlist/           # Playlist-specific widgets
-    └── auth/               # Authentication widgets
+```bash
+docker compose up --build
 ```
 
 ## Key Features
