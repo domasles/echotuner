@@ -4,7 +4,7 @@ import logging
 
 from fastapi import HTTPException
 
-from core.models import SpotifyPlaylistRequest, SpotifyPlaylistResponse
+from core.models import SpotifyPlaylistRequest, SpotifyPlaylistResponse, SpotifyPlaylistTracksRequest, SpotifyPlaylistDeleteRequest, SpotifyPlaylistTrackRemoveRequest
 
 from services.spotify_playlist_service import spotify_playlist_service
 from services.playlist_draft_service import playlist_draft_service
@@ -100,14 +100,11 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
         logger.error(f"Failed to create Spotify playlist: {e}")
         raise HTTPException(status_code=500, detail="Failed to create Spotify playlist")
 
-async def get_spotify_playlist_tracks(playlist_id: str, session_id: str = None, device_id: str = None):
+async def get_spotify_playlist_tracks(request: SpotifyPlaylistTracksRequest):
     """Get tracks from a Spotify playlist."""
 
     try:
-        if not session_id or not device_id:
-            raise HTTPException(status_code=400, detail="session_id and device_id parameters required")
-
-        user_info = await auth_service.validate_session_and_get_user(session_id, device_id)
+        user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
 
         if not user_info:
             raise HTTPException(status_code=401, detail="Invalid or expired session")
@@ -115,12 +112,12 @@ async def get_spotify_playlist_tracks(playlist_id: str, session_id: str = None, 
         if not spotify_playlist_service.is_ready():
             raise HTTPException(status_code=503, detail="Spotify playlist service not available")
 
-        access_token = await auth_service.get_access_token(session_id)
+        access_token = await auth_service.get_access_token(request.session_id)
 
         if not access_token:
             raise HTTPException(status_code=401, detail="No valid access token")
 
-        tracks = await spotify_playlist_service.get_playlist_tracks(access_token, playlist_id)
+        tracks = await spotify_playlist_service.get_playlist_tracks(access_token, request.playlist_id)
 
         return {"tracks": tracks}
 
@@ -131,14 +128,11 @@ async def get_spotify_playlist_tracks(playlist_id: str, session_id: str = None, 
         logger.error(f"Failed to get Spotify playlist tracks: {e}")
         raise HTTPException(status_code=500, detail="Failed to get Spotify playlist tracks")
 
-async def delete_spotify_playlist(playlist_id: str, session_id: str = None, device_id: str = None):
+async def delete_spotify_playlist(request: SpotifyPlaylistDeleteRequest):
     """Delete/unfollow a Spotify playlist."""
 
     try:
-        if not session_id or not device_id:
-            raise HTTPException(status_code=400, detail="session_id and device_id parameters required")
-
-        user_info = await auth_service.validate_session_and_get_user(session_id, device_id)
+        user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
 
         if not user_info:
             raise HTTPException(status_code=401, detail="Invalid or expired session")
@@ -146,15 +140,15 @@ async def delete_spotify_playlist(playlist_id: str, session_id: str = None, devi
         if not spotify_playlist_service.is_ready():
             raise HTTPException(status_code=503, detail="Spotify playlist service not available")
 
-        access_token = await auth_service.get_access_token(session_id)
+        access_token = await auth_service.get_access_token(request.session_id)
 
         if not access_token:
             raise HTTPException(status_code=401, detail="No valid access token")
 
-        success = await spotify_playlist_service.delete_playlist(access_token, playlist_id)
+        success = await spotify_playlist_service.delete_playlist(access_token, request.playlist_id)
         
         if success:
-            await playlist_draft_service.remove_spotify_playlist_tracking(playlist_id)
+            await playlist_draft_service.remove_spotify_playlist_tracking(request.playlist_id)
             return {"message": "Playlist deleted/unfollowed successfully"}
 
         else:
@@ -164,19 +158,19 @@ async def delete_spotify_playlist(playlist_id: str, session_id: str = None, devi
         raise
 
     except Exception as e:
-        logger.error(f"Failed to delete Spotify playlist {playlist_id}: {e}")
+        logger.error(f"Failed to delete Spotify playlist {request.playlist_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete Spotify playlist")
 
-async def remove_track_from_spotify_playlist(playlist_id: str, track_uri: str, session_id: str = None, device_id: str = None):
+async def remove_track_from_spotify_playlist(request: SpotifyPlaylistTrackRemoveRequest):
     """Remove a track from a Spotify playlist."""
 
     try:
-        access_token = await auth_service.get_access_token(session_id)
+        access_token = await auth_service.get_access_token(request.session_id)
 
         if not access_token:
             raise HTTPException(status_code=401, detail="No valid access token")
 
-        success = await spotify_playlist_service.remove_track_from_playlist(access_token, playlist_id, track_uri)
+        success = await spotify_playlist_service.remove_track_from_playlist(access_token, request.playlist_id, request.track_uri)
 
         if success:
             return {"message": "Track removed successfully"}
@@ -188,5 +182,5 @@ async def remove_track_from_spotify_playlist(playlist_id: str, track_uri: str, s
         raise
 
     except Exception as e:
-        logger.error(f"Failed to remove track from Spotify playlist {playlist_id}: {e}")
+        logger.error(f"Failed to remove track from Spotify playlist {request.playlist_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to remove track from playlist")

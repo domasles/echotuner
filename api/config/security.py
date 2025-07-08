@@ -10,7 +10,7 @@ from config.settings import settings
 logger = logging.getLogger(__name__)
 
 class SecurityConfig:
-    def get_security_headers():
+    def get_security_headers(self):
         """Get security headers for production deployment."""
 
         if settings.SECURE_HEADERS:
@@ -25,7 +25,7 @@ class SecurityConfig:
 
         return {}
 
-    def validate_production_readiness():
+    def validate_production_readiness(self):
         """Validate that the API is ready for production deployment."""
 
         issues = []

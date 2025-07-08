@@ -28,14 +28,18 @@ Create a Spotify playlist from a draft.
 }
 ```
 
-## GET /spotify/playlist/{playlist_id}/tracks
+## POST /spotify/playlist/tracks
 
 Get tracks from a Spotify playlist.
 
-**Parameters:**
-- `playlist_id` (path): Spotify playlist ID
-- `session_id` (query): Session ID
-- `device_id` (query): Device ID
+**Request Body:**
+```json
+{
+    "playlist_id": "string",
+    "session_id": "string",
+    "device_id": "string"
+}
+```
 
 **Response:**
 ```json
@@ -55,14 +59,18 @@ Get tracks from a Spotify playlist.
 }
 ```
 
-## DELETE /spotify/playlist/{playlist_id}
+## DELETE /spotify/playlist
 
 Delete or unfollow a Spotify playlist.
 
-**Parameters:**
-- `playlist_id` (path): Spotify playlist ID
-- `session_id` (query): Session ID
-- `device_id` (query): Device ID
+**Request Body:**
+```json
+{
+    "playlist_id": "string",
+    "session_id": "string",
+    "device_id": "string"
+}
+```
 
 **Response:**
 ```json
@@ -72,15 +80,19 @@ Delete or unfollow a Spotify playlist.
 }
 ```
 
-## DELETE /spotify/playlist/{playlist_id}/track
+## DELETE /spotify/playlist/track
 
 Remove a track from a Spotify playlist.
 
-**Parameters:**
-- `playlist_id` (path): Spotify playlist ID
-- `track_uri` (query): Spotify track URI
-- `session_id` (query): Session ID
-- `device_id` (query): Device ID
+**Request Body:**
+```json
+{
+    "playlist_id": "string",
+    "track_uri": "string",
+    "session_id": "string",
+    "device_id": "string"
+}
+```
 
 **Response:**
 ```json

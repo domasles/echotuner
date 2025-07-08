@@ -187,3 +187,23 @@ class DemoPlaylistRefinementsRequest(BaseModel):
     playlist_id: str
     device_id: str
     session_id: str
+
+class PlaylistDraftRequest(BaseModel):
+    playlist_id: str
+    device_id: str
+
+class SpotifyPlaylistTracksRequest(BaseModel):
+    playlist_id: str
+    session_id: str
+    device_id: str
+
+class SpotifyPlaylistDeleteRequest(BaseModel):
+    playlist_id: str
+    session_id: str
+    device_id: str
+
+class SpotifyPlaylistTrackRemoveRequest(BaseModel):
+    playlist_id: str
+    track_uri: str
+    session_id: str
+    device_id: str

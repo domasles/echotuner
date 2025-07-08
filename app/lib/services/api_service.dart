@@ -290,8 +290,15 @@ class ApiService {
     }
 
     Future<PlaylistDraft> getDraftPlaylist(String playlistId, String deviceId) async {
-        final response = await _client.get(
-            Uri.parse(AppConfig.apiUrl('/drafts/$playlistId?device_id=$deviceId')),
+        final response = await _client.post(
+            Uri.parse(AppConfig.apiUrl('/playlist/drafts')),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+                'playlist_id': playlistId,
+                'device_id': deviceId,
+            }),
         );
 
         if (response.statusCode == 200) {
@@ -318,7 +325,14 @@ class ApiService {
 
     Future<bool> deleteDraftPlaylist(String playlistId, String deviceId) async {
         final response = await _client.delete(
-            Uri.parse(AppConfig.apiUrl('/drafts/$playlistId?device_id=$deviceId')),
+            Uri.parse(AppConfig.apiUrl('/playlist/drafts')),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+                'playlist_id': playlistId,
+                'device_id': deviceId,
+            }),
         );
 
         if (response.statusCode == 401) {
@@ -331,7 +345,15 @@ class ApiService {
 
     Future<bool> deleteSpotifyPlaylist(String playlistId, String sessionId, String deviceId) async {
         final response = await _client.delete(
-            Uri.parse(AppConfig.apiUrl('/spotify/playlist/$playlistId?session_id=$sessionId&device_id=$deviceId')),
+            Uri.parse(AppConfig.apiUrl('/spotify/playlist')),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+                'playlist_id': playlistId,
+                'session_id': sessionId,
+                'device_id': deviceId,
+            }),
         );
 
         if (response.statusCode == 401) {
@@ -344,7 +366,16 @@ class ApiService {
 
     Future<bool> removeTrackFromSpotifyPlaylist(String playlistId, String trackUri, String sessionId, String deviceId) async {
         final response = await _client.delete(
-            Uri.parse(AppConfig.apiUrl('/spotify/playlist/$playlistId/tracks/$trackUri?session_id=$sessionId&device_id=$deviceId')),
+            Uri.parse(AppConfig.apiUrl('/spotify/playlist/track')),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+                'playlist_id': playlistId,
+                'track_uri': trackUri,
+                'session_id': sessionId,
+                'device_id': deviceId,
+            }),
         );
 
         if (response.statusCode == 401) {
@@ -356,8 +387,16 @@ class ApiService {
     }
 
     Future<List<Map<String, dynamic>>> getSpotifyPlaylistTracks(String playlistId, String sessionId, String deviceId) async {
-        final response = await _client.get(
-            Uri.parse(AppConfig.apiUrl('/spotify/playlist/$playlistId/tracks?session_id=$sessionId&device_id=$deviceId')),
+        final response = await _client.post(
+            Uri.parse(AppConfig.apiUrl('/spotify/playlist/tracks')),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+                'playlist_id': playlistId,
+                'session_id': sessionId,
+                'device_id': deviceId,
+            }),
         );
 
         if (response.statusCode == 200) {

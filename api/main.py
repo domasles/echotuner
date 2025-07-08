@@ -262,17 +262,17 @@ async def get_library_playlists_endpoint(request: LibraryPlaylistsRequest):
 
     return await get_library_playlists(request)
 
-@app.get("/playlist/drafts/{playlist_id}")
-async def get_draft_playlist_endpoint(playlist_id: str, device_id: str = None):
+@app.post("/playlist/drafts")
+async def get_draft_playlist_endpoint(request: PlaylistDraftRequest):
     """Get a specific draft playlist."""
 
-    return await get_draft_playlist(playlist_id, device_id)
+    return await get_draft_playlist(request)
 
-@app.delete("/playlist/drafts/{playlist_id}")
-async def delete_draft_playlist_endpoint(playlist_id: str, device_id: str = None):
+@app.delete("/playlist/drafts")
+async def delete_draft_playlist_endpoint(request: PlaylistDraftRequest):
     """Delete a draft playlist."""
 
-    return await delete_draft_playlist(playlist_id, device_id)
+    return await delete_draft_playlist(request)
 
 @app.post("/spotify/create-playlist", response_model=SpotifyPlaylistResponse)
 async def create_spotify_playlist_endpoint(request: SpotifyPlaylistRequest):
@@ -280,17 +280,17 @@ async def create_spotify_playlist_endpoint(request: SpotifyPlaylistRequest):
 
     return await create_spotify_playlist(request)
 
-@app.get("/spotify/playlist/{playlist_id}/tracks")
-async def get_spotify_playlist_tracks_endpoint(playlist_id: str, session_id: str = None, device_id: str = None):
+@app.post("/spotify/playlist/tracks")
+async def get_spotify_playlist_tracks_endpoint(request: SpotifyPlaylistTracksRequest):
     """Get tracks from a Spotify playlist."""
 
-    return await get_spotify_playlist_tracks(playlist_id, session_id, device_id)
+    return await get_spotify_playlist_tracks(request)
 
-@app.delete("/spotify/playlist/{playlist_id}")
-async def delete_spotify_playlist_endpoint(playlist_id: str, session_id: str = None, device_id: str = None):
+@app.delete("/spotify/playlist")
+async def delete_spotify_playlist_endpoint(request: SpotifyPlaylistDeleteRequest):
     """Delete/unfollow a Spotify playlist."""
 
-    return await delete_spotify_playlist(playlist_id, session_id, device_id)
+    return await delete_spotify_playlist(request)
 
 @app.post("/personality/save", response_model=UserPersonalityResponse)
 async def save_user_personality_endpoint(request: UserPersonalityRequest):
@@ -321,11 +321,11 @@ async def search_artists_endpoint(request: ArtistSearchRequest):
 
     return await search_artists(request)
 
-@app.delete("/spotify/playlist/{playlist_id}/track")
-async def remove_track_from_spotify_playlist_endpoint(playlist_id: str, track_uri: str, session_id: str = None, device_id: str = None):
+@app.delete("/spotify/playlist/track")
+async def remove_track_from_spotify_playlist_endpoint(request: SpotifyPlaylistTrackRemoveRequest):
     """Remove a track from a Spotify playlist."""
 
-    return await remove_track_from_spotify_playlist(playlist_id, track_uri, session_id, device_id)
+    return await remove_track_from_spotify_playlist(request)
     
 @app.get("/ai/models")
 @debug_only

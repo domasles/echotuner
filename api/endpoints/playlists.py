@@ -6,7 +6,7 @@ import re
 
 from fastapi import HTTPException
 
-from core.models import PlaylistRequest, PlaylistResponse, LibraryPlaylistsRequest, LibraryPlaylistsResponse, SpotifyPlaylistInfo
+from core.models import PlaylistRequest, PlaylistResponse, LibraryPlaylistsRequest, LibraryPlaylistsResponse, SpotifyPlaylistInfo, PlaylistDraftRequest
 
 from services.spotify_playlist_service import spotify_playlist_service
 from services.playlist_generator import playlist_generator_service
@@ -418,19 +418,16 @@ async def get_library_playlists(request: LibraryPlaylistsRequest):
         logger.error(f"Failed to get library playlists: {e}")
         raise HTTPException(status_code=500, detail="Failed to get library playlists")
 
-async def get_draft_playlist(playlist_id: str, device_id: str = None):
+async def get_draft_playlist(request: PlaylistDraftRequest):
     """Get a specific draft playlist."""
 
     try:
-        if not device_id:
-            raise HTTPException(status_code=400, detail="device_id parameter required")
-
-        draft = await playlist_draft_service.get_draft(playlist_id)
+        draft = await playlist_draft_service.get_draft(request.playlist_id)
 
         if not draft:
             raise HTTPException(status_code=404, detail="Draft playlist not found")
 
-        if draft.device_id != device_id:
+        if draft.device_id != request.device_id:
             raise HTTPException(status_code=403, detail="Access denied")
 
         return draft
@@ -439,28 +436,25 @@ async def get_draft_playlist(playlist_id: str, device_id: str = None):
         raise
 
     except Exception as e:
-        logger.error(f"Failed to get draft playlist {playlist_id}: {e}")
+        logger.error(f"Failed to get draft playlist {request.playlist_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to get draft playlist")
 
-async def delete_draft_playlist(playlist_id: str, device_id: str = None):
+async def delete_draft_playlist(request: PlaylistDraftRequest):
     """Delete a draft playlist."""
 
     try:
-        if not device_id:
-            raise HTTPException(status_code=400, detail="device_id parameter required")
-
-        draft = await playlist_draft_service.get_draft(playlist_id)
+        draft = await playlist_draft_service.get_draft(request.playlist_id)
 
         if not draft:
             raise HTTPException(status_code=404, detail="Draft playlist not found")
 
-        if draft.device_id != device_id:
+        if draft.device_id != request.device_id:
             raise HTTPException(status_code=403, detail="Access denied")
 
         if draft.status != "draft":
             raise HTTPException(status_code=400, detail="Can only delete draft playlists")
 
-        success = await playlist_draft_service.delete_draft(playlist_id)
+        success = await playlist_draft_service.delete_draft(request.playlist_id)
 
         if success:
             return {"message": "Draft playlist deleted successfully"}
@@ -472,5 +466,5 @@ async def delete_draft_playlist(playlist_id: str, device_id: str = None):
         raise
 
     except Exception as e:
-        logger.error(f"Failed to delete draft playlist {playlist_id}: {e}")
+        logger.error(f"Failed to delete draft playlist {request.playlist_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete draft playlist")

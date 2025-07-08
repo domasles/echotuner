@@ -123,15 +123,17 @@ Update playlist draft without AI refinement (no refinement count increase).
 
 ## Draft Management
 
-### GET `/playlist/drafts/{playlist_id}`
+### POST `/playlist/drafts`
 
 Get a specific draft playlist.
 
-**Path Parameters:**
-- `playlist_id`: UUID of the playlist draft
-
-**Query Parameters:**
-- `device_id`: Device identifier (optional)
+**Request Body:**
+```json
+{
+    "playlist_id": "uuid-playlist-id",
+    "device_id": "string"
+}
+```
 
 **Response:**
 ```json
@@ -151,15 +153,17 @@ Get a specific draft playlist.
 }
 ```
 
-### DELETE `/playlist/drafts/{playlist_id}`
+### DELETE `/playlist/drafts`
 
 Delete a draft playlist.
 
-**Path Parameters:**
-- `playlist_id`: UUID of the playlist draft
-
-**Query Parameters:**
-- `device_id`: Device identifier (optional)
+**Request Body:**
+```json
+{
+    "playlist_id": "uuid-playlist-id",
+    "device_id": "string"
+}
+```
 
 **Response:**
 ```json

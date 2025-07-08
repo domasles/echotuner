@@ -24,9 +24,9 @@ Get client configuration values and API information.
         "auth_init": "/auth/init",
         "auth_callback": "/auth/callback",
         "auth_validate": "/auth/validate",
-        "library": "/library/playlists",
+        "library": "/playlist/library",
         "add_to_spotify": "/spotify/create-playlist",
-        "get_draft": "/playlist/drafts/{playlist_id}"
+        "get_draft": "/playlist/drafts"
     }
 }
 ```
