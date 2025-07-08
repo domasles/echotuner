@@ -266,7 +266,7 @@ class ApiService {
 
     Future<LibraryPlaylistsResponse> getLibraryPlaylists(LibraryPlaylistsRequest request) async {
         final response = await _client.post(
-            Uri.parse(AppConfig.apiUrl('/library/playlists')),
+            Uri.parse(AppConfig.apiUrl('/playlist/library')),
 
             headers: {
                 'Content-Type': 'application/json',

@@ -3,13 +3,9 @@ Template service.
 This service is responsible for loading and rendering HTML templates.
 """
 
-import logging
-
 from pathlib import Path
 
 from core.singleton import SingletonServiceBase
-
-logger = logging.getLogger(__name__)
 
 class TemplateService(SingletonServiceBase):
     """Service for loading and rendering HTML templates"""

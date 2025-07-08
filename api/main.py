@@ -14,6 +14,7 @@ from pathlib import Path
 from core.models import *
 
 from config.app_constants import app_constants
+from config.security import security_config
 from config.settings import settings
 
 from services.spotify_playlist_service import spotify_playlist_service
@@ -26,11 +27,9 @@ from services.database_service import db_service
 from services.data_service import data_loader
 from services.ai_service import ai_service
 
-from services.security import get_security_headers
+from utils.decorators import *
 
 from endpoints import *
-
-from utils.decorators import *
 
 class CustomFormatter(logging.Formatter):
     def format(self, record):
@@ -137,7 +136,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 async def add_security_headers(request: Request, call_next):
     """Add security headers to all responses."""
     response = await call_next(request)
-    headers = get_security_headers()
+    headers = security_config.get_security_headers()
     
     for header, value in headers.items():
         response.headers[header] = value
@@ -193,12 +192,6 @@ async def register_device_endpoint(request: DeviceRegistrationRequest):
     """Register a new device"""
 
     return await register_device(request)
-
-@app.get("/auth/mode")
-async def get_auth_mode_endpoint():
-    """Get current authentication mode"""
-
-    return await get_auth_mode()
 
 @app.post("/auth/demo-playlist-refinements")
 async def get_demo_playlist_refinements_endpoint(request: DemoPlaylistRefinementsRequest):

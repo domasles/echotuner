@@ -24,6 +24,7 @@ class AuthMiddleware(SingletonServiceBase):
         """Initialize the AuthMiddleware with the AuthService."""
 
         self.auth_service = auth_service
+        self._log_initialization("Auth middleware initialized successfully", logger)
 
     async def validate_session_from_headers(self, request: Request) -> Dict[str, str]:
         session_id = request.headers.get('session_id')

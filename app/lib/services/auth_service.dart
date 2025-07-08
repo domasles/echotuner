@@ -37,13 +37,11 @@ class AuthService extends ChangeNotifier {
             AppLogger.debug('Auth initialization - Device ID: ${_deviceId?.substring(0, 20)}..., Session ID: ${_sessionId?.substring(0, 20)}...');
 
             if (_sessionId != null && _deviceId != null) {
-                final modeResponse = await http.get(
-                    Uri.parse(AppConfig.apiUrl('/auth/mode')),
-                );
+                final modeResponse = await http.get(Uri.parse(AppConfig.apiUrl('/server/mode')));
                 
                 if (modeResponse.statusCode == 200) {
                     final mode = jsonDecode(modeResponse.body);
-                    final isDemo = mode['demo'] as bool;
+                    final isDemo = mode['demo_mode'] as bool;
                     
                     await _validateSessionMode(isDemo);
                 }
@@ -315,12 +313,12 @@ class AuthService extends ChangeNotifier {
 
         try {
             final modeResponse = await http.get(
-                Uri.parse(AppConfig.apiUrl('/auth/mode')),
+                Uri.parse(AppConfig.apiUrl('/server/mode')),
             );
 
             if (modeResponse.statusCode == 200) {
                 final mode = jsonDecode(modeResponse.body);
-                final isDemo = mode['demo'] as bool;
+                final isDemo = mode['demo_mode'] as bool;
 
                 await _validateSessionMode(isDemo);
             }

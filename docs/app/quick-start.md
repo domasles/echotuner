@@ -19,13 +19,28 @@ git clone <repository-url>
 cd echotuner/app
 ```
 
-### 2. Install Dependencies
+### 2. Create project files
+```bash
+flutter create .
+```
+
+### 3. Install Dependencies
 
 ```bash
 flutter pub get
 ```
 
-### 3. Run the App
+### 4. Build JSON Serializers
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+### 5. Generate icons
+```bash
+dart run flutter_launcher_icons
+```
+
+### 6. Run the App
 
 #### Development Mode
 ```bash

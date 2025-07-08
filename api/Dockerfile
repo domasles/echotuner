@@ -13,7 +13,9 @@ COPY . .
 RUN python setup.py
 
 # Create non-root user (use adduser for Alpine)
-RUN adduser -D -s /bin/sh echotuner && chown -R echotuner:echotuner /api
+RUN adduser -D -s /bin/sh echotuner
+RUN chown -R echotuner:echotuner /api
+
 USER echotuner
 EXPOSE 8000
 

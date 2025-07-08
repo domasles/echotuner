@@ -167,9 +167,11 @@ class PlaylistProvider extends ChangeNotifier {
 
     Future<bool> _isDemoAccount() async {
         try {
-            final response = await _apiService.get('/auth/mode');
-            return response['demo'] as bool? ?? false;
-        } catch (e) {
+            final response = await _apiService.get('/server/mode');
+            return response['demo_mode'] as bool? ?? false;
+        }
+		
+		catch (e) {
             AppLogger.debug('Failed to check demo mode: $e');
             return false;
         }

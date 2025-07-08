@@ -1,10 +1,12 @@
 """AI-related endpoint implementations"""
 
 import logging
+
 from fastapi import HTTPException
 
+from config.security import security_config
+
 from services.ai_service import ai_service
-from services.security import validate_production_readiness
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +48,7 @@ async def test_ai_model(request):
 async def production_readiness_check():
     """Check if the API is ready for production deployment"""
 
-    issues = validate_production_readiness()
+    issues = security_config.validate_production_readiness()
 
     return {
         "production_ready": len(issues) == 0,

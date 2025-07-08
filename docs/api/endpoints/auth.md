@@ -125,19 +125,6 @@ Register a new device with the system.
 }
 ```
 
-### GET `/auth/mode`
-
-Get current authentication mode.
-
-**Response:**
-```json
-{
-    "mode": "demo|normal",
-    "auth_required": true,
-    "demo_info": "Demo mode uses shared account"
-}
-```
-
 ### POST `/auth/demo-playlist-refinements`
 
 Get refinement count for demo playlists.
