@@ -12,7 +12,9 @@ class WebEnvironment implements Environment {
                     return env[key] as String?;
                 }
             }
-        } catch (_) {
+        }
+		
+		catch (_) {
             // Ignore errors silently
         }
 
