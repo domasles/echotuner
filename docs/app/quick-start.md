@@ -69,13 +69,27 @@ flutter run -d windows # or macos, linux
 ```
 
 ## Docker Deployment
-Docker deployment is the recommended approach for production environments to ensure consistent builds and easy deployment.
-For that you'll need to have Docker and Docker Compose installed.
-After you've set up the app and the API, you can build and run it using Docker:
+
+EchoTuner provides two deployment options for the web app:
+
+### Option 1: Pre-built Images (Recommended)
+
+Uses pre-built images from GitHub Container Registry:
 
 ```bash
+docker compose up -d
+```
+
+### Option 2: Local Build
+
+Build the containers locally:
+
+```bash
+# Replace 'image:' sections with 'build:' sections in the docker-compose.yml file
 docker compose up --build
 ```
+
+**Note**: The default docker-compose.yml uses pre-built GHCR images. Docker deployment serves both the Flutter web app and the API, and is recommended for production environments.
 
 ## Key Features
 

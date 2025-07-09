@@ -1,49 +1,55 @@
+# EchoTuner Docker Compose Configuration
+# This configuration uses pre-built images from Github Container Registry (GHCR).
+# To use local builds instead, replace 'image:' with 'build:' sections already provided, but commented.
+
 services:
-    # API Backend Service
-    api:
-        build:
-            context: ./api
-            dockerfile: Dockerfile
+  # API Backend Service
+  api:
+    # build:
+    #   context: ./api
+    #   dockerfile: Dockerfile
 
-        ports:
-            - "0.0.0.0:8000:8000"
+    image: ghcr.io/domasles/echotuner/echotuner-api:latest
+    container_name: echotuner-api
 
-        env_file:
-            - ./api/.env
+    ports:
+      - "0.0.0.0:8000:8000"
 
-        volumes:
-            - ./api:/api
+    env_file:
+      - ./api/.env
 
-        # Use host.docker.internal to access host services like Ollama
-        extra_hosts:
-            - "host.docker.internal:host-gateway"
+    volumes:
+      - ./api:/api
 
-        restart: unless-stopped
+    # Use host.docker.internal to access host services like Ollama
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
-    # Web App Service
-    webapp:
-        build:
-            context: ./app
-            dockerfile: Dockerfile
+    restart: unless-stopped
 
-        ports:
-            - "0.0.0.0:80:80"
+  # Web App Service
+  webapp:
+    # build:
+    #   context: ./app
+    #   dockerfile: Dockerfile
 
-        env_file:
-            - ./app/.env
+    image: ghcr.io/domasles/echotuner/echotuner-webapp:latest
+    container_name: echotuner-webapp
 
-        restart: unless-stopped
+    ports:
+      - "0.0.0.0:80:80"
 
-    # Full Stack (launches both services)
-    full:
-        image: hello-world
+    env_file:
+      - ./app/.env
 
-        depends_on:
-            - api
-            - webapp
+    restart: unless-stopped
 
-        profiles: ["full"]
+  # Full Stack (launches both services)
+  full:
+    image: hello-world
 
-volumes:
-    api-data:
-    api-logs:
+    depends_on:
+      - api
+      - webapp
+
+    profiles: ["full"]

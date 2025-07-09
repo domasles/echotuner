@@ -101,10 +101,7 @@ LOG_LEVEL=WARNING
 
 ```env
 # Security Headers and CORS
-SECRET_KEY=your-256-bit-secret-key              # Used for session signing
 SECURE_HEADERS=true                             # Enable security headers
-CORS_ENABLED=true                               # Enable CORS middleware
-ALLOWED_ORIGINS=https://yourapp.com,https://app.yourapp.com  # CORS origins
 ```
 
 **Security Key Generation:**
@@ -192,80 +189,6 @@ AUTH_ATTEMPT_TIMEOUT=300                       # Auth attempt timeout (5 minutes
 DEVICE_REGISTRATION_TIMEOUT=1800               # Device registration timeout
 ```
 
-## Environment-Specific Configurations
-
-### Development Environment
-
-```env
-# Development .env
-DEBUG=true
-LOG_LEVEL=DEBUG
-API_HOST=0.0.0.0
-API_PORT=8000
-DEMO=true
-
-# Use local Ollama for development
-AI_PROVIDER=ollama
-AI_ENDPOINT=http://localhost:11434
-AI_GENERATION_MODEL=phi3:mini
-
-# Relaxed rate limiting
-PLAYLIST_LIMIT_ENABLED=false
-REFINEMENT_LIMIT_ENABLED=false
-AUTH_REQUIRED=false
-
-# Development Spotify (optional)
-SPOTIFY_CLIENT_ID=your_dev_spotify_client_id
-SPOTIFY_CLIENT_SECRET=your_dev_spotify_client_secret
-SPOTIFY_REDIRECT_URI=http://localhost:8000/auth/callback
-```
-
-### Production Environment
-
-```env
-# Production .env
-DEBUG=false
-LOG_LEVEL=WARNING
-API_HOST=0.0.0.0
-API_PORT=8000
-DEMO=false
-
-# Production AI provider
-AI_PROVIDER=openai
-CLOUD_API_KEY=your_production_openai_key
-
-# Production Spotify
-SPOTIFY_CLIENT_ID=your_production_spotify_client_id
-SPOTIFY_CLIENT_SECRET=your_production_spotify_client_secret
-SPOTIFY_REDIRECT_URI=https://yourdomain.com/auth/callback
-
-# Production rate limiting
-PLAYLIST_LIMIT_ENABLED=true
-REFINEMENT_LIMIT_ENABLED=true
-MAX_PLAYLISTS_PER_DAY=10
-MAX_REFINEMENTS_PER_PLAYLIST=3
-AUTH_REQUIRED=true
-
-# Security
-SECURE_HEADERS=true
-```
-
-### Docker Environment
-
-```env
-# Docker .env
-API_HOST=0.0.0.0
-API_PORT=8000
-DATABASE_URL=sqlite:///./data/echotuner.db
-
-# Use host network for Ollama
-OLLAMA_BASE_URL=http://host.docker.internal:11434
-
-# Docker-specific paths
-STATIC_FILES_DIR=/app/static
-UPLOAD_DIR=/app/uploads
-```
-
 ## Configuration Validation
 
 The API automatically validates required configuration on startup:
@@ -276,7 +199,6 @@ These settings must be configured for the API to start:
 
 ```env
 # Always required
-SECRET_KEY=your-secret-key
 SPOTIFY_CLIENT_ID=your-spotify-client-id
 SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
 

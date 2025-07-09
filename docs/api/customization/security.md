@@ -80,14 +80,6 @@ Sessions are managed in `services/auth_service.py`:
 - Demo sessions are handled separately
 - Device-specific authentication state
 
-### Environment Variables
-
-```env
-AUTH_REQUIRED=true
-SECRET_KEY=your-secret-key-here
-DEMO=false
-```
-
 ## Database Security
 
 The database service includes cleanup methods for:

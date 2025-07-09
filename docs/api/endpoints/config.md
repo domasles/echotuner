@@ -90,57 +90,16 @@ Check if the API is ready for production deployment.
 ```json
 {
     "production_ready": true,
-    "checks": {
-        "debug_mode": {
-            "status": "pass",
-            "value": false,
-            "requirement": "DEBUG should be false"
-        },
-        "secret_keys": {
-            "status": "pass",
-            "requirement": "All secrets properly configured"
-        },
-        "database": {
-            "status": "pass",
-            "requirement": "Database accessible and writeable"
-        },
-        "ai_provider": {
-            "status": "pass",
-            "requirement": "AI provider responding"
-        },
-        "spotify_config": {
-            "status": "pass",
-            "requirement": "Spotify credentials valid"
-        },
-        "security_headers": {
-            "status": "pass",
-            "requirement": "Security headers enabled"
-        },
-        "rate_limiting": {
-            "status": "pass",
-            "requirement": "Rate limiting configured"
-        }
-    },
-    "warnings": [],
+    "issues": [],
     "recommendations": [
-        "Consider enabling SSL termination with reverse proxy",
-        "Set up monitoring and alerting"
+        "Set DEBUG=false in production",
+        "Enable AUTH_REQUIRED=true",
+        "Enable SECURE_HEADERS=true",
+        "Configure rate limiting",
+        "Use HTTPS in production",
+        "Set up proper logging",
+        "Configure monitoring"
     ]
-}
-```
-
-**Failed Check Example:**
-```json
-{
-    "production_ready": false,
-    "checks": {
-        "debug_mode": {
-            "status": "fail",
-            "value": true,
-            "requirement": "DEBUG should be false",
-            "action": "Set DEBUG=false in environment"
-        }
-    }
 }
 ```
 
