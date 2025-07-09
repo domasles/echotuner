@@ -48,6 +48,8 @@ dart run flutter_launcher_icons
 
 ### 7. Run the App
 
+**Note**: include `.env` file in your pubspec.yml assets section if you want to use a `.env` file for a local/standalone Flutter build
+
 #### Development Mode
 ```bash
 flutter run
@@ -85,7 +87,7 @@ docker compose up -d
 Build the containers locally:
 
 ```bash
-# Replace 'image:' sections with 'build:' sections in the docker-compose.yml file
+# To use local builds instead, use docker compose up --build.
 docker compose up --build
 ```
 

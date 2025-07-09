@@ -50,7 +50,7 @@ docker compose up -d
 Build the containers locally:
 
 ```bash
-# Replace 'image:' sections with 'build:' sections in the docker-compose.yml file
+# To use local builds instead, use docker compose up --build.
 docker compose up --build
 ```
 

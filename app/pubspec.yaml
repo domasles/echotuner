@@ -11,6 +11,7 @@ dependencies:
     flutter:
         sdk: flutter
 
+    web: ^1.1.1
     http: ^1.4.0
     provider: ^6.1.5
 
@@ -41,7 +42,8 @@ flutter:
     uses-material-design: true
 
     assets:
-        - .env
+        # Uncomment this if you want to use .env file for a local/standalone Flutter build
+        # - .env
 
         - assets/logos/EchoTunerLogo.svg
         - assets/logos/SpotifyLogo.svg

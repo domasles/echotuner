@@ -1,13 +1,13 @@
 # EchoTuner Docker Compose Configuration
 # This configuration uses pre-built images from Github Container Registry (GHCR).
-# To use local builds instead, replace 'image:' with 'build:' sections already provided, but commented.
+# To use local builds instead, use docker compose up --build.
 
 services:
   # API Backend Service
   api:
-    # build:
-    #   context: ./api
-    #   dockerfile: Dockerfile
+    build:
+      context: ./api
+      dockerfile: Dockerfile
 
     image: ghcr.io/domasles/echotuner/echotuner-api:latest
     container_name: echotuner-api
@@ -29,9 +29,9 @@ services:
 
   # Web App Service
   webapp:
-    # build:
-    #   context: ./app
-    #   dockerfile: Dockerfile
+    build:
+      context: ./app
+      dockerfile: Dockerfile
 
     image: ghcr.io/domasles/echotuner/echotuner-webapp:latest
     container_name: echotuner-webapp

@@ -28,6 +28,7 @@ RUN dart run build_runner build --delete-conflicting-outputs
 RUN dart run flutter_launcher_icons
 
 RUN flutter build web --release
+RUN sed -i '/<head>/a <script src="env-config.js"></script>' /app/build/web/index.html
 
 # Production stage with Nginx
 FROM nginx:1.27-alpine
@@ -37,6 +38,10 @@ COPY --from=flutter-builder /app/build/web /usr/share/nginx/html
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY entrypoint.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/entrypoint.sh"]
