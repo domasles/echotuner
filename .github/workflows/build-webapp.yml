@@ -1,4 +1,4 @@
-name: Build and Push EchoTuner's web app Docker Image
+name: Build and Push web app Docker Image
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GHCR_TOKEN }}
 
-    - name: Extract metadata (tags, labels) for the web app
+    - name: Extract metadata (tags, labels) for web app
       id: meta
       uses: docker/metadata-action@v5
       with:
@@ -48,7 +48,7 @@ jobs:
           org.opencontainers.image.revision=${{ github.sha }}
           org.opencontainers.image.source=${{ github.event.repository.clone_url }}
 
-    - name: Build and push web app's Docker image
+    - name: Build and push web app Docker image
       uses: docker/build-push-action@v5
       with:
         context: ./app
