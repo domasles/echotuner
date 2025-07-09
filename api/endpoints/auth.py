@@ -31,6 +31,7 @@ async def auth_init(request: AuthInitRequest):
 
         if settings.DEMO:
             device_id = f"demo_user_{int(datetime.now().timestamp() * 1000)}"
+
         else:
             device_id = str(uuid.uuid4())
 
@@ -60,6 +61,7 @@ async def auth_callback(code: str = None, state: str = None, error: str = None):
     try:
         if error:
             logger.warning(f"OAuth error: {error}")
+
             html_content = template_service.render_template(
                 "html/auth_error.html", 
                 error_detail=f'<p class="auth-error-detail">Error: {error}</p>',
@@ -91,6 +93,7 @@ async def auth_callback(code: str = None, state: str = None, error: str = None):
 
     except Exception as e:
         logger.error(f"Auth callback failed: {e}")
+
         html_content = template_service.render_template(
             "html/auth_error.html",
             error_detail="",

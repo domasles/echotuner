@@ -12,15 +12,17 @@ SECURE_HEADERS=true
 
 ### Available Security Headers
 
-The following headers are applied by the `get_security_headers()` function in `services/security.py`:
+The following headers are applied by the `get_security_headers()` function in `config/security.py`:
 
 ```python
+script_src = f"'self' 'nonce-{nonce}'" if nonce else "'self'"
+
 {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY", 
     "X-XSS-Protection": "1; mode=block",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-    "Content-Security-Policy": "default-src 'self'",
+    "Content-Security-Policy": "default-src 'self'; style-src 'self'; script-src {script_src}",
     "Referrer-Policy": "strict-origin-when-cross-origin"
 }
 ```
@@ -107,6 +109,7 @@ These run automatically to maintain database hygiene.
 ```python
 # services/security_logger.py
 import logging
+
 from typing import Dict, Any
 from fastapi import Request
 
@@ -116,6 +119,7 @@ class SecurityLogger:
     @staticmethod
     def log_auth_attempt(request: Request, success: bool, user_id: Optional[str] = None):
         """Log authentication attempts."""
+
         security_logger.info(
             "Auth attempt",
             extra={
@@ -131,6 +135,7 @@ class SecurityLogger:
     @staticmethod
     def log_rate_limit_exceeded(request: Request, endpoint: str):
         """Log rate limit violations."""
+
         security_logger.warning(
             "Rate limit exceeded",
             extra={
@@ -145,6 +150,7 @@ class SecurityLogger:
     @staticmethod
     def log_suspicious_activity(request: Request, reason: str, details: Dict[str, Any]):
         """Log suspicious activities."""
+
         security_logger.error(
             f"Suspicious activity: {reason}",
             extra={
@@ -167,6 +173,7 @@ class RateLimitMonitor:
     
     async def record_request(self, identifier: str, endpoint: str):
         """Record request for monitoring."""
+
         key = f"{identifier}:{endpoint}"
         if key not in self.usage_stats:
             self.usage_stats[key] = {"count": 0, "last_request": time.time()}
@@ -176,17 +183,15 @@ class RateLimitMonitor:
     
     def get_top_users(self, limit: int = 10) -> List[Dict]:
         """Get users with highest request counts."""
+
         sorted_users = sorted(
             self.usage_stats.items(),
             key=lambda x: x[1]["count"],
             reverse=True
         )
+
         return [
             {"identifier": k, "requests": v["count"], "last_request": v["last_request"]}
             for k, v in sorted_users[:limit]
         ]
 ```
-
-## Deployment Security
-
-

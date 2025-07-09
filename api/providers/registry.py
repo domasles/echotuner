@@ -44,8 +44,10 @@ class ProviderRegistry:
                 module = importlib.import_module(f"providers.{module_name}")
 
                 for name, obj in inspect.getmembers(module, inspect.isclass):
-                    if (issubclass(obj, BaseAIProvider) and obj != (BaseAIProvider or CustomProvider or AdvancedCustomProvider)):
-                        provider_name = name.replace("Provider", "").lower()
+                    if (issubclass(obj, BaseAIProvider) and obj not in (BaseAIProvider, CustomProvider, AdvancedCustomProvider)):
+                        provider = obj()
+                        provider_name = provider.get_info().get("name", "").lower()
+
                         self.register(provider_name, obj)
                         logger.debug(f"Auto-registered provider: {provider_name}")
 

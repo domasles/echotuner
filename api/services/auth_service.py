@@ -271,7 +271,7 @@ class AuthService(SingletonServiceBase):
             if not success:
                 raise Exception("Device registration failed")
 
-            logger.info(f"Auto-registered device: {device_id} on {platform}")
+            logger.debug(f"Auto-registered device: {device_id} on {platform}")
             return registration_timestamp
 
         except Exception as e:
