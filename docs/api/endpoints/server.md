@@ -10,15 +10,13 @@ Get current server mode.
 ```json
 {
     "demo_mode": false,
-    "mode": "normal",
+    "mode": "normal"
 }
 ```
 
 **Response Fields:**
-- `mode`: Current server mode ("debug" or "production")
-- `debug_enabled`: Whether debug mode is active
-- `version`: API version
-- `features`: Object describing enabled features
+- `demo_mode`: Whether demo mode is enabled
+- `mode`: Current server mode ("demo" or "normal")
 
 ## Notes
 
@@ -34,7 +32,6 @@ Get current server mode.
 **Error Format:**
 ```json
 {
-    "detail": "string",
-    "error": "string"
+    "detail": "string"
 }
 ```

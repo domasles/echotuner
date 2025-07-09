@@ -16,10 +16,7 @@ Initialize Spotify OAuth flow.
 ```json
 {
     "device_id": "string",
-    "device_info": {
-        "platform": "string",
-        "version": "string"
-    }
+    "platform": "string"
 }
 ```
 
@@ -27,7 +24,8 @@ Initialize Spotify OAuth flow.
 ```json
 {
     "auth_url": "https://accounts.spotify.com/authorize?...",
-    "state": "unique_state_token"
+    "state": "unique_state_token",
+    "device_id": "string"
 }
 ```
 
@@ -61,8 +59,7 @@ Validate an existing session.
 {
     "valid": true,
     "user_id": "string",
-    "account_type": "premium|free",
-    "expires_at": "2024-01-01T00:00:00Z"
+    "spotify_user_id": "string"
 }
 ```
 
@@ -70,14 +67,29 @@ Validate an existing session.
 
 Check if a session exists for polling.
 
-**Query Parameters:**
+**Headers:**
 - `device_id`: Device identifier
 
-**Response:**
+**Response (success):**
 ```json
 {
-    "session_exists": true,
-    "session_id": "string"
+    "session_id": "string",
+    "device_id": "string"
+}
+```
+
+**Response (no session):**
+```json
+{
+    "session_id": null
+}
+```
+
+**Response (missing device_id):**
+```json
+{
+    "message": "Device ID required in headers",
+    "success": false
 }
 ```
 
@@ -96,9 +108,16 @@ Get rate limit status for authenticated user.
 **Response:**
 ```json
 {
-    "playlists_remaining": 5,
-    "refinements_remaining": 3,
-    "reset_time": "2024-01-01T00:00:00Z"
+    "device_id": "string",
+    "requests_made_today": 2,
+    "max_requests_per_day": 5,
+    "refinements_used": 1,
+    "max_refinements": 3,
+    "can_make_request": true,
+    "can_refine": true,
+    "reset_time": "2024-01-01T00:00:00Z",
+    "playlist_limit_enabled": true,
+    "refinement_limit_enabled": true
 }
 ```
 
@@ -109,11 +128,9 @@ Register a new device with the system.
 **Request Body:**
 ```json
 {
-    "device_info": {
-        "platform": "iOS|Android",
-        "version": "1.0.0-beta",
-        "model": "iPhone 14"
-    }
+    "platform": "string",
+    "app_version": "string",
+    "device_fingerprint": "string"
 }
 ```
 
@@ -121,7 +138,7 @@ Register a new device with the system.
 ```json
 {
     "device_id": "uuid-generated-device-id",
-    "registered_at": "2024-01-01T00:00:00Z"
+    "registration_timestamp": 1704067200
 }
 ```
 
@@ -140,9 +157,10 @@ Get refinement count for demo playlists.
 **Response:**
 ```json
 {
+    "playlist_id": "string",
     "refinements_used": 2,
-    "refinements_remaining": 1,
-    "max_refinements": 3
+    "max_refinements": 3,
+    "can_refine": true
 }
 ```
 
@@ -150,34 +168,50 @@ Get refinement count for demo playlists.
 
 Logout and clear all device data.
 
-**Request Body:**
+**Headers:**
+- `device_id`: Device identifier
+
+**Response (success):**
 ```json
 {
-    "device_id": "string",
-    "session_id": "string"
+    "message": "Logged out successfully and cleared device data",
+    "success": true
 }
 ```
 
-**Response:**
+**Response (missing device_id):**
 ```json
 {
-    "success": true,
-    "message": "Logged out successfully"
+    "message": "Device ID required for logout",
+    "success": false
 }
 ```
 
-### GET `/auth/account_type/{session_id}`
+**Response (error):**
+```json
+{
+    "message": "Logout failed",
+    "success": false,
+    "error": "string"
+}
+```
+
+### POST `/auth/account-type`
 
 Get account type for a session.
 
-**Path Parameters:**
-- `session_id`: Session identifier
+**Request Body:**
+```json
+{
+    "session_id": "string",
+    "device_id": "string"
+}
+```
 
 **Response:**
 ```json
 {
-    "account_type": "premium|free",
-    "features": ["playlist_creation", "high_quality_audio"]
+    "account_type": "normal"
 }
 ```
 
@@ -190,9 +224,7 @@ Clean up expired sessions and auth attempts.
 **Response:**
 ```json
 {
-    "cleaned_sessions": 15,
-    "cleaned_attempts": 8,
-    "timestamp": "2024-01-01T00:00:00Z"
+    "message": "Cleanup completed successfully"
 }
 ```
 
@@ -209,19 +241,18 @@ Clean up expired sessions and auth attempts.
 
 ### Common Error Codes
 
-- `400`: Invalid request parameters
+- `400`: Invalid request parameters or missing required fields
 - `401`: Invalid or expired session
-- `403`: Insufficient permissions or rate limit exceeded
-- `429`: Rate limit exceeded
-- `500`: Internal server error
+- `403`: Insufficient permissions (e.g., demo account restrictions)
+- `404`: Session not found
+- `500`: Internal server error or service unavailable
+- `503`: Service temporarily unavailable
 
 ### Example Error Response
 
 ```json
 {
-    "error": "invalid_session",
-    "message": "Session has expired or is invalid",
-    "code": 401
+    "detail": "Invalid or expired session"
 }
 ```
 

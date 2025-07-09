@@ -1,6 +1,12 @@
 # Personality Endpoints
 
-These endpoints handle user personality preferences for AI-powered playlist generation.
+These endpoints handle user personality preferences for AI-powered playli**Response:**
+```json
+{
+  "success": true,
+  "message": "Personality cleared successfully"
+}
+```ration.
 
 ## POST /personality/save
 
@@ -11,7 +17,7 @@ Save user personality preferences.
 {
     "session_id": "string",
     "device_id": "string",
-    "personality": {
+    "user_context": {
         "music_taste": {
             "preferred_genres": ["pop", "rock", "electronic"],
             "disliked_genres": ["country", "heavy metal"],
@@ -42,9 +48,8 @@ Save user personality preferences.
 **Response:**
 ```json
 {
-  "success": true,
-  "message": "Personality preferences saved successfully",
-  "personality_id": "string"
+    "success": true,
+    "message": "Personality saved successfully"
 }
 ```
 
@@ -53,12 +58,13 @@ Save user personality preferences.
 Load user personality preferences.
 
 **Headers:**
-- Requires device ID for session identification
+- `session_id`: Session ID for authentication
+- `device_id`: Device ID for authentication
 
 **Response:**
 ```json
 {
-    "personality": {
+    "user_context": {
         "music_taste": {
             "preferred_genres": ["pop", "rock", "electronic"],
             "disliked_genres": ["country", "heavy metal"],
@@ -82,8 +88,7 @@ Load user personality preferences.
             "language_preference": ["english", "spanish"],
             "instrumental_tolerance": 0.4
         }
-    },
-    "last_updated": "2024-01-15T10:30:00Z"
+    }
 }
 ```
 
@@ -138,13 +143,11 @@ The personality object contains the following categories:
 
 - `400 Bad Request`: Invalid personality data or request format
 - `401 Unauthorized`: Invalid or expired session
-- `404 Not Found`: No personality data found for user
-- `500 Internal Server Error`: Server error
+- `500 Internal Server Error`: Failed to save/load/clear personality
 
 **Error Format:**
 ```json
 {
-    "detail": "string",
-    "error": "string"
+    "detail": "string"
 }
 ```

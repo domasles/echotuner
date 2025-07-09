@@ -9,49 +9,35 @@ Get available AI models and their configurations.
 **Response:**
 ```json
 {
-    "providers": [
-        {
+    "available_models": {
+        "openai": {
             "name": "openai",
-            "display_name": "OpenAI",
-            "models": [
-                {
-                    "id": "gpt-4",
-                    "name": "GPT-4",
-                    "max_tokens": 8192,
-                    "supports_embeddings": true
-                },
-                {
-                    "id": "gpt-3.5-turbo",
-                    "name": "GPT-3.5 Turbo", 
-                    "max_tokens": 4096,
-                    "supports_embeddings": true
-                }
-            ],
-            "status": "available",
-            "configuration": {
-                "api_key_configured": true,
-                "base_url": "https://api.openai.com/v1"
-            }
+            "endpoint": "https://api.openai.com/v1",
+            "generation_model": "gpt-4",
+            "embedding_model": "text-embedding-3-small",
+            "max_tokens": 4096,
+            "temperature": 0.7,
+            "timeout": 60
         },
-        {
+        "ollama": {
             "name": "ollama",
-            "display_name": "Ollama",
-            "models": [
-                {
-                    "id": "llama2",
-                    "name": "Llama 2",
-                    "max_tokens": 4096,
-                    "supports_embeddings": true
-                }
-            ],
-            "status": "available",
-            "configuration": {
-                "base_url": "http://localhost:11434"
-            }
+            "endpoint": "http://localhost:11434",
+            "generation_model": "llama2",
+            "embedding_model": "nomic-embed-text",
+            "max_tokens": 4096,
+            "temperature": 0.7,
+            "timeout": 60
+        },
+        "google": {
+            "name": "google",
+            "endpoint": "https://generativelanguage.googleapis.com",
+            "generation_model": "gemini-2.0-flash-lite",
+            "embedding_model": "embedding-001",
+            "max_tokens": 4096,
+            "temperature": 0.7,
+            "timeout": 60
         }
-    ],
-    "current_provider": "openai",
-    "total_providers": 3
+    }
 }
 ```
 
@@ -62,10 +48,8 @@ Test AI model with a simple prompt.
 **Request Body:**
 ```json
 {
-    "provider": "openai",
-    "model": "gpt-4",
-    "prompt": "Generate a 5-song playlist for a rainy day",
-    "max_tokens": 500
+    "model_id": "openai",
+    "prompt": "Generate a 5-song playlist for a rainy day"
 }
 ```
 
@@ -73,32 +57,46 @@ Test AI model with a simple prompt.
 ```json
 {
     "success": true,
-    "provider": "openai",
-    "model": "gpt-4",
-    "response": {
-        "content": "Here's a perfect rainy day playlist:
-            1. The Sound of Silence - Simon & Garfunkel
-            2. Mad World - Gary Jules
-            3. Black - Pearl Jam
-            4. The Night We Met - Lord Huron
-            5. Skinny Love - Bon Iver",
-        "usage": {
-        "prompt_tokens": 15,
-        "completion_tokens": 85,
-        "total_tokens": 100
-        }
+    "model_used": {
+        "name": "openai",
+        "endpoint": "https://api.openai.com/v1",
+        "generation_model": "gpt-4.1-nano",
+        "embedding_model": "text-embedding-3-small",
+        "max_tokens": 4096,
+        "temperature": 0.7,
+        "timeout": 60
     },
-    "response_time": 1.2
+    "response": "Here's a perfect rainy day playlist:\n1. The Sound of Silence - Simon & Garfunkel\n2. Mad World - Gary Jules\n3. Black - Pearl Jam\n4. The Night We Met - Lord Huron\n5. Skinny Love - Bon Iver"
 }
 ```
 
 ## Error Responses
 
-- `400 Bad Request`: Invalid provider, model, or prompt
-- `401 Unauthorized`: API key missing or invalid
+- `400 Bad Request`: Invalid request body or missing required fields
 - `403 Forbidden`: Endpoint requires debug mode
-- `429 Too Many Requests`: API rate limit exceeded
-- `500 Internal Server Error`: AI provider error
+- `500 Internal Server Error`: AI test failed, model unavailable, or provider error
+
+**Error Format:**
+```json
+{
+    "detail": "string"
+}
+```
+
+**Debug Mode Restriction:**
+```json
+{
+    "detail": "This endpoint is only available in debug mode"
+}
+```
+
+**AI Service Errors:**
+```json
+{
+    "detail": "AI test failed: Connection timeout"
+}
+```
+
 - `503 Service Unavailable`: AI provider temporarily unavailable
 
 **Error Format:**

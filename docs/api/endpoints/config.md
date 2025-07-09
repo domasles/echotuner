@@ -1,12 +1,41 @@
 # Configuration Endpoints
 
-Configuration endpoints provide system information, health status, and administrative functions.
+Configuration endpoints provide system information, **Response:**
+```json
+{
+    "message": "Configuration reloaded successfully",
+    "status": "success"
+}
+```
+
+### GET `/config/production-check` (debug only)
+
+Check if the API is ready for production deployment.
+
+**Response:**
+```json
+{
+    "production_ready": true,
+    "issues": [],
+    "recommendations": [
+        "Set DEBUG=false in production",
+        "Enable AUTH_REQUIRED=true",
+        "Enable SECURE_HEADERS=true",
+        "Configure rate limiting",
+        "Use HTTPS in production",
+        "Set up proper logging",
+        "Configure monitoring"
+    ]
+}
+```
+
+## Error Responsesatus, and administrative functions.
 
 ## Public Endpoints
 
-### GET `/config`
+### GET `/`
 
-Get client configuration values and API information.
+Get API welcome message and endpoint information.
 
 **Response:**
 ```json
@@ -31,6 +60,33 @@ Get client configuration values and API information.
 }
 ```
 
+### GET `/config`
+
+Get client configuration values and API information.
+
+**Response:**
+```json
+{
+    "personality": {
+        "max_favorite_artists": 10,
+        "max_disliked_artists": 5,
+        "max_favorite_genres": 8,
+        "max_preferred_decades": 4
+    },
+    "playlists": {
+        "max_songs_per_playlist": 50,
+        "max_playlists_per_day": 5,
+        "max_refinements_per_playlist": 3
+    },
+    "features": {
+        "auth_required": true,
+        "playlist_limit_enabled": true,
+        "refinement_limit_enabled": true
+    },
+    "demo_mode": false
+}
+```
+
 ### GET `/config/health`
 
 Check API health and service status.
@@ -39,17 +95,9 @@ Check API health and service status.
 ```json
 {
     "status": "healthy",
-    "timestamp": "2024-01-01T00:00:00Z",
     "version": "1.0.0-beta",
-    "services": {
-        "database": "healthy",
-        "ai_provider": "healthy",
-        "spotify": "healthy"
-    },
-    "system": {
-        "uptime": "2d 5h 30m",
-        "memory_usage": "45%",
-        "cpu_usage": "12%"
+    "features": {
+        "rate_limiting": true
     }
 }
 ```
@@ -63,22 +111,15 @@ Reload JSON configuration files without restarting the server.
 **Response:**
 ```json
 {
-    "success": true,
-    "reloaded_files": [
-        "ai_patterns.json",
-        "energy_terms.json",
-        "prompt_references.json"
-    ],
-    "timestamp": "2024-01-01T00:00:00Z"
+    "message": "Configuration reloaded successfully",
+    "status": "success"
 }
 ```
 
 **Error Response:**
 ```json
 {
-    "success": false,
-    "error": "Failed to reload ai_patterns.json",
-    "details": "Invalid JSON syntax at line 15"
+    "detail": "Failed to reload configuration: Invalid JSON syntax at line 15"
 }
 ```
 
@@ -146,46 +187,49 @@ When `demo_mode` is true:
 
 ### Health Check Failures
 
-Health checks may return degraded status:
+Health checks in debug mode only return basic status:
 
 ```json
 {
-    "status": "degraded",
-    "services": {
-        "database": "healthy",
-        "ai_provider": "unhealthy",
-        "spotify": "healthy"
-    },
-    "errors": {
-        "ai_provider": "Connection timeout to Ollama service"
+    "status": "healthy",
+    "version": "1.0.0-beta", 
+    "features": {
+        "rate_limiting": true
     }
+}
+```
+
+Or an HTTP 403 error in production mode:
+
+```json
+{
+    "detail": "API health check is disabled in production mode"
 }
 ```
 
 ### Configuration Reload Errors
 
-If configuration reload fails, the API continues with existing configuration:
+If configuration reload fails:
 
 ```json
 {
-    "success": false,
-    "error": "Partial reload failure",
-    "reloaded_files": ["energy_terms.json"],
-    "failed_files": {
-        "ai_patterns.json": "Invalid JSON syntax"
-    }
+    "detail": "Failed to reload configuration: Invalid JSON syntax at line 15"
 }
 ```
 
-## Monitoring
+## Error Responses
 
-### Health Check Usage
+Configuration endpoints may return these error responses:
 
-The health endpoint is designed for:
-- Load balancer health checks
-- Monitoring system integration
-- Service discovery
-- Automated deployment verification
+- `403 Forbidden`: Health check disabled in production mode
+- `500 Internal Server Error`: Failed to reload configuration
+
+**Error Format:**
+```json
+{
+    "detail": "string"
+}
+```
 
 ### Production Readiness
 

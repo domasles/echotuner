@@ -10,7 +10,8 @@ Get user's followed artists from Spotify.
 - `limit` (query, optional): Number of artists to return (default: 50, max: 50)
 
 **Headers:**
-- Requires valid session authentication via device ID
+- `session_id`: Session ID for authentication
+- `device_id`: Device ID for authentication
 
 **Response:**
 ```json
@@ -35,10 +36,7 @@ Get user's followed artists from Spotify.
                 "spotify": "string"
             }
         }
-    ],
-    "total": 25,
-    "next": "string",
-    "previous": null
+    ]
 }
 ```
 
@@ -79,10 +77,7 @@ Search for artists on Spotify.
                 "spotify": "string"
             }
         }
-    ],
-    "total": 100,
-    "offset": 0,
-    "limit": 20
+    ]
 }
 ```
 
@@ -92,15 +87,12 @@ All user endpoints may return these error responses:
 
 - `400 Bad Request`: Invalid request parameters
 - `401 Unauthorized`: Invalid or expired session
-- `403 Forbidden`: Insufficient Spotify permissions
-- `429 Too Many Requests`: Rate limit exceeded
-- `500 Internal Server Error`: Server error
+- `500 Internal Server Error`: Failed to search artists or get followed artists
 
 **Error Format:**
 ```json
 {
-  "detail": "string",
-  "error": "string"
+    "detail": "string"
 }
 ```
 

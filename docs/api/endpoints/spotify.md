@@ -23,7 +23,7 @@ Create a Spotify playlist from a draft.
 {
     "success": true,
     "spotify_playlist_id": "string",
-    "spotify_url": "string",
+    "playlist_url": "string",
     "message": "string"
 }
 ```
@@ -75,8 +75,7 @@ Delete or unfollow a Spotify playlist.
 **Response:**
 ```json
 {
-  "success": true,
-  "message": "string"
+  "message": "Playlist deleted/unfollowed successfully"
 }
 ```
 
@@ -97,8 +96,7 @@ Remove a track from a Spotify playlist.
 **Response:**
 ```json
 {
-  "success": true,
-  "message": "string"
+  "message": "Track removed successfully"
 }
 ```
 
@@ -107,16 +105,15 @@ Remove a track from a Spotify playlist.
 All Spotify endpoints may return these error responses:
 
 - `400 Bad Request`: Invalid request parameters
-- `401 Unauthorized`: Invalid or expired session
+- `401 Unauthorized`: Invalid or expired session / No valid access token
 - `403 Forbidden`: Insufficient Spotify permissions
 - `404 Not Found`: Playlist or track not found
-- `429 Too Many Requests`: Rate limit exceeded
-- `500 Internal Server Error`: Server error
+- `500 Internal Server Error`: Failed to perform operation or service error
+- `503 Service Unavailable`: Spotify service temporarily unavailable
 
 **Error Format:**
 ```json
 {
-  "detail": "string",
-  "error": "string"
+  "detail": "string"
 }
 ```
