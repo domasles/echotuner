@@ -19,4 +19,5 @@ RUN chown -R echotuner:echotuner /api
 USER echotuner
 EXPOSE 8000
 
-CMD ["python", "main.py"]
+# Run the API
+ENTRYPOINT [ "/api/docker/entrypoint.sh" ]

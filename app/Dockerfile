@@ -39,10 +39,10 @@ COPY --from=flutter-builder /app/build/web /usr/share/nginx/html
 # Copy nginx configuration
 COPY docker/env-config.js.template /usr/share/nginx/html/env-config.js.template
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY docker/entrypoint.sh /entrypoint.sh
+COPY docker/entrypoint.sh /app/docker/entrypoint.sh
 
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /app/docker/entrypoint.sh
 
 EXPOSE 80
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/app/docker/entrypoint.sh"]
