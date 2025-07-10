@@ -3,15 +3,14 @@ Playlist draft service.
 Manages playlist drafts, including saving, updating, and cleaning up expired drafts.
 """
 
+import aiosqlite
 import asyncio
 import logging
-import sqlite3
 import uuid
 import json
 
 from datetime import datetime, timedelta
 from typing import List, Optional
-from pathlib import Path
 
 from core.singleton import SingletonServiceBase
 from core.models import PlaylistDraft, Song
@@ -32,7 +31,7 @@ class PlaylistDraftService(SingletonServiceBase):
     def _setup_service(self):
         """Initialize the PlaylistDraftService."""
 
-        self.db_path = Path(__file__).parent.parent / AppConstants.DATABASE_FILENAME
+        self.db_path = AppConstants.DATABASE_FILENAME
         self._cleanup_task = None
 
         self._log_initialization("Playlist draft service initialized successfully", logger)
@@ -156,10 +155,10 @@ class PlaylistDraftService(SingletonServiceBase):
         """Mark a draft as added to Spotify and record the Spotify playlist."""
 
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
+            async with aiosqlite.connect(self.db_path) as conn:
+                cursor = await conn.cursor()
 
-                cursor.execute('''
+                await cursor.execute('''
                     UPDATE playlist_drafts 
                     SET status = 'added_to_spotify', 
                         spotify_playlist_id = ?, 
@@ -171,11 +170,11 @@ class PlaylistDraftService(SingletonServiceBase):
                 success = cursor.rowcount > 0
 
                 if success and user_id and device_id and playlist_name:
-                    cursor.execute('''
+                    await cursor.execute('''
                         SELECT refinements_used FROM playlist_drafts WHERE id = ?
                     ''', (playlist_id,))
 
-                    draft_row = cursor.fetchone()
+                    draft_row = await cursor.fetchone()
                     refinements_used = draft_row[0] if draft_row else 0
 
                     insert_playlist_sql = f'''
@@ -185,9 +184,9 @@ class PlaylistDraftService(SingletonServiceBase):
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     '''
 
-                    cursor.execute(insert_playlist_sql, (spotify_playlist_id, user_id, device_id, session_id, playlist_id, playlist_name, refinements_used, datetime.now(), datetime.now()))
+                    await cursor.execute(insert_playlist_sql, (spotify_playlist_id, user_id, device_id, session_id, playlist_id, playlist_name, refinements_used, datetime.now(), datetime.now()))
 
-                conn.commit()
+                await conn.commit()
 
             if success:
                 logger.debug(f"Marked playlist {playlist_id} as added to Spotify ({spotify_playlist_id})")
@@ -205,8 +204,8 @@ class PlaylistDraftService(SingletonServiceBase):
         """Get list of Spotify playlist IDs created by EchoTuner for a user."""
 
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
+            async with aiosqlite.connect(self.db_path) as conn:
+                cursor = await conn.cursor()
 
                 select_playlists_sql = f'''
                     SELECT spotify_playlist_id 
@@ -215,8 +214,8 @@ class PlaylistDraftService(SingletonServiceBase):
                     ORDER BY created_at DESC
                 '''
 
-                cursor.execute(select_playlists_sql, (user_id,))
-                rows = cursor.fetchall()
+                await cursor.execute(select_playlists_sql, (user_id,))
+                rows = await cursor.fetchall()
 
             return [row[0] for row in rows]
 
@@ -228,17 +227,17 @@ class PlaylistDraftService(SingletonServiceBase):
         """Get a specific draft playlist."""
 
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
+            async with aiosqlite.connect(self.db_path) as conn:
+                cursor = await conn.cursor()
 
-                cursor.execute('''
+                await cursor.execute('''
                     SELECT id, device_id, session_id, prompt, songs_json, created_at, 
                     updated_at, refinements_used, status, spotify_playlist_id
                     FROM playlist_drafts 
                     WHERE id = ?
                 ''', (playlist_id,))
 
-                row = cursor.fetchone()
+                row = await cursor.fetchone()
 
             if row:
                 return self._row_to_draft(row)
@@ -253,11 +252,11 @@ class PlaylistDraftService(SingletonServiceBase):
         """Get all drafts for a device."""
 
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
+            async with aiosqlite.connect(self.db_path) as conn:
+                cursor = await conn.cursor()
 
                 if include_spotify:
-                    cursor.execute('''
+                    await cursor.execute('''
                         SELECT id, device_id, session_id, prompt, songs_json, created_at, updated_at, refinements_used, status, spotify_playlist_id
                         FROM playlist_drafts 
                         WHERE device_id = ?
@@ -265,14 +264,14 @@ class PlaylistDraftService(SingletonServiceBase):
                     ''', (device_id,))
 
                 else:
-                    cursor.execute('''
+                    await cursor.execute('''
                         SELECT id, device_id, session_id, prompt, songs_json, created_at, updated_at, refinements_used, status, spotify_playlist_id
                         FROM playlist_drafts 
                         WHERE device_id = ? AND status = 'draft'
                         ORDER BY updated_at DESC
                     ''', (device_id,))
 
-                rows = cursor.fetchall()
+                rows = await cursor.fetchall()
 
             return [self._row_to_draft(row) for row in rows]
 
@@ -284,15 +283,15 @@ class PlaylistDraftService(SingletonServiceBase):
         """Get all drafts for a user across all their devices and sessions."""
 
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
+            async with aiosqlite.connect(self.db_path) as conn:
+                cursor = await conn.cursor()
 
-                cursor.execute('''
+                await cursor.execute('''
                     SELECT DISTINCT device_id, session_id FROM auth_sessions 
                     WHERE spotify_user_id = ?
                 ''', (user_id,))
 
-                user_identifiers = cursor.fetchall()
+                user_identifiers = await cursor.fetchall()
                 device_ids = list(set([row[0] for row in user_identifiers if row[0]]))
                 session_ids = list(set([row[1] for row in user_identifiers if row[1]]))
 
@@ -326,7 +325,7 @@ class PlaylistDraftService(SingletonServiceBase):
                 if not include_spotify:
                     where_clause = f"({where_clause}) AND status = 'draft'"
 
-                cursor.execute(f'''
+                await cursor.execute(f'''
                     SELECT id, device_id, session_id, prompt, songs_json, created_at, 
                     updated_at, refinements_used, status, spotify_playlist_id
                     FROM playlist_drafts 
@@ -334,7 +333,7 @@ class PlaylistDraftService(SingletonServiceBase):
                     ORDER BY updated_at DESC
                 ''', params)
 
-                rows = cursor.fetchall()
+                rows = await cursor.fetchall()
 
             return [self._row_to_draft(row) for row in rows]
 
@@ -346,16 +345,16 @@ class PlaylistDraftService(SingletonServiceBase):
         """Delete a draft playlist."""
 
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
+            async with aiosqlite.connect(self.db_path) as conn:
+                cursor = await conn.cursor()
 
-                cursor.execute('''
+                await cursor.execute('''
                     DELETE FROM playlist_drafts 
                     WHERE id = ? AND status = 'draft'
                 ''', (playlist_id,))
 
                 success = cursor.rowcount > 0
-                conn.commit()
+                await conn.commit()
 
             if success:
                 logger.debug(f"Deleted draft playlist {playlist_id}")
@@ -373,16 +372,16 @@ class PlaylistDraftService(SingletonServiceBase):
         """Get the refinement count for a Spotify playlist."""
 
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
+            async with aiosqlite.connect(self.db_path) as conn:
+                cursor = await conn.cursor()
 
                 select_refinements_sql = f'''
                     SELECT refinements_used FROM {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
                     WHERE spotify_playlist_id = ?
                 '''
 
-                cursor.execute(select_refinements_sql, (spotify_playlist_id,))
-                row = cursor.fetchone()
+                await cursor.execute(select_refinements_sql, (spotify_playlist_id,))
+                row = await cursor.fetchone()
 
                 return row[0] if row else 0
 
@@ -394,8 +393,8 @@ class PlaylistDraftService(SingletonServiceBase):
         """Update the refinement count for a Spotify playlist."""
 
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
+            async with aiosqlite.connect(self.db_path) as conn:
+                cursor = await conn.cursor()
 
                 update_refinements_sql = f'''
                     UPDATE {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
@@ -403,9 +402,9 @@ class PlaylistDraftService(SingletonServiceBase):
                     WHERE spotify_playlist_id = ?
                 '''
 
-                cursor.execute(update_refinements_sql, (refinements_used, datetime.now(), spotify_playlist_id))
+                await cursor.execute(update_refinements_sql, (refinements_used, datetime.now(), spotify_playlist_id))
                 success = cursor.rowcount > 0
-                conn.commit()
+                await conn.commit()
 
                 return success
 
@@ -417,17 +416,17 @@ class PlaylistDraftService(SingletonServiceBase):
         """Remove a Spotify playlist from our tracking database."""
 
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
+            async with aiosqlite.connect(self.db_path) as conn:
+                cursor = await conn.cursor()
 
                 delete_playlist_sql = f'''
                     DELETE FROM {AppConstants.SPOTIFY_PLAYLISTS_TABLE} 
                     WHERE spotify_playlist_id = ?
                 '''
 
-                cursor.execute(delete_playlist_sql, (spotify_playlist_id,))
+                await cursor.execute(delete_playlist_sql, (spotify_playlist_id,))
                 success = cursor.rowcount > 0
-                conn.commit()
+                await conn.commit()
 
                 if success:
                     logger.debug(f"Removed tracking for Spotify playlist {spotify_playlist_id}")

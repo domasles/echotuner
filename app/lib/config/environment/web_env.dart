@@ -13,8 +13,8 @@ class WebEnvironment implements Environment {
                 }
             }
         }
-		
-		catch (_) {
+
+        catch (_) {
             // Ignore errors silently
         }
 

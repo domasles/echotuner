@@ -10,7 +10,7 @@ services:
       dockerfile: Dockerfile
 
     image: ghcr.io/domasles/echotuner/echotuner-api:latest
-    container_name: echotuner-api
+    container_name: api
 
     ports:
       - "0.0.0.0:8000:8000"
@@ -19,7 +19,8 @@ services:
       - ./api/.env
 
     volumes:
-      - ./api:/api
+      - ./api/echotuner.db:/api/echotuner.db
+      - ./api/.cache:/app/.cache
 
     # Use host.docker.internal to access host services like Ollama
     extra_hosts:
@@ -34,7 +35,7 @@ services:
       dockerfile: Dockerfile
 
     image: ghcr.io/domasles/echotuner/echotuner-webapp:latest
-    container_name: echotuner-webapp
+    container_name: webapp
 
     ports:
       - "0.0.0.0:80:80"

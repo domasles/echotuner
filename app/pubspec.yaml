@@ -2,7 +2,7 @@ name: echotuner
 description: AI-powered Spotify playlist generator
 
 publish_to: 'none'
-version: 1.0.0-beta+1
+version: 1.0.1-beta+1
 
 environment:
     sdk: '>=3.0.0 <4.0.0'
@@ -41,7 +41,7 @@ flutter:
     uses-material-design: true
 
     assets:
-        # Uncomment this if you want to use .env file for a local/standalone Flutter build
+        # Uncomment the following line if you want to build locally
         # - .env
 
         - assets/logos/EchoTunerLogo.svg

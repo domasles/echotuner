@@ -6,9 +6,9 @@ Centralized constants for app name, version, colors, and other static values.
 class AppConstants:
     """Centralized application constants."""
 
-    APP_NAME = "EchoTuner"
+    API_NAME = "EchoTuner"
     API_TITLE = "EchoTuner API"
-    API_VERSION = "1.0.0-beta"
+    API_VERSION = "1.0.1-beta"
 
     DATABASE_FILENAME = "echotuner.db"
 
@@ -26,7 +26,7 @@ class AppConstants:
         'WARNING': 'yellow',
         'ERROR': 'red',
         'CRITICAL': 'bright_red',
-        APP_NAME: 'magenta'
+        API_NAME: 'magenta'
     }
 
 app_constants = AppConstants()

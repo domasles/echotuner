@@ -66,7 +66,7 @@ sys.path.insert(0, str(api_dir))
 async def lifespan(app: FastAPI):
     """Handle startup and shutdown events"""
 
-    logger.info(f"Starting {app_constants.APP_NAME} API...")
+    logger.info(f"Starting {app_constants.API_NAME} API...")
     config_errors = settings.validate_required_settings()
 
     if config_errors:
@@ -101,7 +101,7 @@ async def lifespan(app: FastAPI):
         logger.info(f"Rate Limiting: {'ENABLED' if settings.PLAYLIST_LIMIT_ENABLED else 'DISABLED'}")
 
     except Exception as e:
-        logger.error(f"Failed to initialize {app_constants.APP_NAME} API: {e}")
+        logger.error(f"Failed to initialize {app_constants.API_NAME} API: {e}")
         raise
 
     yield

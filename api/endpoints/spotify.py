@@ -67,7 +67,7 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
 
         spotify_playlist_id, playlist_url = await spotify_playlist_service.create_playlist(
             access_token=access_token,
-            name=request.name,
+            playlist_name=request.name,
             songs=songs,
             description=request.description,
             public=request.public or False
