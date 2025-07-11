@@ -84,7 +84,7 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
                 playlist_name=request.name
             )
 
-        logger.info(f"Created Spotify playlist {spotify_playlist_id} from {'draft' if draft else 'demo playlist'} {request.playlist_id}")
+        logger.debug(f"Created Spotify playlist {spotify_playlist_id} from {'draft' if draft else 'demo playlist'} {request.playlist_id}")
 
         return SpotifyPlaylistResponse(
             success=True,
