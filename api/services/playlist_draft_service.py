@@ -32,7 +32,6 @@ class PlaylistDraftService(SingletonServiceBase):
         """Initialize the PlaylistDraftService."""
 
         self.db_path = AppConstants.DATABASE_FILEPATH
-        self._cleanup_task = None
 
         self._log_initialization("Playlist draft service initialized successfully", logger)
 
@@ -40,18 +39,12 @@ class PlaylistDraftService(SingletonServiceBase):
         """Initialize the playlist draft service."""
 
         try:
-            await self._start_cleanup_task()
+            await self._cleanup_expired_drafts_loop()
             logger.info("Playlist draft service initialized successfully")
 
         except Exception as e:
             logger.error(f"Failed to initialize playlist draft service: {e}")
             raise
-
-    async def _start_cleanup_task(self):
-        """Start the background cleanup task for expired drafts."""
-
-        if self._cleanup_task is None:
-            self._cleanup_task = asyncio.create_task(self._cleanup_expired_drafts_loop())
 
     async def _cleanup_expired_drafts_loop(self):
         """Background task to clean up expired drafts."""
@@ -472,19 +465,5 @@ class PlaylistDraftService(SingletonServiceBase):
             status=status,
             spotify_playlist_id=row[9]
         )
-
-    async def cleanup(self):
-        """Clean up the service."""
-
-        if self._cleanup_task:
-            self._cleanup_task.cancel()
-
-            try:
-                await self._cleanup_task
-
-            except asyncio.CancelledError:
-                pass
-
-        logger.info("Playlist draft service cleaned up")
 
 playlist_draft_service = PlaylistDraftService()

@@ -75,12 +75,6 @@ async def lifespan(app: FastAPI):
         for error in config_errors:
             logger.error(f"  - {error}")
 
-        if not settings.DEBUG:
-            raise Exception("Production configuration validation failed")
-
-        else:
-            logger.warning("Running in DEBUG mode with configuration issues")
-
     try:
         await db_service.initialize()
 

@@ -154,7 +154,7 @@ class DataLoader(SingletonServiceBase):
         self._load_json_file.cache_clear()
         logger.info("Configuration cache cleared - files will be reloaded on next access")
 
-    async def cleanup(self):
+    def cleanup(self):
         """Clean up resources and shutdown the service."""
 
         self._patterns = {}

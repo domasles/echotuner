@@ -22,7 +22,7 @@ class SingletonServiceBase:
 
         logger.info(message)
 
-    async def cleanup(self):
+    def cleanup(self):
         """Clean up resources and shutdown the service."""
 
         logger.info("Service cleanup completed.")
@@ -30,4 +30,4 @@ class SingletonServiceBase:
     def __del__(self):
         """Cleanup resources on destruction"""
 
-        asyncio.run(self.cleanup())
+        self.cleanup()

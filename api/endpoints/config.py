@@ -1,12 +1,12 @@
 """Configuration-related endpoint implementations"""
 
 import logging
+
 from fastapi import HTTPException
 
 from config.app_constants import app_constants
 from config.settings import settings
 
-from services.playlist_generator import playlist_generator_service
 from services.data_service import data_loader
 
 logger = logging.getLogger(__name__)
@@ -14,18 +14,10 @@ logger = logging.getLogger(__name__)
 async def health_check():
     """Check API health and service status"""
 
-    if settings.DEBUG:
-        return {
-            "status": "healthy",
-            "version": app_constants.API_VERSION,
-            "features": {
-                "rate_limiting": settings.PLAYLIST_LIMIT_ENABLED
-            }
-        }
-
-    else:
-        logger.warning("API health check is disabled in production mode")
-        raise HTTPException(status_code=403, detail="API health check is disabled in production mode")
+    return {
+        "status": "healthy",
+        "version": app_constants.API_VERSION
+    }
 
 async def get_config():
     """Get client configuration values"""
@@ -47,7 +39,7 @@ async def get_config():
             "playlist_limit_enabled": settings.PLAYLIST_LIMIT_ENABLED,
             "refinement_limit_enabled": settings.REFINEMENT_LIMIT_ENABLED,
         },
-        "demo_mode": settings.DEMO,
+        "demo_mode": settings.DEMO
     }
 
 async def reload_config():
