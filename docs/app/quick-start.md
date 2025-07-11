@@ -72,26 +72,37 @@ flutter run -d windows # or macos, linux
 
 ## Docker Deployment
 
-EchoTuner provides two deployment options for the web app:
+EchoTuner provides two deployment options for both web app and the API:
 
 ### Option 1: Pre-built Images (Recommended)
 
-Uses pre-built images from GitHub Container Registry:
+Uses pre-built images from GitHub Container Registry.
+
+If you intend to only download `docker-compose.yml` from the EchoTuner's GitHub repository, ensure you have the necessary environment variables set in your `.env` file(s).
+
+Default directories for `.env` files are in `docker-compose.yml` file's root directory as follows:
+- `app/`
+- `api/`
+
+Database will be created and mounted at `api/storage`.
+
+If you have Docker Compose installed, you can run the following command:
 
 ```bash
-docker compose up -d
+docker compose up
 ```
+
+**Note**: if you want to avoid having logs in your terminal, run Docker Compose with `-d` flag.
 
 ### Option 2: Local Build
 
 Build the containers locally:
 
 ```bash
-# To use local builds instead, use docker compose up --build.
 docker compose up --build
 ```
 
-**Note**: The default docker-compose.yml uses pre-built GHCR images. Docker deployment serves both the Flutter web app and the API, and is recommended for production environments.
+**Note**: The default docker-compose.yml uses pre-built GHCR images, unless you run it with `--build` flag. Docker deployment serves both Flutter web app and the API, and is recommended for production environments.
 
 ## Key Features
 
@@ -144,21 +155,9 @@ Flutter's hot reload allows instant code changes:
 - Press `h` for help
 
 ### Debugging
-- Use `debugPrint()` for logging
+- Use `AppLogger.debug()` for logging (you must include `utils/app_logger.dart` before using it)
 - Flutter Inspector for widget debugging
 - Network traffic monitoring in debug mode
-
-### Testing
-```bash
-# Run all tests
-flutter test
-
-# Run with coverage
-flutter test --coverage
-
-# Integration tests
-flutter drive --target=test_driver/app.dart
-```
 
 ## Building for Production
 
