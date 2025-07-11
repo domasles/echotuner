@@ -1,6 +1,6 @@
 class AppConstants {
     static const String appName = 'EchoTuner';
-    static const String appVersion = '1.0.2-beta';
+    static const String appVersion = '1.0.3-beta';
     static const String appDescription = 'AI-powered Spotify playlist generator';
 	static const String githubRepositoryUrl = 'https://github.com/domasles/echotuner';
 
