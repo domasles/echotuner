@@ -31,7 +31,7 @@ class PlaylistDraftService(SingletonServiceBase):
     def _setup_service(self):
         """Initialize the PlaylistDraftService."""
 
-        self.db_path = AppConstants.DATABASE_FILENAME
+        self.db_path = AppConstants.DATABASE_FILEPATH
         self._cleanup_task = None
 
         self._log_initialization("Playlist draft service initialized successfully", logger)

@@ -42,3 +42,6 @@ venv/
 *.crt
 *.key
 *.pem
+
+# Storage
+storage/

@@ -46,7 +46,7 @@ async def auth_init(request: AuthInitRequest):
                 logger.error(f"Failed to auto-register device: {e}")
                 raise HTTPException(status_code=500, detail="Failed to register device")
 
-        auth_url, state = auth_service.generate_auth_url(device_id, request.platform)
+        auth_url, state = auth_service.generate_auth_url()
 
         await auth_service.store_auth_state(state, device_id, request.platform)
         return AuthInitResponse(auth_url=auth_url, state=state, device_id=device_id)

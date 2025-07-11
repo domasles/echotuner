@@ -26,7 +26,7 @@ class DatabaseService(SingletonServiceBase):
     def _setup_service(self):
         """Initialize database service."""
 
-        self.db_path = AppConstants.DATABASE_FILENAME
+        self.db_path = AppConstants.DATABASE_FILEPATH
         self._log_initialization("Database service initialized as singleton", logger)
 
     async def initialize(self):

@@ -23,9 +23,9 @@ This guide will help you get the EchoTuner API running locally or with Docker.
     # Edit .env file with your settings
     ```
 
-3. **Install dependencies**
+3. **Set up API**
     ```bash
-    pip install -r requirements.txt
+    python setup.py
     ```
 
 4. **Start the API**

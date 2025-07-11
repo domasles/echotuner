@@ -19,7 +19,6 @@ API_PORT=8000
 DEMO=false
 DEBUG=true
 LOG_LEVEL=INFO
-DATABASE_FILENAME=echotuner.db
 
 # AI Configuration
 AI_PROVIDER=ollama
@@ -153,16 +152,6 @@ AI_EMBEDDING_MODEL=your-embedding-model
 AI_MAX_TOKENS=2000
 AI_TEMPERATURE=0.7
 ```
-
-### Database Configuration
-
-EchoTuner uses SQLite by default:
-
-```env
-DATABASE_FILENAME=echotuner.db
-```
-
-The database file will be created in the API directory.
 
 ### Rate Limiting & Quotas
 

@@ -19,8 +19,7 @@ services:
       - ./api/.env
 
     volumes:
-      - ./api/echotuner.db:/api/echotuner.db
-      - ./api/.cache:/app/.cache
+      - ./api/storage:/api/storage
 
     # Use host.docker.internal to access host services like Ollama
     extra_hosts:

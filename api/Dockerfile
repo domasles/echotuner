@@ -1,23 +1,24 @@
 # EchoTuner API Dockerfile
 FROM python:3.12-alpine
 
-WORKDIR /api
-
 # Install system dependencies
 RUN apk add --no-cache curl
 
+# Create api user
+RUN adduser -D -s /bin/sh api
+USER api
+
+# Set working directory
+WORKDIR /api
+
 # Copy API source code
-COPY . .
+COPY --chown=api:api . .
 
 # Set the API up
 RUN python setup.py
 
-# Create non-root user (use adduser for Alpine)
-RUN adduser -D -s /bin/sh echotuner
-RUN chown -R echotuner:echotuner /api
-
-USER echotuner
+# Expose the API port
 EXPOSE 8000
 
 # Run the API
-ENTRYPOINT [ "/api/docker/entrypoint.sh" ]
+CMD ["python", "main.py"]

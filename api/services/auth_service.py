@@ -31,9 +31,7 @@ class AuthService(SingletonServiceBase):
     def _setup_service(self):
         """Initialize the AuthService."""
 
-        self.db_path = AppConstants.DATABASE_FILENAME
         self.spotify_oauth = None
-
         self._initialize_spotify_oauth()
 
         if not settings.DEMO:
@@ -62,7 +60,7 @@ class AuthService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Failed to initialize Spotify OAuth: {e}")
 
-    def generate_auth_url(self, device_id: str, platform: str) -> tuple[str, str]:
+    def generate_auth_url(self) -> tuple[str, str]:
         """Generate Spotify OAuth URL and state"""
 
         if not self.spotify_oauth:
