@@ -38,8 +38,6 @@ class SpotifyPlaylistService(SingletonServiceBase):
                 logger.warning("Spotify credentials not configured - playlist creation disabled")
                 return
 
-            logger.info("Spotify playlist service initialized successfully")
-
         except Exception as e:
             logger.error(f"Failed to initialize Spotify playlist service: {e}")
             raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))

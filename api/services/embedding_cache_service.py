@@ -38,7 +38,6 @@ class EmbeddingCacheService(SingletonServiceBase):
 
         try:
             await self._load_cache()
-            logger.info("Embedding cache service initialized successfully")
 
         except Exception as e:
             logger.error(f"Failed to initialize embedding cache service: {e}")

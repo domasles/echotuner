@@ -18,45 +18,34 @@ from core.models import *
 from config.app_constants import app_constants
 from config.security import security_config
 from config.settings import settings
-
-from services.spotify_playlist_service import spotify_playlist_service
-from services.playlist_draft_service import playlist_draft_service
-from services.playlist_generator_service import playlist_generator_service
-from services.prompt_validator_service import prompt_validator_service
-from services.personality_service import personality_service
-from services.rate_limiter_service import rate_limiter_service
-from services.database_service import db_service
-from services.data_service import data_loader
-from services.ai_service import ai_service
-from services.embedding_cache_service import embedding_cache_service
-
 from utils.input_validator import UniversalValidator
-from utils.decorators import *
 
+# Core services
+from core.service_manager import service_manager
+from core.logging_config import configure_logging
+
+# Service imports for registration
+from services.database_service import db_service
+from services.embedding_cache_service import embedding_cache_service
+from services.data_service import data_loader
+from services.rate_limiter_service import rate_limiter_service
+from services.ip_rate_limiter import ip_rate_limiter_service
+from services.template_service import template_service
+from services.ai_service import ai_service
+from services.prompt_validator_service import prompt_validator_service
+from services.spotify_search_service import spotify_search_service
+from services.spotify_playlist_service import spotify_playlist_service
+from services.playlist_generator_service import playlist_generator_service
+from services.playlist_draft_service import playlist_draft_service
+from services.personality_service import personality_service
+from services.auth_service import auth_service
+from utils.decorators import *
 from endpoints import *
 
-class CustomFormatter(logging.Formatter):
-    def format(self, record):
-        raw_level = record.levelname
-        color = app_constants.LOGGER_COLORS.get(raw_level, None)
-
-        colored_level = click.style(raw_level, fg=color) if color else raw_level
-
-        target_width = 10
-        level_label_len = len(raw_level) + 1
-        spaces = " " * max(0, target_width - level_label_len)
-
-        record.levelname = f"{colored_level}:{spaces}"
-
-        return super().format(record)
-
-handler = logging.StreamHandler()
-formatter = CustomFormatter('%(levelname)s%(message)s')
-handler.setFormatter(formatter)
-
-logging.basicConfig(
-    level=settings.LOG_LEVEL.upper(),
-    handlers=[handler]
+# Configure structured logging early
+configure_logging(
+    level=settings.LOG_LEVEL,
+    structured=settings.STRUCTURED_LOGGING
 )
 
 logger = logging.getLogger(__name__)
@@ -78,24 +67,27 @@ async def lifespan(app: FastAPI):
             logger.error(f"  - {error}")
 
     try:
-        await db_service.initialize()
+        service_manager.register_service('database_service', db_service)
+        service_manager.register_service('embedding_cache_service', embedding_cache_service)
+        service_manager.register_service('data_service', data_loader)
+        service_manager.register_service('rate_limiter_service', rate_limiter_service)
+        service_manager.register_service('ip_rate_limiter_service', ip_rate_limiter_service)
+        service_manager.register_service('template_service', template_service)
+        service_manager.register_service('ai_service', ai_service)
+        service_manager.register_service('prompt_validator_service', prompt_validator_service)
+        service_manager.register_service('spotify_search_service', spotify_search_service)
+        service_manager.register_service('spotify_playlist_service', spotify_playlist_service)
+        service_manager.register_service('playlist_generator_service', playlist_generator_service)
+        service_manager.register_service('playlist_draft_service', playlist_draft_service)
+        service_manager.register_service('personality_service', personality_service)
+        service_manager.register_service('auth_service', auth_service)
 
-        init_tasks = [
-            embedding_cache_service.initialize(),
-            rate_limiter_service.initialize(),
-            ai_service.initialize(),
-            prompt_validator_service.initialize(),
-            playlist_generator_service.initialize(),
-            playlist_draft_service.initialize(),
-            spotify_playlist_service.initialize(),
-            personality_service.initialize()
-        ]
-
+        initialization_results = await service_manager.initialize_all_services()
         cache_task = asyncio.create_task(preload_data_cache())
-        await asyncio.gather(*init_tasks)
+        failed_services = [name for name, success in initialization_results.items() if not success]
 
-        logger.info(f"AI Service: {'ENABLED' if ai_service else 'DISABLED'}")
-        logger.info(f"Rate Limiting: {'ENABLED' if settings.PLAYLIST_LIMIT_ENABLED else 'DISABLED'}")
+        if failed_services:
+            logger.warning(f"Some services failed to initialize: {failed_services}")
 
     except Exception as e:
         logger.error(f"Failed to initialize {app_constants.API_TITLE}: {e}")
@@ -165,6 +157,13 @@ app.add_middleware(
 @app.get("/")
 async def root_endpoint():
     return await root()
+
+@app.get("/health")
+@debug_only
+async def health_check_endpoint():
+    """Health check endpoint with service status"""
+
+    return await health_check()
 
 @app.post("/auth/init", response_model=AuthInitResponse)
 async def auth_init_endpoint(request: AuthInitRequest, http_request: Request):

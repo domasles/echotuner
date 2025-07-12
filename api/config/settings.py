@@ -19,6 +19,7 @@ class Settings:
     DEMO: bool = os.getenv("DEMO", "false").lower() == "true"
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    STRUCTURED_LOGGING: bool = os.getenv("STRUCTURED_LOGGING", "false").lower() == "true"
 
     AI_PROVIDER: str = os.getenv("AI_PROVIDER", "ollama")
 

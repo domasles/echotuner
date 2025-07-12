@@ -40,7 +40,6 @@ class PlaylistDraftService(SingletonServiceBase):
 
         try:
             asyncio.create_task(self._cleanup_expired_drafts_loop())
-            logger.info("Playlist draft service initialized successfully")
 
         except Exception as e:
             logger.error(f"Failed to initialize playlist draft service: {e}")

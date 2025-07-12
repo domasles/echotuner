@@ -51,8 +51,6 @@ class PromptValidatorService(SingletonServiceBase):
 
             asyncio.create_task(self._compute_reference_embeddings_async())
 
-            logger.info("Prompt validator initialized successfully!")
-
         except RuntimeError:
             raise
 

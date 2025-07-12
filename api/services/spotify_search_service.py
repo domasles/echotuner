@@ -54,8 +54,6 @@ class SpotifySearchService(SingletonServiceBase):
             self.spotify = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
             await self._test_connection()
 
-            logger.info("Spotify Search Service initialized successfully")
-
         except RuntimeError:
             raise
 

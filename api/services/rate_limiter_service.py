@@ -41,7 +41,7 @@ class RateLimiterService(SingletonServiceBase):
         """Initialize the database and create tables if needed"""
 
         try:
-            logger.info("Rate limiter initialized successfully")
+            pass  # Rate limiter ready
 
         except Exception as e:
             logger.error(f"Error initializing rate limiter: {e}")
