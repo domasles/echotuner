@@ -128,6 +128,7 @@ class PlaylistGeneratorService(SingletonServiceBase):
                             for song in fallback_songs:
                                 if not any(disliked.lower() in song.artist.lower() for disliked in disliked_artists_lower):
                                     filtered_songs.append(song)
+
                                     if len(filtered_songs) >= count:
                                         break
 
@@ -148,6 +149,7 @@ class PlaylistGeneratorService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Playlist generation failed: {e}")
             sanitized_error = InputValidator.sanitize_error_message(str(e))
+
             raise RuntimeError(f"Playlist generation failed: {sanitized_error}")
 
     async def _generate_search_strategy(self, prompt: str, user_context: Optional[UserContext] = None, discovery_strategy: str = "balanced") -> Dict[str, Any]:
@@ -170,7 +172,6 @@ class PlaylistGeneratorService(SingletonServiceBase):
             if user_context:
                 if user_context.disliked_artists:
                     context += f"STRICTLY FORBIDDEN artists that must be avoided at ALL COSTS: {', '.join(user_context.disliked_artists)}\n\n"
-                    # context += f"Before recommending ANY song, verify the artist is NOT in this list: {', '.join(user_context.disliked_artists)}\n\n"
 
                 context += "USER PREFERENCES:\n"
 

@@ -8,7 +8,7 @@ class AppConstants:
 
     API_NAME = "EchoTuner"
     API_TITLE = "EchoTuner API"
-    API_VERSION = "1.0.3-beta"
+    API_VERSION = "1.1.0-beta"
 
     DATABASE_FILEPATH = "storage/echotuner.db"
 

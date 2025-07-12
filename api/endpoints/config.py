@@ -9,6 +9,8 @@ from config.settings import settings
 
 from services.data_service import data_loader
 
+from utils.input_validator import InputValidator
+
 logger = logging.getLogger(__name__)
 
 async def health_check():
@@ -55,7 +57,9 @@ async def reload_config():
 
     except Exception as e:
         logger.error(f"Failed to reload configuration: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to reload configuration: {str(e)}")
+        sanitized_error = InputValidator.sanitize_error_message(str(e))
+
+        raise HTTPException(status_code=500, detail=f"Failed to reload configuration: {sanitized_error}")
 
 async def root():
     return {

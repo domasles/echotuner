@@ -1,4 +1,7 @@
-"""Spotify playlist creation service for EchoTuner."""
+"""
+Spotify Playlist Service.
+Spotify playlist creation service for EchoTuner.
+"""
 
 import aiohttp
 import asyncio
@@ -11,6 +14,8 @@ from core.models import Song
 
 from config.app_constants import AppConstants
 from config.settings import settings
+
+from utils.input_validator import UniversalValidator
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +42,7 @@ class SpotifyPlaylistService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Failed to initialize Spotify playlist service: {e}")
-            raise
+            raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
 
     def is_ready(self) -> bool:
         """Check if the service is ready."""

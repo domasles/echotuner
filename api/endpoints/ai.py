@@ -8,6 +8,8 @@ from config.security import security_config
 
 from services.ai_service import ai_service
 
+from utils.input_validator import InputValidator
+
 logger = logging.getLogger(__name__)
 
 async def get_ai_models():
@@ -43,7 +45,8 @@ async def test_ai_model(request):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI test failed: {str(e)}")
+        sanitized_error = InputValidator.sanitize_error_message(str(e))
+        raise HTTPException(status_code=500, detail=f"AI test failed: {sanitized_error}")
 
 async def production_readiness_check():
     """Check if the API is ready for production deployment"""

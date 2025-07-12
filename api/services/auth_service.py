@@ -14,9 +14,9 @@ from spotipy.oauth2 import SpotifyOAuth
 from typing import Optional, Dict
 
 from core.singleton import SingletonServiceBase
-
-from config.app_constants import AppConstants
 from config.settings import settings
+
+from utils.input_validator import UniversalValidator
 
 from services.database_service import db_service
 
@@ -80,7 +80,7 @@ class AuthService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Failed to store auth state: {e}")
-            raise
+            raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
 
     async def validate_auth_state(self, state: str) -> Optional[Dict[str, str]]:
         """Validate auth state and return device info"""
@@ -174,7 +174,7 @@ class AuthService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Failed to create session: {e}")
-            raise
+            raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
 
     async def validate_session(self, session_id: str, device_id: str) -> bool:
         """Validate if session exists and belongs to device"""

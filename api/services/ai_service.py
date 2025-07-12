@@ -12,6 +12,8 @@ from core.singleton import SingletonServiceBase
 from providers.registry import provider_registry
 from providers.base import BaseAIProvider
 
+from utils.input_validator import UniversalValidator
+
 logger = logging.getLogger(__name__)
 
 class AIService(SingletonServiceBase):
@@ -42,7 +44,7 @@ class AIService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"AI service initialization failed: {e}")
-            raise
+            raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
 
     async def close(self):
         """Close the AI service and cleanup resources."""
@@ -70,7 +72,9 @@ class AIService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Text generation failed: {e}")
-            raise Exception(f"Text generation failed: {e}")
+            sanitized_error = UniversalValidator.sanitize_error_message(str(e))
+
+            raise Exception(f"Text generation failed: {sanitized_error}")
 
     async def get_embedding(self, text: str, provider_id: Optional[str] = None, **kwargs) -> List[float]:
         """
@@ -91,7 +95,9 @@ class AIService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Embedding generation failed: {e}")
-            raise Exception(f"Embedding generation failed: {e}")
+            sanitized_error = UniversalValidator.sanitize_error_message(str(e))
+
+            raise Exception(f"Embedding generation failed: {sanitized_error}")
 
     def list_available_providers(self) -> List[str]:
         """List all available AI providers."""

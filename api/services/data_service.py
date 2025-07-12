@@ -1,5 +1,5 @@
 """
-Data service
+Data service.
 Loads and manages JSON configuration files.
 """
 

@@ -29,6 +29,7 @@ from services.database_service import db_service
 from services.data_service import data_loader
 from services.ai_service import ai_service
 
+from utils.input_validator import UniversalValidator
 from utils.decorators import *
 
 from endpoints import *
@@ -96,7 +97,7 @@ async def lifespan(app: FastAPI):
 
     except Exception as e:
         logger.error(f"Failed to initialize {app_constants.API_NAME} API: {e}")
-        raise
+        raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
 
     yield
 
@@ -152,7 +153,7 @@ async def add_security_headers(request: Request, call_next):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.get_cors_origins(),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
@@ -164,16 +165,16 @@ async def root_endpoint():
     return await root()
 
 @app.post("/auth/init", response_model=AuthInitResponse)
-async def auth_init_endpoint(request: AuthInitRequest):
+async def auth_init_endpoint(request: AuthInitRequest, http_request: Request):
     """Initialize Spotify OAuth flow"""
 
-    return await auth_init(request)
+    return await auth_init(request, http_request)
 
 @app.get("/auth/callback")
-async def auth_callback_endpoint(code: str = None, state: str = None, error: str = None):
+async def auth_callback_endpoint(request: Request, code: str = None, state: str = None, error: str = None):
     """Handle Spotify OAuth callback"""
 
-    return await auth_callback(code, state, error)
+    return await auth_callback(code, state, error, request)
 
 @app.post("/auth/validate", response_model=SessionValidationResponse)
 async def validate_session_endpoint(request: SessionValidationRequest):
@@ -373,6 +374,5 @@ if __name__ == "__main__":
         log_level=settings.LOG_LEVEL.lower(),
 
         reload=settings.DEBUG,
-        reload_dirs=[f"{api_dir}/config", f"{api_dir}/core", f"{api_dir}/services"],
-        reload_excludes=["__pycache__"]
+        reload_excludes=["__pycache__", "storage", "templates", ".cache"]
     )

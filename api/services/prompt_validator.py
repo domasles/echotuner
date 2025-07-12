@@ -16,6 +16,8 @@ from config.settings import settings
 from services.data_service import data_loader
 from services.ai_service import ai_service
 
+from utils.input_validator import UniversalValidator
+
 logger = logging.getLogger(__name__)
 
 class PromptValidatorService(SingletonServiceBase):
@@ -55,7 +57,9 @@ class PromptValidatorService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Prompt validator initialization failed: {e}")
-            raise RuntimeError(f"Prompt validator initialization failed: {e}")
+            sanitized_error = UniversalValidator.sanitize_error_message(str(e))
+
+            raise RuntimeError(f"Prompt validator initialization failed: {sanitized_error}")
 
     async def _compute_reference_embeddings_async(self):
         """Compute reference embeddings asynchronously without blocking startup"""
@@ -153,7 +157,9 @@ class PromptValidatorService(SingletonServiceBase):
 
             except Exception as e:
                 logger.error(f"Prompt validation failed: {e}")
-                raise RuntimeError(f"Prompt validation failed: {e}")
+                sanitized_error = UniversalValidator.sanitize_error_message(str(e))
+
+                raise RuntimeError(f"Prompt validation failed: {sanitized_error}")
 
         else:
             logger.error("Reference embeddings not available")

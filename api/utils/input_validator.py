@@ -4,21 +4,24 @@ Input validation and sanitization utilities for enhanced security.
 
 import re
 import logging
-from typing import Optional
+
+from typing import Optional, Any, Union
+
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-class InputValidator:
-    """Validates and sanitizes user inputs for security."""
+class UniversalValidator:
+    """Universal validator for all input types with security focus."""
 
-    MAX_PROMPT_LENGTH = 2000
+    MAX_PLAYLIST_NAME_LENGTH = settings.MAX_PLAYLIST_NAME_LENGTH
+    MAX_PROMPT_LENGTH = settings.MAX_PROMPT_LENGTH
     MAX_DEVICE_ID_LENGTH = 100
     MAX_SESSION_ID_LENGTH = 100
-    MAX_PLAYLIST_NAME_LENGTH = 100
 
     DEVICE_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
     SESSION_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
-    PLAYLIST_NAME_PATTERN = re.compile(r'^[a-zA-Z0-9\s\-_.,!?()]+$')
+    PLAYLIST_NAME_PATTERN = re.compile(r'^[\w\s\-_.,!?()\u0080-\U0001F6FF]+$', re.UNICODE)
 
     DANGEROUS_PROMPT_PATTERNS = [
         r'<script.*?>.*?</script>', # Script tags
@@ -32,6 +35,62 @@ class InputValidator:
         r'\.\./',                   # Directory traversal
         r'file://',                 # File protocol
     ]
+
+    @classmethod
+    def sanitize_error_message(cls, error_message: str) -> str:
+        """Sanitize error messages to prevent information disclosure."""
+
+        if not isinstance(error_message, str):
+            return "Internal error occurred"
+            
+        sanitized = re.sub(r'/[a-zA-Z0-9_/.-]+', '[PATH]', error_message)
+        sanitized = re.sub(r'[A-Za-z]:[\\a-zA-Z0-9_\\.-]+', '[PATH]', sanitized)
+        sanitized = re.sub(r'line \d+', 'line [NUM]', sanitized)
+        sanitized = re.sub(r'function \w+', 'function [NAME]', sanitized)
+        sanitized = re.sub(r'<[^>]+>', '[INTERNAL]', sanitized)
+        
+        return sanitized
+
+    @classmethod
+    def validate_string(cls, value: Any, field_name: str, max_length: int, pattern: Optional[re.Pattern] = None, required: bool = True) -> str:
+        """Universal string validation with security checks."""
+        
+        if value is None or value == "":
+            if required:
+                raise ValueError(f"{field_name} must be provided")
+
+            return ""
+
+        if not isinstance(value, str):
+            raise ValueError(f"{field_name} must be a string")
+
+        if len(value) > max_length:
+            raise ValueError(f"{field_name} exceeds maximum length of {max_length} characters")
+
+        if pattern and not pattern.match(value):
+            raise ValueError(f"{field_name} contains invalid characters")
+
+        return value.strip()
+
+    @classmethod
+    def validate_ip_address(cls, ip_address: str) -> str:
+        """Validate IP address format."""
+
+        if not ip_address:
+            raise ValueError("IP address is required")
+
+        ip_pattern = re.compile(
+            r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|'
+            r'^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$'
+        )
+        
+        if not ip_pattern.match(ip_address):
+            raise ValueError("Invalid IP address format")
+            
+        return ip_address
+
+class InputValidator(UniversalValidator):
+    """Validates and sanitizes user inputs for security. Extends UniversalValidator for backwards compatibility."""
     
     @classmethod
     def validate_prompt(cls, prompt: str) -> str:
@@ -99,8 +158,15 @@ class InputValidator:
         return name.strip()
 
     @classmethod
-    def validate_count(cls, count: int, min_count: int = 1, max_count: int = 100) -> int:
+    def validate_count(cls, count: Union[int, str], min_count: int = 1, max_count: int = 100) -> int:
         """Validate numeric count parameters."""
+        
+        if isinstance(count, str):
+            try:
+                count = int(count)
+
+            except ValueError:
+                raise ValueError("Count must be a valid integer")
 
         if not isinstance(count, int):
             raise ValueError("Count must be an integer")
@@ -109,15 +175,3 @@ class InputValidator:
             raise ValueError(f"Count must be between {min_count} and {max_count}")
 
         return count
-
-    @classmethod
-    def sanitize_error_message(cls, error_message: str) -> str:
-        """Sanitize error messages to prevent information disclosure."""
-
-        sanitized = re.sub(r'/[a-zA-Z0-9_/.-]+', '[PATH]', error_message)
-        sanitized = re.sub(r'[A-Za-z]:[\\a-zA-Z0-9_\\.-]+', '[PATH]', sanitized)
-        sanitized = re.sub(r'line \d+', 'line [NUM]', sanitized)
-        sanitized = re.sub(r'function \w+', 'function [NAME]', sanitized)
-        sanitized = re.sub(r'<[^>]+>', '[INTERNAL]', sanitized)
-        
-        return sanitized

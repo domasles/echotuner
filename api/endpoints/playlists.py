@@ -8,6 +8,8 @@ from fastapi import HTTPException
 
 from core.models import PlaylistRequest, PlaylistResponse, LibraryPlaylistsRequest, LibraryPlaylistsResponse, SpotifyPlaylistInfo, PlaylistDraftRequest
 
+from config.settings import settings
+
 from services.spotify_playlist_service import spotify_playlist_service
 from services.playlist_generator import playlist_generator_service
 from services.playlist_draft_service import playlist_draft_service
@@ -19,8 +21,6 @@ from services.database_service import db_service
 from services.auth_service import auth_service
 
 from utils.input_validator import InputValidator
-
-from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -140,9 +140,13 @@ async def generate_playlist(request: PlaylistRequest):
 
     except ValueError as e:
         logger.warning(f"Playlist generation input validation failed: {e}")
-        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
+        sanitized_error = InputValidator.sanitize_error_message(str(e))
+
+        raise HTTPException(status_code=400, detail=f"Invalid input: {sanitized_error}")
+
     except HTTPException:
         raise
+
     except Exception as e:
         logger.error(f"Playlist generation failed: {e}")
         sanitized_error = InputValidator.sanitize_error_message(str(e))
@@ -292,7 +296,8 @@ async def refine_playlist(request: PlaylistRequest):
         raise
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error refining playlist: {str(e)}")
+        sanitized_error = InputValidator.sanitize_error_message(str(e))
+        raise HTTPException(status_code=500, detail=f"Error refining playlist: {sanitized_error}")
 
 async def update_playlist_draft(request: PlaylistRequest):
     """Update an existing playlist draft without AI refinement (no refinement count increase)"""
@@ -332,7 +337,8 @@ async def update_playlist_draft(request: PlaylistRequest):
         raise
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error updating playlist draft: {str(e)}")
+        sanitized_error = InputValidator.sanitize_error_message(str(e))
+        raise HTTPException(status_code=500, detail=f"Error updating playlist draft: {sanitized_error}")
 
 async def get_library_playlists(request: LibraryPlaylistsRequest):
     try:

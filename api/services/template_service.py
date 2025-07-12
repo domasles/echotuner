@@ -9,6 +9,8 @@ from pathlib import Path
 
 from core.singleton import SingletonServiceBase
 
+from utils.input_validator import UniversalValidator
+
 class TemplateService(SingletonServiceBase):
     """Service for loading and rendering HTML templates"""
 
@@ -33,7 +35,7 @@ class TemplateService(SingletonServiceBase):
             template_path = self.templates_dir / template_name
 
             if not template_path.exists():
-                raise FileNotFoundError(f"Template {template_name} not found")
+                raise FileNotFoundError(UniversalValidator.sanitize_error_message(f"Template {template_name} not found"))
 
             with open(template_path, 'r', encoding='utf-8') as f:
                 self._cache[template_name] = f.read()

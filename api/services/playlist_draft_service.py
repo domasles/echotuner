@@ -14,11 +14,12 @@ from typing import List, Optional
 
 from core.singleton import SingletonServiceBase
 from core.models import PlaylistDraft, Song
-
 from config.app_constants import AppConstants
 from config.settings import settings
 
 from services.database_service import db_service
+
+from utils.input_validator import UniversalValidator
 
 logger = logging.getLogger(__name__)
 
@@ -32,19 +33,18 @@ class PlaylistDraftService(SingletonServiceBase):
         """Initialize the PlaylistDraftService."""
 
         self.db_path = AppConstants.DATABASE_FILEPATH
-
         self._log_initialization("Playlist draft service initialized successfully", logger)
 
     async def initialize(self):
         """Initialize the playlist draft service."""
 
         try:
-            await self._cleanup_expired_drafts_loop()
+            asyncio.create_task(self._cleanup_expired_drafts_loop())
             logger.info("Playlist draft service initialized successfully")
 
         except Exception as e:
             logger.error(f"Failed to initialize playlist draft service: {e}")
-            raise
+            raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
 
     async def _cleanup_expired_drafts_loop(self):
         """Background task to clean up expired drafts."""
@@ -95,15 +95,17 @@ class PlaylistDraftService(SingletonServiceBase):
             }
 
             success = await db_service.save_playlist_draft(draft_data)
+
             if success:
                 logger.debug(f"Saved draft playlist {playlist_id} for device {device_id}")
                 return playlist_id
+
             else:
                 raise Exception("Failed to save to database")
 
         except Exception as e:
             logger.error(f"Failed to save draft playlist: {e}")
-            raise
+            raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
 
     async def update_draft(self, playlist_id: str, songs: List[Song], refinements_used: int, prompt: Optional[str] = None) -> bool:
         """Update an existing draft playlist."""

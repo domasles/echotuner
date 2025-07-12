@@ -1,5 +1,5 @@
 """
-Database service
+Database service.
 Centralizedly manages all database operations.
 """
 
@@ -12,8 +12,9 @@ from datetime import datetime
 
 from core.singleton import SingletonServiceBase
 from core.models import UserContext
-
 from config.app_constants import AppConstants
+
+from utils.input_validator import UniversalValidator
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,8 @@ class DatabaseService(SingletonServiceBase):
         await self._create_personality_tables()
         await self._create_playlist_tables()
         await self._create_rate_limit_tables()
+        await self.create_ip_rate_limit_tables()
+
         await self._run_migrations()
 
     async def _create_auth_tables(self):
@@ -86,7 +89,7 @@ class DatabaseService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Failed to create auth tables: {e}")
-            raise
+            raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
 
     async def _create_personality_tables(self):
         """Create personality-related tables"""
@@ -118,7 +121,7 @@ class DatabaseService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Failed to create personality tables: {e}")
-            raise
+            raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
 
     async def _create_playlist_tables(self):
         """Create playlist-related tables"""
@@ -213,7 +216,7 @@ class DatabaseService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Failed to create playlist tables: {e}")
-            raise
+            raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
 
     async def _create_rate_limit_tables(self):
         """Create rate limiting tables"""
@@ -244,7 +247,35 @@ class DatabaseService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Failed to create rate limit tables: {e}")
-            raise
+            raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
+
+    async def create_ip_rate_limit_tables(self):
+        """Create IP rate limiting tables"""
+
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute("""
+                    CREATE TABLE IF NOT EXISTS ip_attempts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ip_hash TEXT NOT NULL,
+                        attempt_type TEXT NOT NULL DEFAULT 'auth',
+                        attempted_at INTEGER NOT NULL,
+                        blocked_until INTEGER NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+
+                await db.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_ip_attempts_hash_time 
+                    ON ip_attempts(ip_hash, attempted_at)
+                """)
+
+                await db.commit()
+                logger.info("IP rate limiting tables created successfully")
+
+        except Exception as e:
+            logger.error(f"Failed to create IP rate limiting tables: {e}")
+            raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
 
     async def store_auth_state(self, state: str, device_id: str, platform: str, expires_at: int) -> bool:
         """Store auth state for validation"""
@@ -735,7 +766,7 @@ class DatabaseService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Database query failed: {e}")
-            raise
+            raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
 
     async def execute_many(self, query: str, params_list: List[tuple]):
         """Execute multiple queries with different parameters"""
@@ -771,7 +802,7 @@ class DatabaseService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Database fetch failed: {e}")
-            raise
+            raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
 
     async def insert_or_update(self, table: str, data: Dict[str, Any], conflict_column: str = None) -> bool:
         """Generic insert or update operation"""
@@ -1022,20 +1053,16 @@ class DatabaseService(SingletonServiceBase):
             logger.error(f"Failed to add demo playlist {playlist_id}: {e}")
             raise
 
-    async def get_demo_playlist_refinements(self, playlist_id: str) -> int:
-        """Get the refinement count for a demo playlist"""
+    async def record_ip_attempt(self, attempt_data: dict) -> bool:
+        """Record a failed IP attempt"""
 
         try:
-            async with aiosqlite.connect(self.db_path) as db:
-                cursor = await db.execute("""SELECT refinements_used FROM demo_playlists WHERE playlist_id = ?""", (playlist_id,))
-                row = await cursor.fetchone()
-
-                return row[0] if row else 0
+            return await self.insert_or_update('ip_attempts', attempt_data)
 
         except Exception as e:
-            logger.error(f"Failed to get demo playlist refinements for {playlist_id}: {e}")
-            return 0
-
+            logger.error(f"Failed to record IP attempt: {e}")
+            return False
+        
     async def increment_demo_playlist_refinements(self, playlist_id: str):
         """Increment the refinement count for a demo playlist"""
 
@@ -1053,6 +1080,20 @@ class DatabaseService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Failed to increment refinements for demo playlist {playlist_id}: {e}")
             raise
+
+    async def get_demo_playlist_refinements(self, playlist_id: str) -> int:
+        """Get the refinement count for a demo playlist"""
+
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                cursor = await db.execute("""SELECT refinements_used FROM demo_playlists WHERE playlist_id = ?""", (playlist_id,))
+                row = await cursor.fetchone()
+
+                return row[0] if row else 0
+
+        except Exception as e:
+            logger.error(f"Failed to get demo playlist refinements for {playlist_id}: {e}")
+            return 0
 
     async def get_demo_playlists_for_device(self, device_id: str) -> List[Dict[str, Any]]:
         """Get all demo playlist IDs for a device"""
@@ -1083,18 +1124,39 @@ class DatabaseService(SingletonServiceBase):
             logger.error(f"Failed to get demo playlists for device {device_id}: {e}")
             return []
 
-    async def cleanup_demo_playlists_for_device(self, device_id: str):
-        """Clean up all demo playlists for a specific device"""
+    async def get_ip_attempts_count(self, ip_hash: str, since_timestamp: float) -> int:
+        """Get count of attempts for an IP since a given timestamp"""
+
+        try:
+            row = await self.fetch_one("SELECT COUNT(*) FROM ip_attempts WHERE ip_hash = ? AND attempted_at > ?", (ip_hash, since_timestamp))
+            return row[0] if row else 0
+
+        except Exception as e:
+            logger.error(f"Failed to get IP attempts count: {e}")
+            return 0
+
+    async def clear_ip_attempts(self, ip_hash: str) -> bool:
+        """Clear all attempts for an IP address"""
+
+        try:
+            return await self.delete_record('ip_attempts', 'ip_hash = ?', (ip_hash,))
+
+        except Exception as e:
+            logger.error(f"Failed to clear IP attempts: {e}")
+            return False
+
+    async def cleanup_expired_ip_attempts(self, before_timestamp: float) -> int:
+        """Clean up expired IP attempts"""
 
         try:
             async with aiosqlite.connect(self.db_path) as db:
-                await db.execute("""DELETE FROM demo_playlists WHERE device_id = ?""", (device_id,))
-                await db.commit()
+                cursor = await db.execute("DELETE FROM ip_attempts WHERE attempted_at < ?", (before_timestamp,))
 
-                logger.debug(f"Cleaned up demo playlists for device {device_id}")
+                await db.commit()
+                return cursor.rowcount
 
         except Exception as e:
-            logger.error(f"Failed to cleanup demo playlists for device {device_id}: {e}")
-            raise
+            logger.error(f"Failed to cleanup expired IP attempts: {e}")
+            return 0
 
 db_service = DatabaseService()

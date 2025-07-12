@@ -6,11 +6,16 @@ Enforces rate limits on user requests.
 import hashlib
 import logging
 
-from services.database_service import db_service
-from core.singleton import SingletonServiceBase
 from datetime import datetime, timedelta
+
+from core.singleton import SingletonServiceBase
 from core.models import RateLimitStatus
+
 from config.settings import settings
+
+from services.database_service import db_service
+
+from utils.input_validator import UniversalValidator
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +45,9 @@ class RateLimiterService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Error initializing rate limiter: {e}")
-            raise RuntimeError(f"Rate limiter initialization failed: {e}")
+            sanitized_error = UniversalValidator.sanitize_error_message(str(e))
+
+            raise RuntimeError(f"Rate limiter initialization failed: {sanitized_error}")
 
     def _get_device_hash(self, device_id: str) -> str:
         """Create a hash of the device ID for privacy"""

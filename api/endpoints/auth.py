@@ -4,13 +4,14 @@ import logging
 import uuid
 
 from fastapi.responses import HTMLResponse
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from datetime import datetime
 
 from core.models import AuthInitRequest, AuthInitResponse, SessionValidationRequest, SessionValidationResponse, DeviceRegistrationRequest, DeviceRegistrationResponse, DemoPlaylistRefinementsRequest
 
 from config.settings import settings
 
+from services.ip_rate_limiter import ip_rate_limiter_service
 from services.template_service import template_service
 from services.rate_limiter import rate_limiter_service
 from services.auth_middleware import auth_middleware
@@ -21,10 +22,37 @@ from utils.input_validator import InputValidator
 
 logger = logging.getLogger(__name__)
 
-async def auth_init(request: AuthInitRequest):
+def get_client_ip(request: Request) -> str:
+    """Extract client IP address from request headers."""
+
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    real_ip = request.headers.get("X-Real-IP")
+
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+
+    if real_ip:
+        return real_ip.strip()
+
+    if request.client and request.client.host:
+        return request.client.host
+    
+    return "unknown"
+
+async def auth_init(request: AuthInitRequest, http_request: Request):
     """Initialize Spotify OAuth flow"""
 
     try:
+        client_ip = get_client_ip(http_request)
+
+        if await ip_rate_limiter_service.is_ip_blocked(client_ip):
+            remaining = await ip_rate_limiter_service.get_remaining_attempts(client_ip)
+
+            raise HTTPException(
+                status_code=429, 
+                detail=f"Too many authentication attempts. Try again later. Remaining attempts: {remaining}"
+            )
+
         if not auth_service.is_ready():
             logger.error("Auth service not ready")
             raise HTTPException(status_code=503, detail="Authentication service not available")
@@ -55,12 +83,15 @@ async def auth_init(request: AuthInitRequest):
         logger.error(f"Auth init failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to initialize authentication")
 
-async def auth_callback(code: str = None, state: str = None, error: str = None):
+async def auth_callback(code: str = None, state: str = None, error: str = None, http_request: Request = None):
     """Handle Spotify OAuth callback"""
 
     try:
+        client_ip = get_client_ip(http_request) if http_request else "unknown"
+        
         if error:
-            logger.warning(f"OAuth error: {error}")
+            logger.warning(f"OAuth error from IP {client_ip}: {error}")
+            await ip_rate_limiter_service.record_failed_attempt(client_ip, "oauth_error")
 
             html_content = template_service.render_template(
                 "html/auth_error.html", 
@@ -71,18 +102,23 @@ async def auth_callback(code: str = None, state: str = None, error: str = None):
             return HTMLResponse(content=html_content)
 
         if not code or not state:
+            await ip_rate_limiter_service.record_failed_attempt(client_ip, "invalid_params")
             raise HTTPException(status_code=400, detail="Missing authorization code or state")
 
         device_info = await auth_service.validate_auth_state(state)
 
         if not device_info:
+            await ip_rate_limiter_service.record_failed_attempt(client_ip, "invalid_state")
             raise HTTPException(status_code=400, detail="Invalid or expired auth state")
 
         result = await auth_service.handle_spotify_callback(code, state, device_info)
 
         if not result:
+            await ip_rate_limiter_service.record_failed_attempt(client_ip, "callback_failed")
             raise HTTPException(status_code=400, detail="Failed to create session")
 
+        await ip_rate_limiter_service.clear_ip_attempts(client_ip)
+        
         session_id = result
         html_content = template_service.render_template("html/auth_success.html", session_id=session_id, device_id=device_info['device_id'])
 
@@ -125,6 +161,7 @@ async def validate_session(request: SessionValidationRequest):
     except ValueError as e:
         logger.warning(f"Session validation input error: {e}")
         raise HTTPException(status_code=400, detail="Invalid input parameters")
+
     except HTTPException:
         raise
 
@@ -170,7 +207,9 @@ async def get_authenticated_rate_limit_status(request: SessionValidationRequest)
 
     except Exception as e:
         logger.error(f"Rate limit status error: {e}")
-        raise HTTPException(status_code=500, detail=f"Error checking rate limit: {str(e)}")
+        sanitized_error = InputValidator.sanitize_error_message(str(e))
+
+        raise HTTPException(status_code=500, detail=f"Error checking rate limit: {sanitized_error}")
 
 async def register_device(request: DeviceRegistrationRequest):
     """Register a new device and get server-generated UUID"""
@@ -283,4 +322,6 @@ async def get_demo_playlist_refinements(request: DemoPlaylistRefinementsRequest)
 
     except Exception as e:
         logger.error(f"Demo playlist refinements error: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting demo playlist refinements: {str(e)}")
+        sanitized_error = InputValidator.sanitize_error_message(str(e))
+
+        raise HTTPException(status_code=500, detail=f"Error getting demo playlist refinements: {sanitized_error}")

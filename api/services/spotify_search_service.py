@@ -19,6 +19,8 @@ from config.settings import settings
 
 from services.data_service import data_loader
 
+from utils.input_validator import UniversalValidator
+
 logger = logging.getLogger(__name__)
 
 class SpotifySearchService(SingletonServiceBase):
@@ -59,7 +61,9 @@ class SpotifySearchService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Failed to initialize Spotify Search Service: {e}")
-            raise RuntimeError(f"Spotify Search Service initialization failed: {e}")
+            sanitized_error = UniversalValidator.sanitize_error_message(str(e))
+
+            raise RuntimeError(f"Spotify Search Service initialization failed: {sanitized_error}")
 
     async def _test_connection(self):
         """Test Spotify API connection"""
@@ -71,7 +75,8 @@ class SpotifySearchService(SingletonServiceBase):
                 raise Exception("Invalid API response")
 
         except Exception as e:
-            raise Exception(f"Spotify API test failed: {e}")
+            sanitized_error = UniversalValidator.sanitize_error_message(str(e))
+            raise Exception(f"Spotify API test failed: {sanitized_error}")
 
     async def search_songs_by_mood(self, mood_keywords: List[str], genres: Optional[List[str]] = None, energy_level: Optional[str] = None, user_context: Optional[UserContext] = None, count: int = 30, discovery_strategy: str = "balanced") -> List[Song]:
         """
@@ -116,7 +121,9 @@ class SpotifySearchService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Spotify search failed: {e}")
-            raise RuntimeError(f"Spotify search failed: {e}")
+            sanitized_error = UniversalValidator.sanitize_error_message(str(e))
+
+            raise RuntimeError(f"Spotify search failed: {sanitized_error}")
 
     def _generate_search_queries(self, mood_keywords: List[str], genres: Optional[List[str]] = None, energy_level: Optional[str] = None, user_context: Optional[UserContext] = None) -> List[str]:
         """Generate diverse search queries based on mood and preferences (legacy method)"""
@@ -205,7 +212,9 @@ class SpotifySearchService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Spotify search error for '{query}': {e}")
-            raise RuntimeError(f"Spotify search error for '{query}': {e}")
+            sanitized_error = UniversalValidator.sanitize_error_message(str(e))
+
+            raise RuntimeError(f"Spotify search error for '{query}': {sanitized_error}")
 
     def _remove_duplicates(self, songs: List[Song]) -> List[Song]:
         """Remove duplicate songs based on title and artist"""
