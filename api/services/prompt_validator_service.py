@@ -13,6 +13,7 @@ from core.singleton import SingletonServiceBase
 from providers.registry import provider_registry
 from config.settings import settings
 
+from services.embedding_cache_service import embedding_cache_service
 from services.data_service import data_loader
 from services.ai_service import ai_service
 
@@ -95,6 +96,7 @@ class PromptValidatorService(SingletonServiceBase):
 
                     except Exception as e:
                         logger.debug(f"Failed to get embedding for '{text[:30]}...': {e}")
+
                     return None
 
             tasks = [get_embedding_with_semaphore(text) for text in music_references]
@@ -115,10 +117,18 @@ class PromptValidatorService(SingletonServiceBase):
             raise RuntimeError(f"Failed to compute reference embeddings: {e}")
 
     async def _get_embedding(self, text: str) -> np.ndarray:
-        """Get embedding for text using AI model"""
+        """Get embedding for text using AI model with caching"""
 
         try:
+            cached_embedding = await embedding_cache_service.get_cached_embedding(text, self.model_config.embedding_model)
+
+            if cached_embedding is not None:
+                return np.array(cached_embedding)
+
             embedding = await ai_service.get_embedding(text, model_id=None)
+            embedding_list = embedding.tolist() if isinstance(embedding, np.ndarray) else list(embedding)
+
+            await embedding_cache_service.store_embedding(text, embedding_list, self.model_config.embedding_model)
             return np.array(embedding)
 
         except Exception as e:

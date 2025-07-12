@@ -11,9 +11,9 @@ from core.models import AuthInitRequest, AuthInitResponse, SessionValidationRequ
 
 from config.settings import settings
 
+from services.rate_limiter_service import rate_limiter_service
 from services.ip_rate_limiter import ip_rate_limiter_service
 from services.template_service import template_service
-from services.rate_limiter import rate_limiter_service
 from services.auth_middleware import auth_middleware
 from services.database_service import db_service
 from services.auth_service import auth_service

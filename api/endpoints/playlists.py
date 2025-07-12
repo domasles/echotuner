@@ -10,12 +10,12 @@ from core.models import PlaylistRequest, PlaylistResponse, LibraryPlaylistsReque
 
 from config.settings import settings
 
+from services.playlist_generator_service import playlist_generator_service
 from services.spotify_playlist_service import spotify_playlist_service
-from services.playlist_generator import playlist_generator_service
+from services.prompt_validator_service import prompt_validator_service
 from services.playlist_draft_service import playlist_draft_service
-from services.prompt_validator import prompt_validator_service
+from services.rate_limiter_service import rate_limiter_service
 from services.personality_service import personality_service
-from services.rate_limiter import rate_limiter_service
 from services.auth_middleware import auth_middleware
 from services.database_service import db_service
 from services.auth_service import auth_service

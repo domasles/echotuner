@@ -21,13 +21,14 @@ from config.settings import settings
 
 from services.spotify_playlist_service import spotify_playlist_service
 from services.playlist_draft_service import playlist_draft_service
-from services.playlist_generator import playlist_generator_service
-from services.prompt_validator import prompt_validator_service
+from services.playlist_generator_service import playlist_generator_service
+from services.prompt_validator_service import prompt_validator_service
 from services.personality_service import personality_service
-from services.rate_limiter import rate_limiter_service
+from services.rate_limiter_service import rate_limiter_service
 from services.database_service import db_service
 from services.data_service import data_loader
 from services.ai_service import ai_service
+from services.embedding_cache_service import embedding_cache_service
 
 from utils.input_validator import UniversalValidator
 from utils.decorators import *
@@ -67,7 +68,7 @@ sys.path.insert(0, str(api_dir))
 async def lifespan(app: FastAPI):
     """Handle startup and shutdown events"""
 
-    logger.info(f"Starting {app_constants.API_NAME} API...")
+    logger.info(f"Starting {app_constants.API_TITLE}...")
     config_errors = settings.validate_required_settings()
 
     if config_errors:
@@ -80,6 +81,7 @@ async def lifespan(app: FastAPI):
         await db_service.initialize()
 
         init_tasks = [
+            embedding_cache_service.initialize(),
             rate_limiter_service.initialize(),
             ai_service.initialize(),
             prompt_validator_service.initialize(),
@@ -96,7 +98,7 @@ async def lifespan(app: FastAPI):
         logger.info(f"Rate Limiting: {'ENABLED' if settings.PLAYLIST_LIMIT_ENABLED else 'DISABLED'}")
 
     except Exception as e:
-        logger.error(f"Failed to initialize {app_constants.API_NAME} API: {e}")
+        logger.error(f"Failed to initialize {app_constants.API_TITLE}: {e}")
         raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
 
     yield
