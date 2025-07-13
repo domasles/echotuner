@@ -1,190 +1,204 @@
 """
-Embedding cache service.
-Manages cached embedding vectors to avoid recomputation of AI model calls.
+Vector embedding cache for AI responses using database storage.
 """
 
-import asyncio
 import hashlib
 import logging
-import json
-
-from typing import Dict, List, Optional, Any
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 from core.singleton import SingletonServiceBase
+from core.service_manager import ServiceManager
 from config.app_constants import AppConstants
+from utils.input_validator import UniversalValidator
+
+from database.core import get_session
+from database.models import EmbeddingCache
+from sqlalchemy.future import select
+from sqlalchemy import and_, delete, update, func
 
 logger = logging.getLogger(__name__)
 
 class EmbeddingCacheService(SingletonServiceBase):
-    """Service for caching and managing embedding vectors to optimize AI model performance"""
+    """Manages vector embedding cache for AI responses using database storage."""
 
     def __init__(self):
         super().__init__()
 
     def _setup_service(self):
-        """Initialize the embedding cache service."""
-
-        self.cache_file_path = AppConstants.EMBEDDINGS_CACHE_FILEPATH
-        self._cache_data: Dict[str, Any] = {}
-        self._cache_loaded = False
-        self._cache_lock = asyncio.Lock()
+        """Initialize embedding cache service."""
         
-        # Import filesystem service (lazy import to avoid circular dependencies)
-        from services.filesystem_service import filesystem_service
-        self.filesystem_service = filesystem_service
-
-        self._log_initialization("Embedding cache service initialized successfully", logger)
+        self._log_initialization("Embedding cache service initialized with database storage", logger)
 
     async def initialize(self):
-        """Initialize the embedding cache and load existing data."""
+        """Initialize the embedding cache service."""
+        # No file loading needed - using database
+        pass
 
+    def _generate_cache_key(self, prompt: str, user_context: Optional[str] = None) -> str:
+        """Generate a unique cache key for the given prompt and context."""
         try:
-            await self._load_cache()
-
+            input_data = prompt
+            if user_context:
+                input_data += f"|{user_context}"
+            
+            return hashlib.sha256(input_data.encode('utf-8')).hexdigest()
         except Exception as e:
-            logger.error(f"Failed to initialize embedding cache service: {e}")
-            raise
+            logger.error(f"Failed to generate cache key: {e}")
+            return ""
 
-    async def _load_cache(self):
-        """Load existing cache data from file."""
+    async def get_cached_embedding(self, prompt: str, user_context: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Get cached embedding for the given prompt and context."""
+        try:
+            cache_key = self._generate_cache_key(prompt, user_context)
+            if not cache_key:
+                return None
 
-        async with self._cache_lock:
-            try:
-                if self.filesystem_service.file_exists(self.cache_file_path):
-                    with open(self.cache_file_path, 'r', encoding='utf-8') as f:
-                        self._cache_data = json.load(f)
+            async with get_session() as session:
+                result = await session.execute(
+                    select(EmbeddingCache).where(EmbeddingCache.cache_key == cache_key)
+                )
+                cached_entry = result.scalar_one_or_none()
 
-                    embeddings_count = len(self._cache_data.get('embeddings', {}))
-                    logger.info(f"Loaded {embeddings_count} cached embeddings from {self.cache_file_path}")
-
-                else:
-                    self._cache_data = {
-                        'metadata': {
-                            'created_at': datetime.now().isoformat(),
-                            'total_embeddings': 0
-                        },
-                        'embeddings': {}
+                if cached_entry:
+                    logger.debug(f"Cache hit for key: {cache_key[:16]}...")
+                    return {
+                        "prompt": cached_entry.prompt,
+                        "response": cached_entry.response_data,
+                        "user_context": cached_entry.user_context,
+                        "created_at": cached_entry.created_at,
+                        "access_count": cached_entry.access_count
                     }
-
-                    # Directory creation is handled by filesystem service during initialization
-                    logger.info(f"Initialized empty embedding cache at {self.cache_file_path}")
-
-                self._cache_loaded = True
-
-            except Exception as e:
-                logger.error(f"Failed to load embedding cache: {e}")
-
-                self._cache_data = {
-                    'metadata': {'total_embeddings': 0},
-                    'embeddings': {}
-                }
-
-                self._cache_loaded = True
-
-    async def _save_cache(self):
-        """Save cache data to file."""
-
-        try:
-            self._cache_data['metadata']['updated_at'] = datetime.now().isoformat()
-            self._cache_data['metadata']['total_embeddings'] = len(self._cache_data['embeddings'])
-
-            # Directory creation is handled by filesystem service during initialization
-            temp_file = f"{self.cache_file_path}.tmp"
-
-            with open(temp_file, 'w', encoding='utf-8') as f:
-                json.dump(self._cache_data, f, indent=2, ensure_ascii=False)
-
-            # Use pathlib for file operations instead of os
-            from pathlib import Path
-            Path(temp_file).replace(self.cache_file_path)
-            logger.debug(f"Saved embedding cache with {len(self._cache_data['embeddings'])} entries")
+                
+                logger.debug(f"Cache miss for key: {cache_key[:16]}...")
+                return None
 
         except Exception as e:
-            logger.error(f"Failed to save embedding cache: {e}")
-            temp_file = f"{self.cache_file_path}.tmp"
-
-            if self.filesystem_service.file_exists(temp_file):
-                try:
-                    Path(temp_file).unlink()
-
-                except:
-                    pass
-
-    def _generate_cache_key(self, text: str, model_name: Optional[str] = None) -> str:
-        """Generate a consistent cache key for text and model combination."""
-
-        normalized_text = text.lower().strip()
-        cache_input = f"{normalized_text}:{model_name or 'default'}"
-
-        return hashlib.sha256(cache_input.encode('utf-8')).hexdigest()
-
-    async def get_cached_embedding(self, text: str, model_name: Optional[str] = None) -> Optional[List[float]]:
-        """Get cached embedding for text if it exists."""
-
-        if not self._cache_loaded:
-            await self._load_cache()
-
-        cache_key = self._generate_cache_key(text, model_name)
-
-        async with self._cache_lock:
-            cache_entry = self._cache_data['embeddings'].get(cache_key)
-
-            if cache_entry:
-                logger.debug(f"Cache hit for text: '{text[:50]}...'")
-                return cache_entry['embedding']
-
-            logger.debug(f"Cache miss for text: '{text[:50]}...'")
+            logger.error(f"Failed to get cached embedding: {e}")
             return None
 
-    async def store_embedding(self, text: str, embedding: List[float], model_name: Optional[str] = None):
+    async def store_embedding(self, prompt: str, response: Dict[str, Any], user_context: Optional[str] = None) -> bool:
         """Store embedding in cache."""
+        try:
+            cache_key = self._generate_cache_key(prompt, user_context)
+            if not cache_key:
+                return False
 
-        if not self._cache_loaded:
-            await self._load_cache()
+            async with get_session() as session:
+                cache_entry = EmbeddingCache(
+                    cache_key=cache_key,
+                    prompt=prompt,
+                    response_data=response,
+                    user_context=user_context,
+                    created_at=datetime.now().isoformat(),
+                    access_count=1
+                )
 
-        cache_key = self._generate_cache_key(text, model_name)
+                session.add(cache_entry)  # Use add instead of merge
+                await session.commit()
+                
+                logger.debug(f"Stored embedding for key: {cache_key[:16]}...")
+                return True
 
-        async with self._cache_lock:
-            self._cache_data['embeddings'][cache_key] = {
-                'text': text,
-                'embedding': embedding,
-                'model': model_name or 'default',
-                'cached_at': datetime.now().isoformat()
-            }
+        except Exception as e:
+            logger.error(f"Failed to store embedding: {e}")
+            return False
 
-            await self._save_cache()
-            logger.debug(f"Cached embedding for text: '{text[:50]}...'")
+    async def update_access_count(self, prompt: str, user_context: Optional[str] = None) -> bool:
+        """Update access count for cached entry."""
+        try:
+            cache_key = self._generate_cache_key(prompt, user_context)
+            if not cache_key:
+                return False
+
+            async with get_session() as session:
+                await session.execute(
+                    update(EmbeddingCache)
+                    .where(EmbeddingCache.cache_key == cache_key)
+                    .values(
+                        access_count=EmbeddingCache.access_count + 1,
+                        last_accessed=datetime.now().isoformat()
+                    )
+                )
+                await session.commit()
+                return True
+
+        except Exception as e:
+            logger.error(f"Failed to update access count: {e}")
+            return False
 
     async def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics."""
+        try:
+            async with get_session() as session:
+                total_entries_result = await session.execute(
+                    select(func.count(EmbeddingCache.cache_key))
+                )
+                total_entries = total_entries_result.scalar() or 0
 
-        if not self._cache_loaded:
-            await self._load_cache()
+                total_access_result = await session.execute(
+                    select(func.sum(EmbeddingCache.access_count))
+                )
+                total_access_count = total_access_result.scalar() or 0
+                
+                return {
+                    "total_entries": total_entries,
+                    "total_access_count": total_access_count,
+                    "storage_type": "database"
+                }
 
-        async with self._cache_lock:
-            embeddings = self._cache_data.get('embeddings', {})
+        except Exception as e:
+            logger.error(f"Failed to get cache stats: {e}")
+            return {"error": UniversalValidator.sanitize_error_message(str(e))}
 
-            return {
-                'total_embeddings': len(embeddings),
-                'cache_file_size_bytes': self.filesystem_service.get_file_size(self.cache_file_path),
-                'metadata': self._cache_data.get('metadata', {}),
-                'models_cached': list(set(entry.get('model', 'default') for entry in embeddings.values()))
-            }
+    async def clear_cache(self) -> bool:
+        """Clear all cache entries."""
+        try:
+            async with get_session() as session:
+                await session.execute(delete(EmbeddingCache))
+                await session.commit()
+                logger.info("Embedding cache cleared")
+                return True
 
-    async def clear_cache(self):
-        """Clear all cached embeddings."""
+        except Exception as e:
+            logger.error(f"Failed to clear cache: {e}")
+            return False
 
-        async with self._cache_lock:
-            self._cache_data = {
-                'metadata': {
-                    'created_at': datetime.now().isoformat(),
-                    'total_embeddings': 0
-                },
-                'embeddings': {}
-            }
+    async def remove_cache_entry(self, prompt: str, user_context: Optional[str] = None) -> bool:
+        """Remove specific cache entry."""
+        try:
+            cache_key = self._generate_cache_key(prompt, user_context)
+            if not cache_key:
+                return False
 
-            await self._save_cache()
-            logger.info("Embedding cache cleared")
+            async with get_session() as session:
+                result = await session.execute(
+                    delete(EmbeddingCache).where(EmbeddingCache.cache_key == cache_key)
+                )
+                await session.commit()
+                
+                if result.rowcount > 0:
+                    logger.debug(f"Removed cache entry for key: {cache_key[:16]}...")
+                    return True
 
+                return False
+
+        except Exception as e:
+            logger.error(f"Failed to remove cache entry: {e}")
+            return False
+
+    async def get_cache_size(self) -> int:
+        """Get the number of entries in the cache."""
+        try:
+            async with get_session() as session:
+                result = await session.execute(
+                    select(func.count(EmbeddingCache.cache_key))
+                )
+                return result.scalar() or 0
+
+        except Exception as e:
+            logger.error(f"Failed to get cache size: {e}")
+            return 0
+
+# Create singleton instance
 embedding_cache_service = EmbeddingCacheService()
