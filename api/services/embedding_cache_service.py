@@ -47,7 +47,7 @@ class EmbeddingCacheService(SingletonServiceBase):
             logger.error(f"Failed to generate cache key: {e}")
             return ""
 
-    async def get_cached_embedding(self, prompt: str, user_context: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    async def get_cached_embedding(self, prompt: str, user_context: Optional[str] = None) -> Optional[Any]:
         """Get cached embedding for the given prompt and context."""
         try:
             cache_key = self._generate_cache_key(prompt, user_context)
@@ -62,13 +62,8 @@ class EmbeddingCacheService(SingletonServiceBase):
 
                 if cached_entry:
                     logger.debug(f"Cache hit for key: {cache_key[:16]}...")
-                    return {
-                        "prompt": cached_entry.prompt,
-                        "response": cached_entry.response_data,
-                        "user_context": cached_entry.user_context,
-                        "created_at": cached_entry.created_at,
-                        "access_count": cached_entry.access_count
-                    }
+                    # Return just the response data (the embedding array)
+                    return cached_entry.response_data
                 
                 logger.debug(f"Cache miss for key: {cache_key[:16]}...")
                 return None
@@ -77,7 +72,7 @@ class EmbeddingCacheService(SingletonServiceBase):
             logger.error(f"Failed to get cached embedding: {e}")
             return None
 
-    async def store_embedding(self, prompt: str, response: Dict[str, Any], user_context: Optional[str] = None) -> bool:
+    async def store_embedding(self, prompt: str, response: Any, user_context: Optional[str] = None) -> bool:
         """Store embedding in cache."""
         try:
             cache_key = self._generate_cache_key(prompt, user_context)
