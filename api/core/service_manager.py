@@ -21,6 +21,9 @@ class ServiceManager(SingletonServiceBase):
         """Initialize the service manager."""
         self.services: Dict[str, Any] = {}
         self.initialization_order = [
+            # Filesystem service must be first to ensure directories exist
+            'filesystem_service',
+            
             # Core infrastructure services (no dependencies)
             'database_service',
             'embedding_cache_service', 
@@ -50,13 +53,14 @@ class ServiceManager(SingletonServiceBase):
 
     def register_service(self, name: str, service: Any):
         """Register a service for managed initialization"""
+
         self.services[name] = service
         logger.debug(f"Registered service: {name}")
 
     async def initialize_all_services(self) -> Dict[str, bool]:
         """Initialize all registered services in dependency order"""
-        logger.info("Starting managed service initialization...")
         
+        logger.info("Starting managed service initialization...")
         results = {}
         successful_services = []
         

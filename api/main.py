@@ -25,6 +25,7 @@ from core.service_manager import service_manager
 from core.logging_config import configure_logging
 
 # Service imports for registration
+from services.filesystem_service import filesystem_service
 from services.database_service import db_service
 from services.embedding_cache_service import embedding_cache_service
 from services.data_service import data_loader
@@ -67,6 +68,8 @@ async def lifespan(app: FastAPI):
             logger.error(f"  - {error}")
 
     try:
+        # Register filesystem service first to ensure directories exist
+        service_manager.register_service('filesystem_service', filesystem_service)
         service_manager.register_service('database_service', db_service)
         service_manager.register_service('embedding_cache_service', embedding_cache_service)
         service_manager.register_service('data_service', data_loader)

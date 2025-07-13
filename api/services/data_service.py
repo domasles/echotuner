@@ -40,7 +40,10 @@ class DataLoader(SingletonServiceBase):
         try:
             file_path = os.path.join(self.data_dir, filename)
 
-            if not os.path.exists(file_path):
+            # Import filesystem service (lazy import to avoid circular dependencies)
+            from services.filesystem_service import filesystem_service
+            
+            if not filesystem_service.file_exists(file_path):
                 logger.error(f"Configuration file not found: {file_path}")
                 raise FileNotFoundError(f"Configuration file not found: {filename}")
 

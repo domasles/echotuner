@@ -7,7 +7,6 @@ import asyncio
 import hashlib
 import logging
 import json
-import os
 
 from typing import Dict, List, Optional, Any
 from datetime import datetime
@@ -30,6 +29,10 @@ class EmbeddingCacheService(SingletonServiceBase):
         self._cache_data: Dict[str, Any] = {}
         self._cache_loaded = False
         self._cache_lock = asyncio.Lock()
+        
+        # Import filesystem service (lazy import to avoid circular dependencies)
+        from services.filesystem_service import filesystem_service
+        self.filesystem_service = filesystem_service
 
         self._log_initialization("Embedding cache service initialized successfully", logger)
 
@@ -48,7 +51,7 @@ class EmbeddingCacheService(SingletonServiceBase):
 
         async with self._cache_lock:
             try:
-                if os.path.exists(self.cache_file_path):
+                if self.filesystem_service.file_exists(self.cache_file_path):
                     with open(self.cache_file_path, 'r', encoding='utf-8') as f:
                         self._cache_data = json.load(f)
 
@@ -64,7 +67,7 @@ class EmbeddingCacheService(SingletonServiceBase):
                         'embeddings': {}
                     }
 
-                    os.makedirs(os.path.dirname(self.cache_file_path), exist_ok=True)
+                    # Directory creation is handled by filesystem service during initialization
                     logger.info(f"Initialized empty embedding cache at {self.cache_file_path}")
 
                 self._cache_loaded = True
@@ -86,22 +89,24 @@ class EmbeddingCacheService(SingletonServiceBase):
             self._cache_data['metadata']['updated_at'] = datetime.now().isoformat()
             self._cache_data['metadata']['total_embeddings'] = len(self._cache_data['embeddings'])
 
-            os.makedirs(os.path.dirname(self.cache_file_path), exist_ok=True)
+            # Directory creation is handled by filesystem service during initialization
             temp_file = f"{self.cache_file_path}.tmp"
 
             with open(temp_file, 'w', encoding='utf-8') as f:
                 json.dump(self._cache_data, f, indent=2, ensure_ascii=False)
 
-            os.replace(temp_file, self.cache_file_path)
+            # Use pathlib for file operations instead of os
+            from pathlib import Path
+            Path(temp_file).replace(self.cache_file_path)
             logger.debug(f"Saved embedding cache with {len(self._cache_data['embeddings'])} entries")
 
         except Exception as e:
             logger.error(f"Failed to save embedding cache: {e}")
             temp_file = f"{self.cache_file_path}.tmp"
 
-            if os.path.exists(temp_file):
+            if self.filesystem_service.file_exists(temp_file):
                 try:
-                    os.remove(temp_file)
+                    Path(temp_file).unlink()
 
                 except:
                     pass
@@ -162,7 +167,7 @@ class EmbeddingCacheService(SingletonServiceBase):
 
             return {
                 'total_embeddings': len(embeddings),
-                'cache_file_size_bytes': os.path.getsize(self.cache_file_path) if os.path.exists(self.cache_file_path) else 0,
+                'cache_file_size_bytes': self.filesystem_service.get_file_size(self.cache_file_path),
                 'metadata': self._cache_data.get('metadata', {}),
                 'models_cached': list(set(entry.get('model', 'default') for entry in embeddings.values()))
             }
