@@ -118,6 +118,7 @@ class PlaylistDraft(BaseModel):
     refinements_used: int = 0
     status: str = "draft" # draft, added_to_spotify
     spotify_playlist_id: Optional[str] = None
+    spotify_playlist_url: Optional[str] = None
 
 class SpotifyPlaylistRequest(BaseModel):
     playlist_id: str
