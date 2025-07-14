@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import HTTPException
+from fastapi import HTTPException, APIRouter
 
 from config.app_constants import app_constants
 from config.settings import settings
@@ -13,6 +13,10 @@ from utils.input_validator import InputValidator
 
 logger = logging.getLogger(__name__)
 
+# Create FastAPI router
+router = APIRouter(prefix="/config", tags=["config"])
+
+@router.get("/health")
 async def health_check():
     """Check API health and service status"""
 
@@ -21,6 +25,7 @@ async def health_check():
         "version": app_constants.API_VERSION
     }
 
+@router.get("")
 async def get_config():
     """Get client configuration values"""
 
@@ -44,6 +49,7 @@ async def get_config():
         "demo_mode": settings.DEMO
     }
 
+@router.post("/reload")
 async def reload_config():
     """Reload JSON configuration files without restarting the server"""
     try:
@@ -62,6 +68,7 @@ async def reload_config():
         raise HTTPException(status_code=500, detail=f"Failed to reload configuration: {sanitized_error}")
 
 async def root():
+    """API root endpoint with welcome message and endpoint list"""
     return {
         "message": app_constants.API_WELCOME_MESSAGE,
         "description": "AI-powered playlist generation with real-time song search",

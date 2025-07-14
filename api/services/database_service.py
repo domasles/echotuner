@@ -565,6 +565,20 @@ class DatabaseService(SingletonServiceBase):
             logger.error(f"Failed to update draft refinements: {e}")
             return False
 
+    @handle_service_errors("delete_playlist_drafts_by_sessions") 
+    async def delete_playlist_drafts_by_sessions(self, session_ids: List[str]) -> int:
+        """Delete playlist drafts by multiple session IDs using ORM."""
+        try:
+            async with get_session() as session:
+                result = await session.execute(
+                    delete(PlaylistDraft).where(PlaylistDraft.session_id.in_(session_ids))
+                )
+                await session.commit()
+                return result.rowcount
+        except Exception as e:
+            logger.error(f"Failed to delete playlist drafts for sessions: {e}")
+            raise
+            
     # ===========================================
     # USER PERSONALITY OPERATIONS (ORM-based)
     # ===========================================
@@ -606,6 +620,20 @@ class DatabaseService(SingletonServiceBase):
             logger.error(f"Failed to get user personality: {e}")
             return None
 
+    @handle_service_errors("delete_user_personality")
+    async def delete_user_personality(self, user_id: str) -> bool:
+        """Delete user personality by user_id using ORM."""
+        try:
+            async with get_session() as session:
+                result = await session.execute(
+                    delete(UserPersonality).where(UserPersonality.user_id == user_id)
+                )
+                await session.commit()
+                return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to delete user personality for {user_id}: {e}")
+            raise
+            
     # ===========================================
     # DEMO PLAYLIST OPERATIONS (ORM-based)
     # ===========================================
@@ -838,5 +866,33 @@ class DatabaseService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Failed to cleanup device auth states: {e}")
 
+    @handle_service_errors("delete_auth_sessions_by_account_type")
+    async def delete_auth_sessions_by_account_type(self, account_type: str) -> int:
+        """Delete auth sessions by account type using ORM."""
+        try:
+            async with get_session() as session:
+                result = await session.execute(
+                    delete(AuthSession).where(AuthSession.account_type == account_type)
+                )
+                await session.commit()
+                return result.rowcount
+        except Exception as e:
+            logger.error(f"Failed to delete auth sessions by account type {account_type}: {e}")
+            raise
+            
+    @handle_service_errors("delete_demo_user_personalities")
+    async def delete_demo_user_personalities(self) -> int:
+        """Delete all demo user personalities using ORM."""
+        try:
+            async with get_session() as session:
+                result = await session.execute(
+                    delete(UserPersonality).where(UserPersonality.user_id.like('demo_user_%'))
+                )
+                await session.commit()
+                return result.rowcount
+        except Exception as e:
+            logger.error(f"Failed to delete demo user personalities: {e}")
+            raise
+            
 # Create singleton instance
 db_service = DatabaseService()

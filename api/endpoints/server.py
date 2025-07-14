@@ -1,11 +1,16 @@
 """Server-related endpoint implementations"""
 
 import logging
+from fastapi import APIRouter
 from config.settings import settings
 from core.service_manager import service_manager
 
 logger = logging.getLogger(__name__)
 
+# Create FastAPI router
+router = APIRouter(prefix="/server", tags=["server"])
+
+@router.get("/mode")
 async def get_server_mode():
     """Get current server mode"""
 
@@ -14,6 +19,7 @@ async def get_server_mode():
         "mode": "demo" if settings.DEMO else "normal"
     }
 
+@router.get("/health")
 async def health_check():
     """Health check endpoint with service status"""
     

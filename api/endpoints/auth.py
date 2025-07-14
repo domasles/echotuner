@@ -4,11 +4,11 @@ import logging
 import uuid
 
 from fastapi.responses import HTMLResponse
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, APIRouter
 from datetime import datetime
 from sqlalchemy import delete
 
-from models import AuthInitRequest, AuthInitResponse, SessionValidationRequest, SessionValidationResponse, DeviceRegistrationRequest, DeviceRegistrationResponse, DemoPlaylistRefinementsRequest
+from models import AuthInitRequest, AuthInitResponse, SessionValidationRequest, SessionValidationResponse, DeviceRegistrationRequest, DeviceRegistrationResponse, DemoPlaylistRefinementsRequest, RateLimitStatus
 
 from config.settings import settings
 from database.core import get_session
@@ -24,6 +24,9 @@ from services.auth_service import auth_service
 from utils.input_validator import InputValidator
 
 logger = logging.getLogger(__name__)
+
+# Create FastAPI router
+router = APIRouter(prefix="/auth", tags=["authentication"])
 
 def get_client_ip(request: Request) -> str:
     """Extract client IP address from request headers."""
@@ -42,6 +45,7 @@ def get_client_ip(request: Request) -> str:
     
     return "unknown"
 
+@router.post("/init", response_model=AuthInitResponse)
 async def auth_init(request: AuthInitRequest, http_request: Request):
     """Initialize Spotify OAuth flow"""
 
@@ -86,6 +90,7 @@ async def auth_init(request: AuthInitRequest, http_request: Request):
         logger.error(f"Auth init failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to initialize authentication")
 
+@router.get("/callback")
 async def auth_callback(code: str = None, state: str = None, error: str = None, http_request: Request = None):
     """Handle Spotify OAuth callback"""
 
@@ -141,6 +146,7 @@ async def auth_callback(code: str = None, state: str = None, error: str = None, 
 
         return HTMLResponse(content=html_content)
 
+@router.post("/validate", response_model=SessionValidationResponse)
 async def validate_session(request: SessionValidationRequest):
     """Validate session"""
 
@@ -172,7 +178,8 @@ async def validate_session(request: SessionValidationRequest):
         logger.error(f"Session validation failed: {e}")
         raise HTTPException(status_code=500, detail="Session validation failed")
 
-async def check_session(request):
+@router.get("/check-session")
+async def check_session(request: Request):
     """Check if a session exists for the given device ID (for desktop polling)"""
 
     try:
@@ -193,6 +200,7 @@ async def check_session(request):
         logger.error(f"Check session failed: {e}")
         return {"session_id": None}
 
+@router.post("/rate-limit-status", response_model=RateLimitStatus)
 async def get_authenticated_rate_limit_status(request: SessionValidationRequest):
     try:
         user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
@@ -214,6 +222,7 @@ async def get_authenticated_rate_limit_status(request: SessionValidationRequest)
 
         raise HTTPException(status_code=500, detail=f"Error checking rate limit: {sanitized_error}")
 
+@router.post("/register-device", response_model=DeviceRegistrationResponse)
 async def register_device(request: DeviceRegistrationRequest):
     """Register a new device and get server-generated UUID"""
 
@@ -237,7 +246,8 @@ async def register_device(request: DeviceRegistrationRequest):
         logger.error(f"Device registration failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to register device")
 
-async def logout(request):
+@router.post("/logout")
+async def logout(request: Request):
     """Logout and completely clear all device data"""
 
     try:
@@ -255,6 +265,7 @@ async def logout(request):
         logger.error(f"Logout failed: {e}")
         return {"message": "Logout failed", "success": False, "error": str(e)}
 
+@router.post("/cleanup")
 async def cleanup_sessions():
     """Clean up expired sessions and auth attempts"""
 
@@ -275,6 +286,7 @@ async def cleanup_sessions():
         logger.error(f"Cleanup failed: {e}")
         raise HTTPException(status_code=500, detail="Cleanup failed")
 
+@router.post("/account-type")
 async def get_account_type(request: SessionValidationRequest):
     """Get account type for a session"""
 
@@ -301,6 +313,7 @@ async def get_account_type(request: SessionValidationRequest):
         logger.error(f"Failed to get account type: {e}")
         raise HTTPException(status_code=500, detail="Failed to get account type")
 
+@router.get("/mode")
 async def get_auth_mode():
     """Get current authentication mode"""
 
@@ -309,6 +322,7 @@ async def get_auth_mode():
         "demo": settings.DEMO
     }
 
+@router.post("/demo-playlist-refinements")
 async def get_demo_playlist_refinements(request: DemoPlaylistRefinementsRequest):
     """Get refinement count for a specific demo playlist"""
 

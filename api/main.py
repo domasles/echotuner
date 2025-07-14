@@ -41,7 +41,15 @@ from services.playlist_draft_service import playlist_draft_service
 from services.personality_service import personality_service
 from services.auth_service import auth_service
 from utils.decorators import *
-from endpoints import *
+
+# Import routers
+from endpoints.auth import router as auth_router
+from endpoints.playlists import router as playlist_router
+from endpoints.spotify import router as spotify_router
+from endpoints.personality import router as personality_router
+from endpoints.ai import router as ai_router
+from endpoints.config import router as config_router, root
+from endpoints.server import router as server_router
 
 # Configure structured logging early
 configure_logging(
@@ -51,69 +59,69 @@ configure_logging(
 
 logger = logging.getLogger(__name__)
 
-api_dir = Path(__file__).parent
-sys.path.insert(0, str(api_dir))
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Handle startup and shutdown events"""
-
-    logger.info(f"Starting {app_constants.API_TITLE}...")
-    config_errors = settings.validate_required_settings()
-
-    if config_errors:
-        logger.error("Configuration validation failed:")
-
-        for error in config_errors:
-            logger.error(f"  - {error}")
-
+    """Manage application lifecycle"""
+    
+    # Startup
+    logger.info("Initializing EchoTuner API services...")
+    
     try:
-        # Register filesystem service first to ensure directories exist
-        service_manager.register_service('filesystem_service', filesystem_service)
-        service_manager.register_service('database_service', db_service)
-        service_manager.register_service('embedding_cache_service', embedding_cache_service)
-        service_manager.register_service('data_service', data_loader)
-        service_manager.register_service('rate_limiter_service', rate_limiter_service)
-        service_manager.register_service('ip_rate_limiter_service', ip_rate_limiter_service)
-        service_manager.register_service('template_service', template_service)
-        service_manager.register_service('ai_service', ai_service)
-        service_manager.register_service('prompt_validator_service', prompt_validator_service)
-        service_manager.register_service('spotify_search_service', spotify_search_service)
-        service_manager.register_service('spotify_playlist_service', spotify_playlist_service)
-        service_manager.register_service('playlist_generator_service', playlist_generator_service)
-        service_manager.register_service('playlist_draft_service', playlist_draft_service)
-        service_manager.register_service('personality_service', personality_service)
-        service_manager.register_service('auth_service', auth_service)
-
-        initialization_results = await service_manager.initialize_all_services()
-        cache_task = asyncio.create_task(preload_data_cache())
-        failed_services = [name for name, success in initialization_results.items() if not success]
-
-        if failed_services:
-            logger.warning(f"Some services failed to initialize: {failed_services}")
-
+        # Register services with service manager
+        service_manager.register_service("filesystem_service", filesystem_service)
+        service_manager.register_service("database_service", db_service)
+        service_manager.register_service("embedding_cache_service", embedding_cache_service)
+        service_manager.register_service("data_service", data_loader)
+        service_manager.register_service("rate_limiter_service", rate_limiter_service)
+        service_manager.register_service("ip_rate_limiter_service", ip_rate_limiter_service)
+        service_manager.register_service("template_service", template_service)
+        service_manager.register_service("ai_service", ai_service)
+        service_manager.register_service("prompt_validator_service", prompt_validator_service)
+        service_manager.register_service("spotify_search_service", spotify_search_service)
+        service_manager.register_service("spotify_playlist_service", spotify_playlist_service)
+        service_manager.register_service("playlist_generator_service", playlist_generator_service)
+        service_manager.register_service("playlist_draft_service", playlist_draft_service)
+        service_manager.register_service("personality_service", personality_service)
+        service_manager.register_service("auth_service", auth_service)
+        
+        # Initialize all services
+        await service_manager.initialize_all_services()
+        
+        # Pre-load data cache in background
+        asyncio.create_task(preload_data_cache())
+        
+        logger.info("✓ All services initialized successfully")
+        
     except Exception as e:
-        logger.error(f"Failed to initialize {app_constants.API_TITLE}: {e}")
-        raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
-
+        logger.error(f"Failed to initialize services: {e}")
+        raise
+    
     yield
+    
+    # Shutdown
+    logger.info("Shutting down EchoTuner API...")
+    try:
+        await service_manager.shutdown_all()
+        logger.info("✓ All services shut down successfully")
+    except Exception as e:
+        logger.warning(f"Error during shutdown: {e}")
 
 async def preload_data_cache():
     """Pre-load frequently used data in background"""
-
+    
     try:
         loop = asyncio.get_event_loop()
-
+        
         preload_tasks = [
             loop.run_in_executor(None, data_loader.get_mood_patterns),
             loop.run_in_executor(None, data_loader.get_genre_patterns),
             loop.run_in_executor(None, data_loader.get_activity_patterns),
             loop.run_in_executor(None, data_loader.get_energy_trigger_words),
         ]
-
+        
         await asyncio.gather(*preload_tasks, return_exceptions=True)
         logger.info("Data cache preloaded successfully")
-
+        
     except Exception as e:
         logger.warning(f"Cache preloading failed (non-critical): {e}")
 
@@ -131,21 +139,21 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 async def add_security_headers(request: Request, call_next):
     """Add security headers to all responses."""
     response = await call_next(request)
-
+    
     nonce = None
-
+    
     if hasattr(response, 'body') and b'nonce=' in response.body:
         body_str = response.body.decode('utf-8')
         nonce_match = re.search(r'nonce="([^"]+)"', body_str)
-
+        
         if nonce_match:
             nonce = nonce_match.group(1)
-
+    
     headers = security_config.get_security_headers(nonce)
-
+    
     for header, value in headers.items():
         response.headers[header] = value
-
+    
     return response
 
 app.add_middleware(
@@ -157,214 +165,17 @@ app.add_middleware(
     max_age=600,
 )
 
-@app.get("/")
-async def root_endpoint():
-    return await root()
-
-@app.get("/health")
-@debug_only
-async def health_check_endpoint():
-    """Health check endpoint with service status"""
-
-    return await health_check()
-
-@app.post("/auth/init", response_model=AuthInitResponse)
-async def auth_init_endpoint(request: AuthInitRequest, http_request: Request):
-    """Initialize Spotify OAuth flow"""
-
-    return await auth_init(request, http_request)
-
-@app.get("/auth/callback")
-async def auth_callback_endpoint(request: Request, code: str = None, state: str = None, error: str = None):
-    """Handle Spotify OAuth callback"""
-
-    return await auth_callback(code, state, error, request)
-
-@app.post("/auth/validate", response_model=SessionValidationResponse)
-async def validate_session_endpoint(request: SessionValidationRequest):
-    """Validate session"""
-
-    return await validate_session(request)
-
-@app.get("/auth/check-session")
-async def check_session_endpoint(request: Request):
-    """Check if a session exists for the given device ID"""
-
-    return await check_session(request)
-
-@app.post("/auth/rate-limit-status", response_model=RateLimitStatus)
-async def get_authenticated_rate_limit_status_endpoint(request: SessionValidationRequest):
-    """Get current rate limit status for the authenticated user"""
-
-    return await get_authenticated_rate_limit_status(request)
-
-
-@app.post("/auth/register-device", response_model=DeviceRegistrationResponse)
-async def register_device_endpoint(request: DeviceRegistrationRequest):
-    """Register a new device"""
-
-    return await register_device(request)
-
-@app.post("/auth/demo-playlist-refinements")
-async def get_demo_playlist_refinements_endpoint(request: DemoPlaylistRefinementsRequest):
-    """Get refinement count for a specific demo playlist"""
-
-    return await get_demo_playlist_refinements(request)
-
-@app.post("/auth/logout")
-async def logout_endpoint(request: Request):
-    """Logout and completely clear all device data"""
-
-    return await logout(request)
-
-@app.post("/auth/cleanup")
-@debug_only
-async def cleanup_sessions_endpoint():
-    """Clean up expired sessions and auth attempts"""
-
-    return await cleanup_sessions()
-
-@app.post("/auth/account-type")
-async def get_account_type_endpoint(request: SessionValidationRequest):
-    """Get account type for a session"""
-
-    return await get_account_type(request)
-
-@app.get("/config")
-@debug_only
-async def get_config_endpoint():
-    """Get client configuration values"""
-
-    return await get_config()
-
-@app.get("/config/health")
-async def health_check_endpoint():
-    """Check API health and service status"""
-
-    return await health_check()
-
-@app.post("/config/reload")
-@debug_only
-async def reload_config_endpoint():
-    """Reload JSON configuration files without restarting the server"""
-
-    return await reload_config()
-
-@app.post("/playlist/generate", response_model=PlaylistResponse)
-async def generate_playlist_endpoint(request: PlaylistRequest):
-    """Generate a playlist using AI-powered real-time song search"""
-
-    return await generate_playlist(request)
-
-@app.post("/playlist/refine", response_model=PlaylistResponse)
-async def refine_playlist_endpoint(request: PlaylistRequest):
-    """Refine an existing playlist based on user feedback"""
-
-    return await refine_playlist(request)
-
-@app.post("/playlist/update-draft", response_model=PlaylistResponse)
-async def update_playlist_draft_endpoint(request: PlaylistRequest):
-    """Update an existing playlist draft without AI refinement (no refinement count increase)"""
-
-    return await update_playlist_draft(request)
-
-@app.post("/playlist/library", response_model=LibraryPlaylistsResponse)
-async def get_library_playlists_endpoint(request: LibraryPlaylistsRequest):
-    """Get user's Spotify playlists."""
-
-    return await get_library_playlists(request)
-
-@app.post("/playlist/drafts")
-async def get_draft_playlist_endpoint(request: PlaylistDraftRequest):
-    """Get a specific draft playlist."""
-
-    return await get_draft_playlist(request)
-
-@app.delete("/playlist/drafts")
-async def delete_draft_playlist_endpoint(request: PlaylistDraftRequest):
-    """Delete a draft playlist."""
-
-    return await delete_draft_playlist(request)
-
-@app.post("/spotify/create-playlist", response_model=SpotifyPlaylistResponse)
-async def create_spotify_playlist_endpoint(request: SpotifyPlaylistRequest):
-    """Create a Spotify playlist from a draft."""
-
-    return await create_spotify_playlist(request)
-
-@app.post("/spotify/playlist/tracks")
-async def get_spotify_playlist_tracks_endpoint(request: SpotifyPlaylistTracksRequest):
-    """Get tracks from a Spotify playlist."""
-
-    return await get_spotify_playlist_tracks(request)
-
-@app.delete("/spotify/playlist")
-async def delete_spotify_playlist_endpoint(request: SpotifyPlaylistDeleteRequest):
-    """Delete/unfollow a Spotify playlist."""
-
-    return await delete_spotify_playlist(request)
-
-@app.post("/personality/save", response_model=UserPersonalityResponse)
-async def save_user_personality_endpoint(request: UserPersonalityRequest):
-    """Save user personality preferences"""
-    return await save_user_personality(request)
-
-@app.get("/personality/load")
-async def load_user_personality_endpoint(request: Request):
-    """Load user personality preferences"""
-
-    return await load_user_personality(request)
-
-@app.post("/personality/clear")
-async def clear_user_personality_endpoint(request: UserPersonalityClearRequest):
-    """Clear user personality preferences"""
-
-    return await clear_user_personality(request)
-
-@app.get("/user/followed-artists", response_model=FollowedArtistsResponse)
-async def get_followed_artists_endpoint(request: Request, limit: int = 50):
-    """Get user's followed artists from Spotify"""
-
-    return await get_followed_artists(request, limit)
-
-@app.post("/user/search-artists", response_model=ArtistSearchResponse)
-async def search_artists_endpoint(request: ArtistSearchRequest):
-    """Search for artists on Spotify"""
-
-    return await search_artists(request)
-
-@app.delete("/spotify/playlist/track")
-async def remove_track_from_spotify_playlist_endpoint(request: SpotifyPlaylistTrackRemoveRequest):
-    """Remove a track from a Spotify playlist."""
-
-    return await remove_track_from_spotify_playlist(request)
-    
-@app.get("/ai/models")
-@debug_only
-async def get_ai_models_endpoint():
-    """Get available AI models and their configurations"""
-
-    return await get_ai_models()
-
-@app.post("/ai/test")
-@debug_only
-async def test_ai_model_endpoint(request: Request):
-    """Test AI model with a simple prompt"""
-
-    return await test_ai_model(request)
-
-@app.get("/config/production-check")
-@debug_only
-async def production_readiness_check_endpoint():
-    """Check if the API is ready for production deployment"""
-
-    return await production_readiness_check()
-
-@app.get("/server/mode")
-async def get_server_mode_endpoint():
-    """Get current server mode"""
-
-    return await get_server_mode()
+# Include all routers
+app.include_router(auth_router)
+app.include_router(playlist_router)
+app.include_router(spotify_router)
+app.include_router(personality_router)
+app.include_router(ai_router)
+app.include_router(config_router)
+app.include_router(server_router)
+
+# Root endpoint - use the one from config.py
+app.get("/")(root)
 
 if __name__ == "__main__":
     logger.info(app_constants.STARTUP_MESSAGE)

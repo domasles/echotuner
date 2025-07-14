@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import HTTPException
+from fastapi import HTTPException, APIRouter
 
 from models import SpotifyPlaylistRequest, SpotifyPlaylistResponse, SpotifyPlaylistTracksRequest, SpotifyPlaylistDeleteRequest, SpotifyPlaylistTrackRemoveRequest
 
@@ -14,6 +14,10 @@ from services.auth_service import auth_service
 
 logger = logging.getLogger(__name__)
 
+# Create FastAPI router
+router = APIRouter(prefix="/spotify", tags=["spotify"])
+
+@router.post("/create-playlist", response_model=SpotifyPlaylistResponse)
 async def create_spotify_playlist(request: SpotifyPlaylistRequest):
     """Create a Spotify playlist from a draft."""
 
@@ -100,6 +104,7 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
         logger.error(f"Failed to create Spotify playlist: {e}")
         raise HTTPException(status_code=500, detail="Failed to create Spotify playlist")
 
+@router.post("/playlist/tracks")
 async def get_spotify_playlist_tracks(request: SpotifyPlaylistTracksRequest):
     """Get tracks from a Spotify playlist."""
 
@@ -128,6 +133,7 @@ async def get_spotify_playlist_tracks(request: SpotifyPlaylistTracksRequest):
         logger.error(f"Failed to get Spotify playlist tracks: {e}")
         raise HTTPException(status_code=500, detail="Failed to get Spotify playlist tracks")
 
+@router.delete("/playlist")
 async def delete_spotify_playlist(request: SpotifyPlaylistDeleteRequest):
     """Delete/unfollow a Spotify playlist."""
 
@@ -161,6 +167,7 @@ async def delete_spotify_playlist(request: SpotifyPlaylistDeleteRequest):
         logger.error(f"Failed to delete Spotify playlist {request.playlist_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete Spotify playlist")
 
+@router.delete("/playlist/track")
 async def remove_track_from_spotify_playlist(request: SpotifyPlaylistTrackRemoveRequest):
     """Remove a track from a Spotify playlist."""
 

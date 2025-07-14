@@ -491,16 +491,11 @@ class AuthService(SingletonServiceBase):
 
         try:
             demo_user_id = f"demo_user_{device_id}"
-            await db_service.execute_query(
-                "DELETE FROM user_personalities WHERE user_id = ?",
-                (demo_user_id,)
-            )
+            await db_service.delete_user_personality(demo_user_id)
 
             if demo_sessions:
                 session_ids = [session['session_id'] for session in demo_sessions]
-                placeholders = ','.join(['?' for _ in session_ids])
-
-                await db_service.execute_query(f"DELETE FROM playlist_drafts WHERE session_id IN ({placeholders})", session_ids)
+                await db_service.delete_playlist_drafts_by_sessions(session_ids)
 
             logger.debug(f"Deleted demo account data for device {device_id[:8]}...")
 
@@ -524,12 +519,10 @@ class AuthService(SingletonServiceBase):
 
             if demo_sessions:
                 session_ids = [session['session_id'] for session in demo_sessions]
-                placeholders = ','.join(['?' for _ in session_ids])
+                await db_service.delete_playlist_drafts_by_sessions(session_ids)
 
-                await db_service.execute_query(f"DELETE FROM playlist_drafts WHERE session_id IN ({placeholders})", session_ids)
-
-            await db_service.execute_query("DELETE FROM auth_sessions WHERE account_type = 'demo'")
-            await db_service.execute_query("DELETE FROM user_personalities WHERE user_id LIKE 'demo_user_%'")
+            await db_service.delete_auth_sessions_by_account_type('demo')
+            await db_service.delete_demo_user_personalities()
 
             logger.debug("Cleaned up demo accounts for normal mode")
 

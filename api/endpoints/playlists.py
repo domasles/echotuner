@@ -4,7 +4,7 @@ import logging
 import uuid
 import re
 
-from fastapi import HTTPException
+from fastapi import HTTPException, APIRouter
 
 from models import PlaylistRequest, PlaylistResponse, LibraryPlaylistsRequest, LibraryPlaylistsResponse, SpotifyPlaylistInfo, PlaylistDraftRequest
 
@@ -23,6 +23,9 @@ from services.auth_service import auth_service
 from utils.input_validator import InputValidator
 
 logger = logging.getLogger(__name__)
+
+# Create FastAPI router
+router = APIRouter(prefix="/playlist", tags=["playlists"])
 
 async def require_auth(request: PlaylistRequest):
     if not settings.AUTH_REQUIRED:
@@ -45,6 +48,7 @@ async def require_auth(request: PlaylistRequest):
         logger.error(f"Authentication error: {e}")
         raise HTTPException(status_code=401, detail="Authentication failed")
 
+@router.post("/generate", response_model=PlaylistResponse)
 async def generate_playlist(request: PlaylistRequest):
     """Generate a playlist using AI-powered real-time song search"""
 
@@ -153,6 +157,7 @@ async def generate_playlist(request: PlaylistRequest):
 
         raise HTTPException(status_code=500, detail=f"Error generating playlist: {sanitized_error}")
 
+@router.post("/refine", response_model=PlaylistResponse)
 async def refine_playlist(request: PlaylistRequest):
     """Refine an existing playlist based on user feedback"""
 
@@ -299,6 +304,7 @@ async def refine_playlist(request: PlaylistRequest):
         sanitized_error = InputValidator.sanitize_error_message(str(e))
         raise HTTPException(status_code=500, detail=f"Error refining playlist: {sanitized_error}")
 
+@router.post("/update-draft", response_model=PlaylistResponse)
 async def update_playlist_draft(request: PlaylistRequest):
     """Update an existing playlist draft without AI refinement (no refinement count increase)"""
     
@@ -340,6 +346,7 @@ async def update_playlist_draft(request: PlaylistRequest):
         sanitized_error = InputValidator.sanitize_error_message(str(e))
         raise HTTPException(status_code=500, detail=f"Error updating playlist draft: {sanitized_error}")
 
+@router.post("/library", response_model=LibraryPlaylistsResponse)
 async def get_library_playlists(request: LibraryPlaylistsRequest):
     try:
         user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
@@ -424,6 +431,7 @@ async def get_library_playlists(request: LibraryPlaylistsRequest):
         logger.error(f"Failed to get library playlists: {e}")
         raise HTTPException(status_code=500, detail="Failed to get library playlists")
 
+@router.post("/drafts")
 async def get_draft_playlist(request: PlaylistDraftRequest):
     """Get a specific draft playlist."""
 
@@ -445,6 +453,7 @@ async def get_draft_playlist(request: PlaylistDraftRequest):
         logger.error(f"Failed to get draft playlist {request.playlist_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to get draft playlist")
 
+@router.delete("/drafts")
 async def delete_draft_playlist(request: PlaylistDraftRequest):
     """Delete a draft playlist."""
 

@@ -1,7 +1,7 @@
 """Personality-related endpoint implementations"""
 
 import logging
-from fastapi import HTTPException
+from fastapi import HTTPException, APIRouter
 
 from models import UserPersonalityRequest, UserPersonalityResponse, UserPersonalityClearRequest, FollowedArtistsResponse, ArtistSearchRequest, ArtistSearchResponse
 from services.personality_service import personality_service
@@ -10,6 +10,10 @@ from services.database_service import db_service
 
 logger = logging.getLogger(__name__)
 
+# Create FastAPI router
+router = APIRouter(prefix="/personality", tags=["personality"])
+
+@router.post("/save", response_model=UserPersonalityResponse)
 async def save_user_personality(request: UserPersonalityRequest):
     """Save user personality preferences"""
 
@@ -39,6 +43,7 @@ async def save_user_personality(request: UserPersonalityRequest):
         logger.error(f"Failed to save user personality: {e}")
         raise HTTPException(status_code=500, detail="Failed to save personality")
 
+@router.get("/load")
 async def load_user_personality(request):
     try:
         user_info = await auth_middleware.validate_session_from_headers(request)
@@ -61,6 +66,7 @@ async def load_user_personality(request):
         logger.error(f"Failed to load user personality: {e}")
         raise HTTPException(status_code=500, detail="Failed to load personality")
 
+@router.post("/clear")
 async def clear_user_personality(request: UserPersonalityClearRequest):
     """Clear user personality preferences"""
 
@@ -68,10 +74,7 @@ async def clear_user_personality(request: UserPersonalityClearRequest):
         user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
         spotify_user_id = user_info.get('spotify_user_id')
 
-        success = await db_service.execute_query(
-            "DELETE FROM user_personalities WHERE user_id = ?",
-            (spotify_user_id,)
-        )
+        success = await db_service.delete_user_personality(spotify_user_id)
 
         return {"success": True, "message": "Personality cleared successfully"}
 
@@ -82,6 +85,7 @@ async def clear_user_personality(request: UserPersonalityClearRequest):
         logger.error(f"Failed to clear user personality: {e}")
         raise HTTPException(status_code=500, detail="Failed to clear personality")
 
+@router.get("/followed_artists", response_model=FollowedArtistsResponse)
 async def get_followed_artists(request, limit: int = 50):
     """Get user's followed artists from Spotify"""
 
@@ -103,6 +107,7 @@ async def get_followed_artists(request, limit: int = 50):
         logger.warning(f"Failed to get followed artists: {e}")
         return FollowedArtistsResponse(artists=[])
 
+@router.post("/search-artists", response_model=ArtistSearchResponse)
 async def search_artists(request: ArtistSearchRequest):
     """Search for artists on Spotify"""
 

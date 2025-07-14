@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import HTTPException
+from fastapi import HTTPException, APIRouter
 
 from config.security import security_config
 
@@ -12,6 +12,10 @@ from utils.input_validator import InputValidator
 
 logger = logging.getLogger(__name__)
 
+# Create FastAPI router
+router = APIRouter(prefix="/ai", tags=["ai"])
+
+@router.get("/models")
 async def get_ai_models():
     """Get available AI models and their configurations"""
 
@@ -29,6 +33,7 @@ async def get_ai_models():
         "available_models": models,
     }
 
+@router.post("/test")
 async def test_ai_model(request):
     """Test AI model with a simple prompt"""
 
