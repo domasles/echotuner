@@ -4,7 +4,7 @@ import logging
 
 from fastapi import HTTPException
 
-from core.models import SpotifyPlaylistRequest, SpotifyPlaylistResponse, SpotifyPlaylistTracksRequest, SpotifyPlaylistDeleteRequest, SpotifyPlaylistTrackRemoveRequest
+from models import SpotifyPlaylistRequest, SpotifyPlaylistResponse, SpotifyPlaylistTracksRequest, SpotifyPlaylistDeleteRequest, SpotifyPlaylistTrackRemoveRequest
 
 from services.spotify_playlist_service import spotify_playlist_service
 from services.playlist_draft_service import playlist_draft_service

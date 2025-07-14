@@ -8,7 +8,7 @@ import json
 
 from typing import Optional, List
 
-from core.models import UserContext, SpotifyArtist
+from models import UserContext, SpotifyArtist
 from core.singleton import SingletonServiceBase
 
 from config.settings import settings

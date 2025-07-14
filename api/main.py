@@ -13,7 +13,7 @@ from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from core.models import *
+from models import *
 
 from config.app_constants import app_constants
 from config.security import security_config

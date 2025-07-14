@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse
 from fastapi import HTTPException, Request
 from datetime import datetime
 
-from core.models import AuthInitRequest, AuthInitResponse, SessionValidationRequest, SessionValidationResponse, DeviceRegistrationRequest, DeviceRegistrationResponse, DemoPlaylistRefinementsRequest
+from models import AuthInitRequest, AuthInitResponse, SessionValidationRequest, SessionValidationResponse, DeviceRegistrationRequest, DeviceRegistrationResponse, DemoPlaylistRefinementsRequest
 
 from config.settings import settings
 

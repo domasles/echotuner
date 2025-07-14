@@ -10,7 +10,7 @@ import json
 from typing import List, Dict, Any, Optional
 
 from core.singleton import SingletonServiceBase
-from core.models import Song, UserContext
+from models import Song, UserContext
 
 from services.spotify_search_service import spotify_search_service
 from services.data_service import data_loader

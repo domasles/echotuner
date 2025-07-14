@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from core.singleton import SingletonServiceBase
-from core.models import PlaylistDraft, Song
+from models import PlaylistDraft, Song
 from config.app_constants import AppConstants
 from config.settings import settings
 from utils.exceptions import handle_service_errors, raise_playlist_error, ErrorCode

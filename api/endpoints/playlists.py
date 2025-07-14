@@ -6,7 +6,7 @@ import re
 
 from fastapi import HTTPException
 
-from core.models import PlaylistRequest, PlaylistResponse, LibraryPlaylistsRequest, LibraryPlaylistsResponse, SpotifyPlaylistInfo, PlaylistDraftRequest
+from models import PlaylistRequest, PlaylistResponse, LibraryPlaylistsRequest, LibraryPlaylistsResponse, SpotifyPlaylistInfo, PlaylistDraftRequest
 
 from config.settings import settings
 

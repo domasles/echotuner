@@ -3,7 +3,7 @@
 import logging
 from fastapi import HTTPException
 
-from core.models import UserPersonalityRequest, UserPersonalityResponse, UserPersonalityClearRequest, FollowedArtistsResponse, ArtistSearchRequest, ArtistSearchResponse
+from models import UserPersonalityRequest, UserPersonalityResponse, UserPersonalityClearRequest, FollowedArtistsResponse, ArtistSearchRequest, ArtistSearchResponse
 from services.personality_service import personality_service
 from services.auth_middleware import auth_middleware
 from services.database_service import db_service

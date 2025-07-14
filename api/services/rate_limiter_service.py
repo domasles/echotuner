@@ -9,7 +9,7 @@ import logging
 from datetime import datetime, timedelta
 
 from core.singleton import SingletonServiceBase
-from core.models import RateLimitStatus
+from models import RateLimitStatus
 
 from config.settings import settings
 

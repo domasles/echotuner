@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy import and_, or_, desc, func, delete, update
 
 from core.singleton import SingletonServiceBase
-from core.models import UserContext
+from models import UserContext
 from config.app_constants import AppConstants
 
 from database.core import db_core, get_session

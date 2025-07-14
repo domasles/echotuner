@@ -13,7 +13,7 @@ from typing import List, Optional
 from spotipy.oauth2 import SpotifyClientCredentials
 
 from core.singleton import SingletonServiceBase
-from core.models import Song, UserContext
+from models import Song, UserContext
 
 from config.settings import settings
 

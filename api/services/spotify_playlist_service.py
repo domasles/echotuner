@@ -10,7 +10,7 @@ import logging
 from typing import List, Dict, Any, Optional, Tuple
 
 from core.singleton import SingletonServiceBase
-from core.models import Song
+from models import Song
 
 from config.app_constants import AppConstants
 from config.settings import settings
