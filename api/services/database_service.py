@@ -125,21 +125,8 @@ class DatabaseService(SingletonServiceBase):
                 return result.scalar_one_or_none() is not None
         except Exception as e:
             raise_auth_error(f"Failed to validate session: {e}", ErrorCode.AUTH_SESSION_EXPIRED)
-            async with get_session() as session:
-                result = await session.execute(
-                    select(AuthSession).where(
-                        and_(
-                            AuthSession.session_id == session_id,
-                            AuthSession.device_id == device_id
-                        )
-                    )
-                )
-                return result.scalar_one_or_none() is not None
 
-        except Exception as e:
-            logger.error(f"Failed to validate session: {e}")
-            return False
-
+    @handle_service_errors("get_session_by_device")
     async def get_session_by_device(self, device_id: str) -> Optional[str]:
         """Get the most recent valid session for a device."""
 
@@ -165,6 +152,7 @@ class DatabaseService(SingletonServiceBase):
             logger.error(f"Failed to get session by device: {e}")
             return None
 
+    @handle_service_errors("get_sessions_by_device")
     async def get_sessions_by_device(self, device_id: str) -> List[Dict[str, Any]]:
         """Get all sessions for a device."""
 
@@ -195,6 +183,7 @@ class DatabaseService(SingletonServiceBase):
             logger.error(f"Get sessions by device error: {e}")
             return []
 
+    @handle_service_errors("invalidate_session")
     async def invalidate_session(self, session_id: str) -> bool:
         """Invalidate a session."""
 
@@ -210,6 +199,7 @@ class DatabaseService(SingletonServiceBase):
             logger.error(f"Failed to invalidate session: {e}")
             return False
 
+    @handle_service_errors("register_device")
     async def register_device(self, device_data: Dict[str, Any]) -> bool:
         """Register a new device."""
 
@@ -277,56 +267,35 @@ class DatabaseService(SingletonServiceBase):
             logger.error(f"Failed to get session info: {e}")
             return None
 
-    async def update_session_token(self, session_id: str, access_token: str, expires_at: int) -> bool:
-        """Update session with new access token."""
-
+    @handle_service_errors("update_session")
+    async def update_session(self, session_id: str, 
+                           access_token: str = None, 
+                           expires_at: int = None,
+                           update_last_used: bool = False) -> bool:
+        """Update session with new access token, expiration, and/or last used timestamp."""
         try:
+            update_values = {}
+            
+            if access_token is not None:
+                update_values['access_token'] = access_token
+            if expires_at is not None:
+                update_values['expires_at'] = expires_at
+            if update_last_used:
+                update_values['last_used_at'] = int(datetime.now().timestamp())
+                
+            if not update_values:
+                return True  # Nothing to update
+                
             async with get_session() as session:
                 await session.execute(
                     update(AuthSession)
                     .where(AuthSession.session_id == session_id)
-                    .values(access_token=access_token, expires_at=expires_at)
+                    .values(**update_values)
                 )
                 await session.commit()
                 return True
-
         except Exception as e:
-            logger.error(f"Failed to update session token: {e}")
-            return False
-
-    async def update_session_last_used(self, session_id: str) -> bool:
-        """Update session last used timestamp."""
-
-        try:
-            async with get_session() as session:
-                await session.execute(
-                    update(AuthSession)
-                    .where(AuthSession.session_id == session_id)
-                    .values(last_used_at=int(datetime.now().timestamp()))
-                )
-                await session.commit()
-                return True
-
-        except Exception as e:
-            logger.error(f"Failed to update session last used: {e}")
-            return False
-
-    async def update_session_expiration(self, session_id: str, expires_at: int) -> bool:
-        """Update session expiration time."""
-
-        try:
-            async with get_session() as session:
-                await session.execute(
-                    update(AuthSession)
-                    .where(AuthSession.session_id == session_id)
-                    .values(expires_at=expires_at)
-                )
-                await session.commit()
-                return True
-
-        except Exception as e:
-            logger.error(f"Failed to update session expiration: {e}")
-            return False
+            raise_auth_error(f"Failed to update session: {e}", ErrorCode.AUTH_SESSION_EXPIRED)
 
     async def revoke_user_sessions(self, spotify_user_id: str) -> bool:
         """Revoke all sessions for a specific user."""
@@ -391,23 +360,47 @@ class DatabaseService(SingletonServiceBase):
 
     @handle_service_errors("update_rate_limit_requests")
     async def update_rate_limit_requests(self, user_id: str, current_date: str, requests_count: int) -> bool:
-        """Update rate limit requests count using standardized operations."""
+        """Update rate limit requests count using upsert operation."""
         try:
             async with get_session() as session:
-                # Get existing refinements count to preserve it
-                existing = await self.get_rate_limit_status(user_id, current_date)
-                refinements_count = existing['refinements_count'] if existing else 0
-                
-                rate_limit = RateLimit(
-                    user_id=user_id,
-                    requests_count=requests_count,
-                    refinements_count=refinements_count,
-                    last_request_date=current_date,
-                    created_at=datetime.now().isoformat(),
-                    updated_at=datetime.now().isoformat()
+                # Try to get existing record
+                result = await session.execute(
+                    select(RateLimit).where(
+                        and_(
+                            RateLimit.user_id == user_id,
+                            RateLimit.last_request_date == current_date
+                        )
+                    )
                 )
+                existing = result.scalar_one_or_none()
                 
-                session.add(rate_limit)
+                if existing:
+                    # Update existing record
+                    await session.execute(
+                        update(RateLimit)
+                        .where(
+                            and_(
+                                RateLimit.user_id == user_id,
+                                RateLimit.last_request_date == current_date
+                            )
+                        )
+                        .values(
+                            requests_count=requests_count,
+                            updated_at=datetime.now().isoformat()
+                        )
+                    )
+                else:
+                    # Create new record
+                    rate_limit = RateLimit(
+                        user_id=user_id,
+                        requests_count=requests_count,
+                        refinements_count=0,
+                        last_request_date=current_date,
+                        created_at=datetime.now().isoformat(),
+                        updated_at=datetime.now().isoformat()
+                    )
+                    session.add(rate_limit)
+                
                 await session.commit()
                 return True
         except Exception as e:
@@ -415,23 +408,47 @@ class DatabaseService(SingletonServiceBase):
 
     @handle_service_errors("update_rate_limit_refinements")
     async def update_rate_limit_refinements(self, user_id: str, current_date: str, refinements_count: int) -> bool:
-        """Update rate limit refinements count using standardized operations."""
+        """Update rate limit refinements count using upsert operation."""
         try:
             async with get_session() as session:
-                # Get existing requests count to preserve it
-                existing = await self.get_rate_limit_status(user_id, current_date)
-                requests_count = existing['requests_count'] if existing else 0
-                
-                rate_limit = RateLimit(
-                    user_id=user_id,
-                    requests_count=requests_count,
-                    refinements_count=refinements_count,
-                    last_request_date=current_date,
-                    created_at=datetime.now().isoformat(),
-                    updated_at=datetime.now().isoformat()
+                # Try to get existing record
+                result = await session.execute(
+                    select(RateLimit).where(
+                        and_(
+                            RateLimit.user_id == user_id,
+                            RateLimit.last_request_date == current_date
+                        )
+                    )
                 )
+                existing = result.scalar_one_or_none()
                 
-                session.add(rate_limit)
+                if existing:
+                    # Update existing record
+                    await session.execute(
+                        update(RateLimit)
+                        .where(
+                            and_(
+                                RateLimit.user_id == user_id,
+                                RateLimit.last_request_date == current_date
+                            )
+                        )
+                        .values(
+                            refinements_count=refinements_count,
+                            updated_at=datetime.now().isoformat()
+                        )
+                    )
+                else:
+                    # Create new record
+                    rate_limit = RateLimit(
+                        user_id=user_id,
+                        requests_count=0,
+                        refinements_count=refinements_count,
+                        last_request_date=current_date,
+                        created_at=datetime.now().isoformat(),
+                        updated_at=datetime.now().isoformat()
+                    )
+                    session.add(rate_limit)
+                
                 await session.commit()
                 return True
         except Exception as e:
@@ -736,22 +753,7 @@ class DatabaseService(SingletonServiceBase):
     # CLEANUP OPERATIONS (ORM-based)
     # ===========================================
 
-    async def cleanup_expired_auth_attempts(self) -> bool:
-        """Clean up expired authentication attempts."""
 
-        try:
-            current_time = int(datetime.now().timestamp())
-            
-            async with get_session() as session:
-                await session.execute(
-                    delete(AuthAttempt).where(AuthAttempt.expires_at < current_time)
-                )
-                await session.commit()
-                return True
-
-        except Exception as e:
-            logger.error(f"Failed to cleanup expired auth attempts: {e}")
-            return False
 
     async def cleanup_expired_sessions(self) -> int:
         """Clean up expired sessions and states."""
@@ -794,70 +796,7 @@ class DatabaseService(SingletonServiceBase):
             logger.error(f"Failed to cleanup expired IP attempts: {e}")
             return 0
 
-    async def cleanup_device_rate_limits(self, device_id: str):
-        """Clean up all rate limit data for a specific device."""
 
-        try:
-            device_hash = hashlib.sha256(device_id.encode()).hexdigest()
-
-            async with get_session() as session:
-                await session.execute(
-                    delete(RateLimit).where(RateLimit.user_id == device_hash)
-                )
-                await session.commit()
-                logger.debug(f"Cleaned up rate limits for device {device_id[:8]}...")
-
-        except Exception as e:
-            logger.error(f"Failed to cleanup device rate limits: {e}")
-
-    async def cleanup_user_rate_limits(self, user_id: str):
-        """Clean up all rate limit data for a specific user ID (for demo accounts)."""
-
-        try:
-            user_hash = hashlib.sha256(user_id.encode()).hexdigest()
-
-            async with get_session() as session:
-                await session.execute(
-                    delete(RateLimit).where(RateLimit.user_id == user_hash)
-                )
-                await session.commit()
-                logger.debug(f"Cleaned up rate limits for user {user_id}")
-
-        except Exception as e:
-            logger.error(f"Failed to cleanup user rate limits: {e}")
-
-    async def cleanup_demo_sessions(self):
-        """Clean up all demo account sessions."""
-
-        try:
-            async with get_session() as session:
-                await session.execute(
-                    delete(AuthSession).where(AuthSession.account_type == 'demo')
-                )
-                await session.commit()
-
-        except Exception as e:
-            logger.error(f"Failed to cleanup demo sessions: {e}")
-            raise
-
-    async def cleanup_normal_sessions(self):
-        """Clean up all normal account sessions."""
-
-        try:
-            async with get_session() as session:
-                await session.execute(
-                    delete(AuthSession).where(
-                        or_(
-                            AuthSession.account_type == 'normal',
-                            AuthSession.account_type.is_(None)
-                        )
-                    )
-                )
-                await session.commit()
-
-        except Exception as e:
-            logger.error(f"Failed to cleanup normal sessions: {e}")
-            raise
 
     async def get_all_sessions_for_device(self, device_id: str) -> List[Dict[str, Any]]:
         """Get all sessions for a specific device."""

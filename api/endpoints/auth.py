@@ -6,10 +6,13 @@ import uuid
 from fastapi.responses import HTMLResponse
 from fastapi import HTTPException, Request
 from datetime import datetime
+from sqlalchemy import delete
 
 from models import AuthInitRequest, AuthInitResponse, SessionValidationRequest, SessionValidationResponse, DeviceRegistrationRequest, DeviceRegistrationResponse, DemoPlaylistRefinementsRequest
 
 from config.settings import settings
+from database.core import get_session
+from database.models import AuthAttempt
 
 from services.rate_limiter_service import rate_limiter_service
 from services.ip_rate_limiter import ip_rate_limiter_service
@@ -257,7 +260,14 @@ async def cleanup_sessions():
 
     try:
         await auth_service.cleanup_expired_sessions()
-        await db_service.cleanup_expired_auth_attempts()
+        
+        # Inline cleanup of expired auth attempts
+        current_time = int(datetime.now().timestamp())
+        async with get_session() as session:
+            await session.execute(
+                delete(AuthAttempt).where(AuthAttempt.expires_at < current_time)
+            )
+            await session.commit()
 
         return {"message": "Cleanup completed successfully"}
 

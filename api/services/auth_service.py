@@ -313,7 +313,7 @@ class AuthService(SingletonServiceBase):
                 await db_service.invalidate_session(session_id)
                 return None
 
-            await db_service.update_session_last_used(session_id)
+            await db_service.update_session(session_id, update_last_used=True)
 
             return {
                 "spotify_user_id": spotify_user_id,
@@ -345,7 +345,7 @@ class AuthService(SingletonServiceBase):
                         new_access_token = token_info['access_token']
                         new_expires_at = int((datetime.now() + timedelta(seconds=token_info['expires_in'])).timestamp())
 
-                        await db_service.update_session_token(session_id, new_access_token, new_expires_at)
+                        await db_service.update_session(session_id, access_token=new_access_token, expires_at=new_expires_at)
                         return new_access_token
 
                     except Exception as e:
@@ -399,7 +399,7 @@ class AuthService(SingletonServiceBase):
 
         try:
             new_expires_at = int((datetime.now() + timedelta(hours=hours)).timestamp())
-            return await db_service.update_session_expiration(session_id, new_expires_at)
+            return await db_service.update_session(session_id, expires_at=new_expires_at)
 
         except Exception as e:
             logger.error(f"Error extending session: {e}")
