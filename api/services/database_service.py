@@ -1,6 +1,6 @@
 """
 Database service.
-Modern database operations using SQLAlchemy ORM with backwards compatibility.
+Modern database operations using SQLAlchemy ORM with standardized patterns and error handling.
 """
 
 import hashlib
@@ -23,8 +23,15 @@ from database.models import (
     PlaylistDraft, SpotifyPlaylist, DemoPlaylist,
     UserPersonality, RateLimit, IPAttempt, EmbeddingCache
 )
-
+from database.operations import (
+    AuthOperationsMixin, PlaylistOperationsMixin, RateLimitOperationsMixin,
+    EmbeddingOperationsMixin, db_operation, db_read_operation
+)
 from utils.input_validator import UniversalValidator
+from utils.exceptions import (
+    ErrorHandler, handle_service_errors, raise_db_error, raise_auth_error,
+    raise_playlist_error, raise_rate_limit_error, ErrorCode
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,13 +58,9 @@ class DatabaseService(SingletonServiceBase):
             logger.error(f"Failed to initialize database service: {e}")
             raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
 
-    # ===========================================
-    # AUTH OPERATIONS (ORM-based)
-    # ===========================================
-    
+    @handle_service_errors("store_auth_state")
     async def store_auth_state(self, state: str, device_id: str, platform: str, expires_at: int) -> bool:
-        """Store auth state for validation."""
-
+        """Store auth state for validation using standardized operations."""
         try:
             async with get_session() as session:
                 auth_state = AuthState(
@@ -70,14 +73,12 @@ class DatabaseService(SingletonServiceBase):
                 session.add(auth_state)
                 await session.commit()
                 return True
-
         except Exception as e:
-            logger.error(f"Failed to store auth state: {e}")
-            return False
+            raise_auth_error(f"Failed to store auth state: {e}", ErrorCode.AUTH_STATE_INVALID)
 
+    @handle_service_errors("validate_auth_state")
     async def validate_auth_state(self, state: str) -> Optional[Dict[str, str]]:
-        """Validate auth state and return device info."""
-
+        """Validate auth state and return device info using standardized operations."""
         try:
             async with get_session() as session:
                 result = await session.execute(
@@ -86,35 +87,44 @@ class DatabaseService(SingletonServiceBase):
                 auth_state = result.scalar_one_or_none()
                 
                 if not auth_state:
+                    logger.warning(f"Invalid auth state provided: {state}")
                     return None
 
                 return {
                     'device_id': auth_state.device_id,
                     'platform': auth_state.platform
                 }
-
         except Exception as e:
-            logger.error(f"Failed to validate auth state: {e}")
-            return None
+            raise_auth_error(f"Failed to validate auth state: {e}", ErrorCode.AUTH_STATE_INVALID)
 
+    @handle_service_errors("create_session")
     async def create_session(self, session_data: Dict[str, Any]) -> bool:
-        """Create a new auth session."""
-
+        """Create a new auth session using standardized operations."""
         try:
             async with get_session() as session:
                 auth_session = AuthSession(**session_data)
                 session.add(auth_session)
                 await session.commit()
                 return True
-
         except Exception as e:
-            logger.error(f"Failed to create session: {e}")
-            return False
+            raise_auth_error(f"Failed to create session: {e}", ErrorCode.AUTH_SESSION_EXPIRED)
 
+    @handle_service_errors("validate_session")
     async def validate_session(self, session_id: str, device_id: str) -> bool:
-        """Validate if session exists and belongs to device."""
-
+        """Validate if session exists and belongs to device using standardized operations."""
         try:
+            async with get_session() as session:
+                result = await session.execute(
+                    select(AuthSession).where(
+                        and_(
+                            AuthSession.session_id == session_id,
+                            AuthSession.device_id == device_id
+                        )
+                    )
+                )
+                return result.scalar_one_or_none() is not None
+        except Exception as e:
+            raise_auth_error(f"Failed to validate session: {e}", ErrorCode.AUTH_SESSION_EXPIRED)
             async with get_session() as session:
                 result = await session.execute(
                     select(AuthSession).where(
@@ -355,13 +365,9 @@ class DatabaseService(SingletonServiceBase):
             logger.error(f"Failed to get active sessions count: {e}")
             return 0
 
-    # ===========================================
-    # RATE LIMITING OPERATIONS (ORM-based)
-    # ===========================================
-
+    @handle_service_errors("get_rate_limit_status")
     async def get_rate_limit_status(self, user_id: str, current_date: str) -> Optional[Dict[str, Any]]:
-        """Get rate limit status for a user."""
-
+        """Get rate limit status for a user using standardized operations."""
         try:
             async with get_session() as session:
                 result = await session.execute(
@@ -380,19 +386,18 @@ class DatabaseService(SingletonServiceBase):
                     }
 
                 return None
-
         except Exception as e:
-            logger.error(f"Failed to get rate limit status: {e}")
-            return None
+            raise_rate_limit_error(f"Failed to get rate limit status: {e}", ErrorCode.RATE_LIMIT_CHECK_FAILED)
 
+    @handle_service_errors("update_rate_limit_requests")
     async def update_rate_limit_requests(self, user_id: str, current_date: str, requests_count: int) -> bool:
-        """Update rate limit requests count."""
-
+        """Update rate limit requests count using standardized operations."""
         try:
             async with get_session() as session:
+                # Get existing refinements count to preserve it
                 existing = await self.get_rate_limit_status(user_id, current_date)
                 refinements_count = existing['refinements_count'] if existing else 0
-
+                
                 rate_limit = RateLimit(
                     user_id=user_id,
                     requests_count=requests_count,
@@ -405,21 +410,21 @@ class DatabaseService(SingletonServiceBase):
                 session.add(rate_limit)
                 await session.commit()
                 return True
-
         except Exception as e:
-            logger.error(f"Failed to update rate limit requests: {e}")
-            return False
+            raise_rate_limit_error(f"Failed to update rate limit requests: {e}", ErrorCode.RATE_LIMIT_CHECK_FAILED)
 
+    @handle_service_errors("update_rate_limit_refinements")
     async def update_rate_limit_refinements(self, user_id: str, current_date: str, refinements_count: int) -> bool:
-        """Update rate limit refinements count."""
-
+        """Update rate limit refinements count using standardized operations."""
         try:
             async with get_session() as session:
+                # Get existing requests count to preserve it
                 existing = await self.get_rate_limit_status(user_id, current_date)
-
+                requests_count = existing['requests_count'] if existing else 0
+                
                 rate_limit = RateLimit(
                     user_id=user_id,
-                    requests_count=existing['requests_count'] if existing else 0,
+                    requests_count=requests_count,
                     refinements_count=refinements_count,
                     last_request_date=current_date,
                     created_at=datetime.now().isoformat(),
@@ -429,32 +434,28 @@ class DatabaseService(SingletonServiceBase):
                 session.add(rate_limit)
                 await session.commit()
                 return True
-
         except Exception as e:
-            logger.error(f"Failed to update rate limit refinements: {e}")
-            return False
+            raise_rate_limit_error(f"Failed to update rate limit refinements: {e}", ErrorCode.RATE_LIMIT_CHECK_FAILED)
 
     # ===========================================
-    # PLAYLIST OPERATIONS (ORM-based)
+    # PLAYLIST OPERATIONS (ORM-based with standardized patterns)
     # ===========================================
 
+    @handle_service_errors("save_playlist_draft")
     async def save_playlist_draft(self, draft_data: Dict[str, Any]) -> bool:
-        """Save or update playlist draft."""
-
+        """Save or update playlist draft using standardized operations."""
         try:
             async with get_session() as session:
                 draft = PlaylistDraft(**draft_data)
                 session.add(draft)
                 await session.commit()
                 return True
-
         except Exception as e:
-            logger.error(f"Failed to save playlist draft: {e}")
-            return False
+            raise_playlist_error(f"Failed to save playlist draft: {e}", ErrorCode.PLAYLIST_CREATION_FAILED)
 
+    @handle_service_errors("get_playlist_draft")
     async def get_playlist_draft(self, draft_id: str) -> Optional[Dict[str, Any]]:
-        """Get playlist draft by ID."""
-
+        """Get playlist draft by ID using standardized operations."""
         try:
             async with get_session() as session:
                 result = await session.execute(
@@ -480,10 +481,8 @@ class DatabaseService(SingletonServiceBase):
                     }
 
                 return None
-
         except Exception as e:
-            logger.error(f"Failed to get playlist draft: {e}")
-            return None
+            raise_playlist_error(f"Failed to get playlist draft: {e}", ErrorCode.PLAYLIST_NOT_FOUND)
 
     async def get_user_drafts(self, device_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Get user's playlist drafts."""

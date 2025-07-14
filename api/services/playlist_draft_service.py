@@ -1,6 +1,7 @@
 """
 Playlist draft service.
 Manages playlist drafts, including saving, updating, and cleaning up expired drafts.
+Uses standardized database operations and error handling.
 """
 
 import asyncio
@@ -15,6 +16,7 @@ from core.singleton import SingletonServiceBase
 from core.models import PlaylistDraft, Song
 from config.app_constants import AppConstants
 from config.settings import settings
+from utils.exceptions import handle_service_errors, raise_playlist_error, ErrorCode
 
 from services.database_service import db_service
 
@@ -33,15 +35,13 @@ class PlaylistDraftService(SingletonServiceBase):
 
         self._log_initialization("Playlist draft service initialized with ORM", logger)
 
+    @handle_service_errors("initialize_playlist_draft_service")
     async def initialize(self):
-        """Initialize the playlist draft service."""
-
+        """Initialize the playlist draft service with error handling."""
         try:
             asyncio.create_task(self._cleanup_expired_drafts_loop())
-
         except Exception as e:
-            logger.error(f"Failed to initialize playlist draft service: {e}")
-            raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
+            raise_playlist_error(f"Failed to initialize playlist draft service: {e}", ErrorCode.INTERNAL_ERROR)
 
     async def _cleanup_expired_drafts_loop(self):
         """Background task to clean up expired drafts."""
@@ -73,9 +73,9 @@ class PlaylistDraftService(SingletonServiceBase):
         """Generate a unique draft ID."""
         return str(uuid.uuid4())
 
+    @handle_service_errors("save_draft")
     async def save_draft(self, device_id: str, session_id: str, prompt: str, songs: List[Song], refinements_used: int = 0) -> str:
-        """Save a playlist draft using database service."""
-
+        """Save a playlist draft using database service with error handling."""
         try:
             draft_id = self._create_draft_id()
             songs_json = json.dumps([song.to_dict() for song in songs])
@@ -101,11 +101,10 @@ class PlaylistDraftService(SingletonServiceBase):
                 logger.info(f"Saved playlist draft {draft_id}")
                 return draft_id
             else:
-                raise RuntimeError("Failed to save draft to database")
+                raise_playlist_error("Failed to save draft to database", ErrorCode.PLAYLIST_CREATION_FAILED)
 
         except Exception as e:
-            logger.error(f"Failed to save draft: {e}")
-            raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
+            raise_playlist_error(f"Failed to save draft: {e}", ErrorCode.PLAYLIST_CREATION_FAILED)
 
     async def update_draft(self, draft_id: str, songs: List[Song], refinements_used: int) -> bool:
         """Update an existing draft using database service."""

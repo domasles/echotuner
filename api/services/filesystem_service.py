@@ -42,7 +42,6 @@ class FilesystemService(SingletonServiceBase):
         for directory in self.required_directories:
             try:
                 directory_path = Path(directory)
-                print(f"Checking directory: {directory_path}")
                 
                 if not directory_path.exists():
                     directory_path.mkdir(parents=True, exist_ok=True)

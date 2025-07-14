@@ -1,5 +1,6 @@
 """
 Vector embedding cache for AI responses using database storage.
+Database-based caching with standardized patterns and error handling.
 """
 
 import hashlib
@@ -11,6 +12,8 @@ from core.singleton import SingletonServiceBase
 from core.service_manager import ServiceManager
 from config.app_constants import AppConstants
 from utils.input_validator import UniversalValidator
+from database.operations import EmbeddingOperationsMixin
+from utils.exceptions import handle_service_errors, raise_ai_error, ErrorCode
 
 from database.core import get_session
 from database.models import EmbeddingCache
@@ -47,14 +50,17 @@ class EmbeddingCacheService(SingletonServiceBase):
             logger.error(f"Failed to generate cache key: {e}")
             return ""
 
+    @handle_service_errors("get_cached_embedding")
     async def get_cached_embedding(self, prompt: str, user_context: Optional[str] = None) -> Optional[Any]:
-        """Get cached embedding for the given prompt and context."""
+        """Get cached embedding for the given prompt and context using standardized operations."""
         try:
             cache_key = self._generate_cache_key(prompt, user_context)
             if not cache_key:
-                return None
+                raise_ai_error("Failed to generate cache key", ErrorCode.AI_EMBEDDING_FAILED)
 
+            # Use session directly instead of mixin method
             async with get_session() as session:
+                from database.models import EmbeddingCache
                 result = await session.execute(
                     select(EmbeddingCache).where(EmbeddingCache.cache_key == cache_key)
                 )
@@ -62,38 +68,43 @@ class EmbeddingCacheService(SingletonServiceBase):
 
                 if cached_entry:
                     logger.debug(f"Cache hit for key: {cache_key[:16]}...")
-                    # Return just the response data (the embedding array)
                     return cached_entry.response_data
-                
-                logger.debug(f"Cache miss for key: {cache_key[:16]}...")
-                return None
-
-        except Exception as e:
-            logger.error(f"Failed to get cached embedding: {e}")
+                    
+            logger.debug(f"Cache miss for key: {cache_key[:16]}...")
             return None
+            
+        except Exception as e:
+            raise_ai_error(f"Failed to get cached embedding: {e}", ErrorCode.AI_EMBEDDING_FAILED)
 
+    @handle_service_errors("store_embedding")
     async def store_embedding(self, prompt: str, response: Any, user_context: Optional[str] = None) -> bool:
-        """Store embedding in cache."""
+        """Store embedding in cache using standardized operations."""
         try:
             cache_key = self._generate_cache_key(prompt, user_context)
             if not cache_key:
-                return False
+                raise_ai_error("Failed to generate cache key", ErrorCode.AI_EMBEDDING_FAILED)
 
+            # Use session directly instead of mixin method
             async with get_session() as session:
+                from database.models import EmbeddingCache
                 cache_entry = EmbeddingCache(
                     cache_key=cache_key,
                     prompt=prompt,
                     response_data=response,
                     user_context=user_context,
                     created_at=datetime.now().isoformat(),
+                    last_accessed=datetime.now().isoformat(),
                     access_count=1
                 )
-
-                session.add(cache_entry)  # Use add instead of merge
+                
+                session.add(cache_entry)
                 await session.commit()
                 
-                logger.debug(f"Stored embedding for key: {cache_key[:16]}...")
-                return True
+            logger.debug(f"Stored embedding for key: {cache_key[:16]}...")
+            return True
+            
+        except Exception as e:
+            raise_ai_error(f"Failed to store embedding: {e}", ErrorCode.AI_EMBEDDING_FAILED)
 
         except Exception as e:
             logger.error(f"Failed to store embedding: {e}")
