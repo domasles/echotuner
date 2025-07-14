@@ -36,5 +36,5 @@ async def health_check():
             "total": total_services,
             "details": service_status
         },
-        "version": "1.3.0-beta"
+        "version": "1.4.0-beta"
     }
