@@ -2,6 +2,8 @@
 
 import logging
 from fastapi import APIRouter
+from decorators.security import debug_only
+
 from config.settings import settings
 from core.service_manager import service_manager
 
@@ -20,6 +22,7 @@ async def get_server_mode():
     }
 
 @router.get("/health")
+@debug_only
 async def health_check():
     """Health check endpoint with service status"""
     

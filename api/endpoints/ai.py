@@ -8,6 +8,8 @@ from config.security import security_config
 
 from services.ai_service import ai_service
 
+from decorators.security import debug_only
+
 from utils.input_validator import InputValidator
 
 logger = logging.getLogger(__name__)
@@ -34,6 +36,7 @@ async def get_ai_models():
     }
 
 @router.post("/test")
+@debug_only
 async def test_ai_model(request):
     """Test AI model with a simple prompt"""
 
@@ -53,6 +56,7 @@ async def test_ai_model(request):
         sanitized_error = InputValidator.sanitize_error_message(str(e))
         raise HTTPException(status_code=500, detail=f"AI test failed: {sanitized_error}")
 
+@debug_only
 async def production_readiness_check():
     """Check if the API is ready for production deployment"""
 

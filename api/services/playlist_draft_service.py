@@ -136,8 +136,10 @@ class PlaylistDraftService(SingletonServiceBase):
         """Get a playlist draft by ID using database service."""
 
         try:
+            logger.info(f"Getting draft for ID: {draft_id}")
             draft_data = await db_service.get_playlist_draft(draft_id)
             if not draft_data:
+                logger.warning(f"No draft data found for ID: {draft_id}")
                 return None
 
             # Parse songs from JSON
@@ -326,6 +328,19 @@ class PlaylistDraftService(SingletonServiceBase):
             )
         except Exception as e:
             logger.error(f"Failed to mark playlist as added to Spotify: {e}")
+            return False
+
+    @handle_service_errors("remove_spotify_playlist_tracking")
+    async def remove_spotify_playlist_tracking(self, spotify_playlist_id: str) -> bool:
+        """Remove tracking of a Spotify playlist when it's deleted."""
+        try:
+            # Remove the playlist from drafts if it exists
+            success = await db_service.remove_spotify_playlist_from_drafts(spotify_playlist_id)
+            if success:
+                logger.info(f"Removed Spotify playlist tracking for {spotify_playlist_id}")
+            return success
+        except Exception as e:
+            logger.error(f"Failed to remove Spotify playlist tracking for {spotify_playlist_id}: {e}")
             return False
 
 # Create singleton instance

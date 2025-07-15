@@ -9,6 +9,8 @@ from config.settings import settings
 
 from services.data_service import data_loader
 
+from decorators.security import debug_only
+
 from utils.input_validator import InputValidator
 
 logger = logging.getLogger(__name__)
@@ -48,6 +50,7 @@ async def get_config():
     }
 
 @router.post("/reload")
+@debug_only
 async def reload_config():
     """Reload JSON configuration files without restarting the server"""
     try:

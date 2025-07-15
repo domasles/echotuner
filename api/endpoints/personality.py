@@ -4,6 +4,8 @@ import logging
 from typing import Dict, Any
 from fastapi import HTTPException, APIRouter, Request
 
+from decorators.security import debug_only
+
 from models import UserPersonalityRequest, UserPersonalityResponse, UserPersonalityClearRequest, FollowedArtistsResponse, ArtistSearchRequest, ArtistSearchResponse
 from services.personality_service import personality_service
 from services.auth_middleware import auth_middleware
@@ -68,6 +70,7 @@ async def load_user_personality(request: Request):
         raise HTTPException(status_code=500, detail="Failed to load personality")
 
 @router.post("/clear")
+@debug_only
 async def clear_user_personality(request: UserPersonalityClearRequest):
     """Clear user personality preferences"""
 

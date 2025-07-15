@@ -869,5 +869,26 @@ class DatabaseService(SingletonServiceBase):
             logger.error(f"Failed to mark playlist as added to Spotify: {e}")
             return False
 
+    @db_operation("remove_spotify_playlist_from_drafts")
+    async def remove_spotify_playlist_from_drafts(self, session, spotify_playlist_id: str) -> bool:
+        """Remove Spotify playlist tracking from drafts."""
+        try:
+            # Remove from SpotifyPlaylist table
+            await session.execute(
+                delete(SpotifyPlaylist).where(SpotifyPlaylist.spotify_playlist_id == spotify_playlist_id)
+            )
+            
+            # Update any drafts that referenced this Spotify playlist
+            await session.execute(
+                update(PlaylistDraft)
+                .where(PlaylistDraft.spotify_playlist_id == spotify_playlist_id)
+                .values(spotify_playlist_id=None, spotify_url=None)
+            )
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to remove Spotify playlist from drafts: {e}")
+            return False
 # Create singleton instance
 db_service = DatabaseService()

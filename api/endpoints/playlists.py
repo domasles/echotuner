@@ -6,7 +6,9 @@ import re
 
 from fastapi import HTTPException, APIRouter
 
-from models import PlaylistRequest, PlaylistResponse, LibraryPlaylistsRequest, LibraryPlaylistsResponse, SpotifyPlaylistInfo, PlaylistDraftRequest
+from decorators.security import debug_only
+
+from models import PlaylistRequest, PlaylistResponse, PlaylistDraftRequest, LibraryPlaylistsRequest, LibraryPlaylistsResponse, SpotifyPlaylistInfo
 
 from config.settings import settings
 
@@ -164,16 +166,31 @@ async def update_playlist_draft(request: PlaylistRequest):
         playlist_id = request.playlist_id
         current_songs = request.current_songs or []
 
+        logger.info(f"Update draft request - playlist_id: {playlist_id}, current_songs count: {len(current_songs)}")
+        logger.info(f"User info: {user_info}")
+
         if not playlist_id:
             raise HTTPException(status_code=400, detail="Playlist ID is required for updates")
+
+        # Check if this is a demo user
+        if user_info and user_info.get('account_type') == 'demo':
+            # For demo users, handle differently - don't save to database, just return the response
+            logger.info("Demo user - not saving draft to database")
+            return PlaylistResponse(
+                songs=current_songs,
+                generated_from=request.prompt or "Updated playlist",
+                total_count=len(current_songs),
+                playlist_id=playlist_id
+            )
 
         draft = await playlist_draft_service.get_draft(playlist_id)
 
         if not draft:
+            logger.warning(f"Draft not found for playlist_id: {playlist_id}")
             raise HTTPException(status_code=404, detail="Draft playlist not found")
 
         success = await playlist_draft_service.update_draft(
-            playlist_id=playlist_id,
+            draft_id=playlist_id,
             songs=current_songs,
             prompt=request.prompt or draft.prompt
         )
@@ -300,6 +317,7 @@ async def get_draft_playlist(request: PlaylistDraftRequest):
         raise HTTPException(status_code=500, detail="Failed to get draft playlist")
 
 @router.delete("/drafts")
+@debug_only
 async def delete_draft_playlist(request: PlaylistDraftRequest):
     """Delete a draft playlist."""
 

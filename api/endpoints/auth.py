@@ -20,6 +20,7 @@ from services.template_service import template_service
 from services.auth_middleware import auth_middleware
 from services.database_service import db_service
 from services.auth_service import auth_service
+from decorators.security import debug_only
 
 from utils.input_validator import InputValidator
 
@@ -266,6 +267,7 @@ async def logout(request: Request):
         return {"message": "Logout failed", "success": False, "error": str(e)}
 
 @router.post("/cleanup")
+@debug_only
 async def cleanup_sessions():
     """Clean up expired sessions and auth attempts"""
 

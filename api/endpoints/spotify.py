@@ -4,6 +4,8 @@ import logging
 
 from fastapi import HTTPException, APIRouter
 
+from decorators.security import debug_only
+
 from models import SpotifyPlaylistRequest, SpotifyPlaylistResponse, SpotifyPlaylistTracksRequest, SpotifyPlaylistDeleteRequest, SpotifyPlaylistTrackRemoveRequest
 
 from services.spotify_playlist_service import spotify_playlist_service
