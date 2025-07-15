@@ -19,6 +19,7 @@ from config.settings import settings
 from utils.input_validator import UniversalValidator
 
 from services.database_service import db_service
+from decorators import service_bool_operation, service_optional_operation
 
 logger = logging.getLogger(__name__)
 
@@ -176,25 +177,15 @@ class AuthService(SingletonServiceBase):
             logger.error(f"Failed to create session: {e}")
             raise RuntimeError(UniversalValidator.sanitize_error_message(str(e)))
 
+    @service_bool_operation()
     async def validate_session(self, session_id: str, device_id: str) -> bool:
         """Validate if session exists and belongs to device"""
+        return await db_service.validate_session(session_id, device_id)
 
-        try:
-            return await db_service.validate_session(session_id, device_id)
-
-        except Exception as e:
-            logger.error(f"Session validation error: {e}")
-            return False
-
+    @service_optional_operation()
     async def get_session_by_device(self, device_id: str) -> Optional[str]:
         """Get the most recent valid session for a device (for desktop polling)"""
-
-        try:
-            return await db_service.get_session_by_device(device_id)
-
-        except Exception as e:
-            logger.error(f"Get session by device error: {e}")
-            return None
+        return await db_service.get_session_by_device(device_id)
 
     async def invalidate_session(self, session_id: str):
         """Invalidate a session"""
@@ -361,59 +352,39 @@ class AuthService(SingletonServiceBase):
             logger.error(f"Failed to get access token: {e}")
             return None
 
+    @service_optional_operation()
     async def get_user_from_session(self, session_id: str) -> Optional[Dict]:
         """Get user information from session ID."""
+        session_info = await db_service.get_session_info(session_id)
 
-        try:
-            session_info = await db_service.get_session_info(session_id)
-
-            if not session_info:
-                return None
-
-            return {
-                'spotify_user_id': session_info['spotify_user_id'],
-                'device_id': session_info['device_id']
-            }
-
-        except Exception as e:
-            logger.error(f"Failed to get user from session: {e}")
+        if not session_info:
             return None
 
+        return {
+            'spotify_user_id': session_info['spotify_user_id'],
+            'device_id': session_info['device_id']
+        }
+
+    @service_bool_operation()
     async def is_session_expired(self, session_id: str) -> bool:
         """Check if a session is expired"""
+        session_info = await db_service.get_session_info(session_id)
 
-        try:
-            session_info = await db_service.get_session_info(session_id)
-
-            if not session_info:
-                return True
-
-            return datetime.now().timestamp() > session_info['expires_at']
-
-        except Exception as e:
-            logger.error(f"Error checking session expiration: {e}")
+        if not session_info:
             return True
 
+        return datetime.now().timestamp() > session_info['expires_at']
+
+    @service_bool_operation()
     async def extend_session(self, session_id: str, hours: int = 24) -> bool:
         """Extend session expiration time"""
+        new_expires_at = int((datetime.now() + timedelta(hours=hours)).timestamp())
+        return await db_service.update_session(session_id, expires_at=new_expires_at)
 
-        try:
-            new_expires_at = int((datetime.now() + timedelta(hours=hours)).timestamp())
-            return await db_service.update_session(session_id, expires_at=new_expires_at)
-
-        except Exception as e:
-            logger.error(f"Error extending session: {e}")
-            return False
-
+    @service_bool_operation()
     async def revoke_all_user_sessions(self, spotify_user_id: str) -> bool:
         """Revoke all sessions for a specific user"""
-
-        try:
-            return await db_service.revoke_user_sessions(spotify_user_id)
-
-        except Exception as e:
-            logger.error(f"Error revoking user sessions: {e}")
-            return False
+        return await db_service.revoke_user_sessions(spotify_user_id)
 
     async def get_active_sessions_count(self, spotify_user_id: str) -> int:
         """Get count of active sessions for a user"""
@@ -425,20 +396,15 @@ class AuthService(SingletonServiceBase):
             logger.error(f"Error getting active sessions count: {e}")
             return 0
 
+    @service_optional_operation()
     async def get_account_type(self, session_id: str) -> Optional[str]:
         """Get account type for a session"""
+        session_info = await db_service.get_session_info(session_id)
 
-        try:
-            session_info = await db_service.get_session_info(session_id)
-
-            if not session_info:
-                return None
-
-            return session_info.get('account_type', 'normal')
-
-        except Exception as e:
-            logger.error(f"Failed to get account type: {e}")
+        if not session_info:
             return None
+
+        return session_info.get('account_type', 'normal')
 
     async def is_session_compatible_with_mode(self, session_id: str) -> bool:
         """Check if session account type is compatible with current server mode"""
