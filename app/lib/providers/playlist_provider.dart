@@ -389,6 +389,20 @@ class PlaylistProvider extends ChangeNotifier {
 
             final response = await _apiService.updatePlaylistDraft(request);
             _currentPlaylistId = response.playlistId;
+            
+            // Update local storage with the current playlist
+            final updatedDraft = PlaylistDraft(
+                id: _currentPlaylistId!,
+                deviceId: _deviceId!,
+                sessionId: sessionId,
+                prompt: _currentPrompt.isNotEmpty ? _currentPrompt : 'Updated playlist',
+                songs: _currentPlaylist,
+                status: 'draft',
+                createdAt: DateTime.now(),
+                updatedAt: DateTime.now(),
+            );
+            
+            await _savePlaylistLocally(updatedDraft);
         }
 
         catch (e) {
