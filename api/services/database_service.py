@@ -790,6 +790,36 @@ class DatabaseService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Failed to cleanup device auth states: {e}")
 
+    @handle_service_errors("get_sessions_by_account_type")
+    async def get_sessions_by_account_type(self, account_type: str) -> List[Dict[str, Any]]:
+        """Get all sessions for a specific account type."""
+        try:
+            async with get_session() as session:
+                result = await session.execute(
+                    select(AuthSession).where(AuthSession.account_type == account_type)
+                )
+                sessions = result.scalars().all()
+                
+                return [
+                    {
+                        'session_id': s.session_id,
+                        'device_id': s.device_id,
+                        'platform': s.platform,
+                        'spotify_user_id': s.spotify_user_id,
+                        'access_token': s.access_token,
+                        'refresh_token': s.refresh_token,
+                        'expires_at': s.expires_at,
+                        'created_at': s.created_at,
+                        'last_used_at': s.last_used_at,
+                        'account_type': s.account_type or 'normal'
+                    }
+                    for s in sessions
+                ]
+
+        except Exception as e:
+            logger.error(f"Get sessions by account type error: {e}")
+            return []
+
     @handle_service_errors("delete_auth_sessions_by_account_type")
     async def delete_auth_sessions_by_account_type(self, account_type: str) -> int:
         """Delete auth sessions by account type using ORM."""

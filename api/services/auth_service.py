@@ -515,7 +515,7 @@ class AuthService(SingletonServiceBase):
     async def _async_cleanup_demo_accounts(self):
         """Async cleanup of demo accounts"""
         try:
-            demo_sessions = await db_service.fetch_all("SELECT session_id FROM auth_sessions WHERE account_type = 'demo'")
+            demo_sessions = await db_service.get_sessions_by_account_type('demo')
 
             if demo_sessions:
                 session_ids = [session['session_id'] for session in demo_sessions]
