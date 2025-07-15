@@ -1,7 +1,8 @@
 """Personality-related endpoint implementations"""
 
 import logging
-from fastapi import HTTPException, APIRouter
+from typing import Dict, Any
+from fastapi import HTTPException, APIRouter, Request
 
 from models import UserPersonalityRequest, UserPersonalityResponse, UserPersonalityClearRequest, FollowedArtistsResponse, ArtistSearchRequest, ArtistSearchResponse
 from services.personality_service import personality_service
@@ -43,8 +44,8 @@ async def save_user_personality(request: UserPersonalityRequest):
         logger.error(f"Failed to save user personality: {e}")
         raise HTTPException(status_code=500, detail="Failed to save personality")
 
-@router.get("/load")
-async def load_user_personality(request):
+@router.get("/load", response_model=Dict[str, Any])
+async def load_user_personality(request: Request):
     try:
         user_info = await auth_middleware.validate_session_from_headers(request)
 
@@ -85,8 +86,8 @@ async def clear_user_personality(request: UserPersonalityClearRequest):
         logger.error(f"Failed to clear user personality: {e}")
         raise HTTPException(status_code=500, detail="Failed to clear personality")
 
-@router.get("/followed_artists", response_model=FollowedArtistsResponse)
-async def get_followed_artists(request, limit: int = 50):
+@router.get("/followed-artists", response_model=FollowedArtistsResponse)
+async def get_followed_artists(request: Request, limit: int = 50):
     """Get user's followed artists from Spotify"""
 
     try:

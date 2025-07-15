@@ -78,7 +78,7 @@ class PlaylistDraftService(SingletonServiceBase):
         """Save a playlist draft using database service with error handling."""
         try:
             draft_id = self._create_draft_id()
-            songs_json = json.dumps([song.to_dict() for song in songs])
+            songs_json = json.dumps([song.model_dump() for song in songs])
             
             draft_data = {
                 'id': draft_id,
@@ -110,7 +110,7 @@ class PlaylistDraftService(SingletonServiceBase):
         """Update an existing draft using database service."""
 
         try:
-            songs_json = json.dumps([song.to_dict() for song in songs])
+            songs_json = json.dumps([song.model_dump() for song in songs])
             
             draft_data = {
                 'id': draft_id,
@@ -141,7 +141,7 @@ class PlaylistDraftService(SingletonServiceBase):
 
             # Parse songs from JSON
             songs_data = json.loads(draft_data.get('songs_json', '[]'))
-            songs = [Song.from_dict(song_data) for song_data in songs_data]
+            songs = [Song.model_validate(song_data) for song_data in songs_data]
 
             draft = PlaylistDraft(
                 id=draft_data['id'],
@@ -165,18 +165,18 @@ class PlaylistDraftService(SingletonServiceBase):
             logger.error(f"Failed to get draft {draft_id}: {e}")
             return None
 
-    async def get_user_drafts(self, device_id: str, limit: int = 10) -> List[PlaylistDraft]:
+    async def get_user_drafts(self, device_id: str, limit: int = 10, user_id: str = None, session_id: str = None, include_spotify: bool = True) -> List[PlaylistDraft]:
         """Get user's drafts using database service."""
 
         try:
-            drafts_data = await db_service.get_user_drafts(device_id, limit)
+            drafts_data = await db_service.get_user_drafts(device_id, limit, user_id)
             drafts = []
 
             for draft_data in drafts_data:
                 try:
                     # Parse songs from JSON
                     songs_data = json.loads(draft_data.get('songs_json', '[]'))
-                    songs = [Song.from_dict(song_data) for song_data in songs_data]
+                    songs = [Song.model_validate(song_data) for song_data in songs_data]
 
                     draft = PlaylistDraft(
                         id=draft_data['id'],
@@ -313,6 +313,34 @@ class PlaylistDraftService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Failed to get all playlists for device {device_id}: {e}")
             return []
+
+    async def get_device_drafts(self, device_id: str, include_spotify: bool = True, limit: int = 10) -> List[PlaylistDraft]:
+        """Get device drafts - alias for get_user_drafts for backwards compatibility."""
+        return await self.get_user_drafts(device_id, limit)
+
+    async def get_user_echotuner_spotify_playlist_ids(self, user_id: str) -> List[str]:
+        """Get EchoTuner Spotify playlist IDs for a user."""
+        try:
+            return await db_service.get_user_echotuner_spotify_playlist_ids(user_id)
+        except Exception as e:
+            logger.error(f"Failed to get user EchoTuner Spotify playlist IDs: {e}")
+            return []
+
+    async def mark_as_added_to_spotify(self, playlist_id: str, spotify_playlist_id: str, spotify_url: str, user_id: str, device_id: str, session_id: str, playlist_name: str) -> bool:
+        """Mark a playlist draft as added to Spotify."""
+        try:
+            return await db_service.mark_as_added_to_spotify(
+                playlist_id=playlist_id,
+                spotify_playlist_id=spotify_playlist_id,
+                spotify_url=spotify_url,
+                user_id=user_id,
+                device_id=device_id,
+                session_id=session_id,
+                playlist_name=playlist_name
+            )
+        except Exception as e:
+            logger.error(f"Failed to mark playlist as added to Spotify: {e}")
+            return False
 
 # Create singleton instance
 playlist_draft_service = PlaylistDraftService()

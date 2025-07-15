@@ -2,7 +2,7 @@
 
 These endpoints handle user-related operations like fetching followed artists and searching for artists.
 
-## GET /user/followed-artists
+## GET /personality/followed-artists
 
 Get user's followed artists from Spotify.
 
@@ -40,7 +40,7 @@ Get user's followed artists from Spotify.
 }
 ```
 
-## POST /user/search-artists
+## POST /personality/search-artists
 
 Search for artists on Spotify.
 
@@ -99,6 +99,6 @@ All user endpoints may return these error responses:
 ## Notes
 
 - All user endpoints require valid Spotify authentication
-- The `/user/followed-artists` endpoint returns artists the user follows on Spotify
-- The `/user/search-artists` endpoint searches the Spotify catalog
+- The `/personality/followed-artists` endpoint returns artists the user follows on Spotify
+- The `/personality/search-artists` endpoint searches the Spotify catalog
 - Results are paginated where applicable

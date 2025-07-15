@@ -501,17 +501,35 @@ class DatabaseService(SingletonServiceBase):
         except Exception as e:
             raise_playlist_error(f"Failed to get playlist draft: {e}", ErrorCode.PLAYLIST_NOT_FOUND)
 
-    async def get_user_drafts(self, device_id: str, limit: int = 10) -> List[Dict[str, Any]]:
-        """Get user's playlist drafts."""
+    async def get_user_drafts(self, device_id: str, limit: int = 10, user_id: str = None) -> List[Dict[str, Any]]:
+        """Get user's playlist drafts. If user_id is provided, get drafts for all devices of that user."""
 
         try:
             async with get_session() as session:
-                result = await session.execute(
-                    select(PlaylistDraft)
-                    .where(PlaylistDraft.device_id == device_id)
-                    .order_by(desc(PlaylistDraft.updated_at))
-                    .limit(limit)
-                )
+                if user_id:
+                    # Get drafts for all devices of this user by joining with auth_sessions
+                    result = await session.execute(
+                        select(PlaylistDraft)
+                        .join(AuthSession, PlaylistDraft.session_id == AuthSession.session_id)
+                        .where(and_(
+                            AuthSession.spotify_user_id == user_id,
+                            PlaylistDraft.is_draft == True
+                        ))
+                        .order_by(desc(PlaylistDraft.updated_at))
+                        .limit(limit)
+                    )
+                else:
+                    # Get drafts for specific device only (demo mode)
+                    result = await session.execute(
+                        select(PlaylistDraft)
+                        .where(and_(
+                            PlaylistDraft.device_id == device_id,
+                            PlaylistDraft.is_draft == True
+                        ))
+                        .order_by(desc(PlaylistDraft.updated_at))
+                        .limit(limit)
+                    )
+                
                 drafts = result.scalars().all()
                 
                 return [
@@ -588,15 +606,28 @@ class DatabaseService(SingletonServiceBase):
 
         try:
             async with get_session() as session:
-                personality = UserPersonality(
-                    user_id=user_id,
-                    spotify_user_id=spotify_user_id,
-                    user_context=json.dumps(user_context.to_dict()),
-                    created_at=datetime.now().isoformat(),
-                    updated_at=datetime.now().isoformat()
+                # Check if personality already exists
+                result = await session.execute(
+                    select(UserPersonality).where(UserPersonality.user_id == user_id)
                 )
+                existing = result.scalars().first()
                 
-                session.add(personality)
+                if existing:
+                    # Update existing personality
+                    existing.spotify_user_id = spotify_user_id
+                    existing.user_context = json.dumps(user_context.model_dump())
+                    existing.updated_at = datetime.now().isoformat()
+                else:
+                    # Create new personality
+                    personality = UserPersonality(
+                        user_id=user_id,
+                        spotify_user_id=spotify_user_id,
+                        user_context=json.dumps(user_context.model_dump()),
+                        created_at=datetime.now().isoformat(),
+                        updated_at=datetime.now().isoformat()
+                    )
+                    session.add(personality)
+                
                 await session.commit()
                 return True
 
@@ -893,6 +924,58 @@ class DatabaseService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Failed to delete demo user personalities: {e}")
             raise
-            
+
+    async def get_user_echotuner_spotify_playlist_ids(self, user_id: str) -> List[str]:
+        """Get EchoTuner Spotify playlist IDs for a user."""
+        try:
+            async with get_session() as session:
+                result = await session.execute(
+                    select(SpotifyPlaylist.spotify_playlist_id)
+                    .where(SpotifyPlaylist.user_id == user_id)
+                )
+                playlist_ids = result.scalars().all()
+                return list(playlist_ids)
+        except Exception as e:
+            logger.error(f"Failed to get user EchoTuner Spotify playlist IDs: {e}")
+            return []
+
+    async def mark_as_added_to_spotify(self, playlist_id: str, spotify_playlist_id: str, spotify_url: str, user_id: str, device_id: str, session_id: str, playlist_name: str) -> bool:
+        """Mark a playlist draft as added to Spotify."""
+        try:
+            async with get_session() as session:
+                # Update the playlist draft with Spotify information
+                await session.execute(
+                    update(PlaylistDraft)
+                    .where(PlaylistDraft.id == playlist_id)
+                    .values(
+                        spotify_playlist_id=spotify_playlist_id,
+                        spotify_playlist_url=spotify_url,
+                        is_draft=False,
+                        status='completed',
+                        updated_at=datetime.now().isoformat()
+                    )
+                )
+                
+                # Create a record in the Spotify playlists table
+                spotify_playlist = SpotifyPlaylist(
+                    spotify_playlist_id=spotify_playlist_id,
+                    user_id=user_id,
+                    device_id=device_id,
+                    session_id=session_id,
+                    original_draft_id=playlist_id,
+                    playlist_name=playlist_name,
+                    refinements_used=0,
+                    created_at=datetime.now().isoformat(),
+                    updated_at=datetime.now().isoformat()
+                )
+                session.add(spotify_playlist)
+                
+                await session.commit()
+                return True
+                
+        except Exception as e:
+            logger.error(f"Failed to mark playlist as added to Spotify: {e}")
+            return False
+
 # Create singleton instance
 db_service = DatabaseService()

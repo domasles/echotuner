@@ -172,7 +172,7 @@ class PersonalityService {
             final sessionIdToUse = sessionId ?? await _getSessionId();
             if (sessionIdToUse == null) throw Exception('No session ID available');
 
-            final response = await _apiService.get('/user/followed-artists', headers: {
+            final response = await _apiService.get('/personality/followed-artists', headers: {
                 'session_id': sessionIdToUse,
                 'device_id': await _getDeviceId() ?? '',
             });
@@ -203,7 +203,7 @@ class PersonalityService {
                 throw Exception('No session ID available');
             }
 
-            final response = await _apiService.post('/user/search-artists', body: {
+            final response = await _apiService.post('/personality/search-artists', body: {
                 'session_id': sessionId,
                 'device_id': await _getDeviceId(),
                 'query': query,
