@@ -127,8 +127,7 @@ async def generate_playlist(request: PlaylistRequest):
                 device_id=request.device_id,
                 session_id=request.session_id,
                 prompt=sanitized_prompt,
-                songs=songs,
-                refinements_used=0
+                songs=songs
             )
 
         if settings.PLAYLIST_LIMIT_ENABLED:
@@ -138,7 +137,6 @@ async def generate_playlist(request: PlaylistRequest):
             songs=songs,
             generated_from=sanitized_prompt,
             total_count=len(songs),
-            is_refinement=False,
             playlist_id=playlist_id
         )
 
@@ -157,156 +155,9 @@ async def generate_playlist(request: PlaylistRequest):
 
         raise HTTPException(status_code=500, detail=f"Error generating playlist: {sanitized_error}")
 
-@router.post("/refine", response_model=PlaylistResponse)
-async def refine_playlist(request: PlaylistRequest):
-    """Refine an existing playlist based on user feedback"""
-
-    try:
-        user_info = await require_auth(request)
-        current_songs = request.current_songs or []
-        refinements_used = 0
-        playlist_id = request.playlist_id
-
-        if playlist_id:
-            if user_info and user_info.get('account_type') == 'demo':
-                refinements_used = await db_service.get_demo_playlist_refinements(playlist_id)
-                logger.debug(f"Demo playlist {playlist_id} has {refinements_used} refinements used")
-                current_songs = request.current_songs or []
-
-                if settings.REFINEMENT_LIMIT_ENABLED and refinements_used >= settings.MAX_REFINEMENTS_PER_PLAYLIST:
-                    raise HTTPException(
-                        status_code=429,
-                        detail=f"Maximum of {settings.MAX_REFINEMENTS_PER_PLAYLIST} AI refinements reached for this playlist."
-                    )
-            else:
-                draft = await playlist_draft_service.get_draft(playlist_id)
-
-                if draft:
-                    current_songs = draft.songs
-                    refinements_used = draft.refinements_used
-
-                    if settings.REFINEMENT_LIMIT_ENABLED and refinements_used >= settings.MAX_REFINEMENTS_PER_PLAYLIST:
-                        raise HTTPException(
-                            status_code=429,
-                            detail=f"Maximum of {settings.MAX_REFINEMENTS_PER_PLAYLIST} AI refinements reached for this playlist."
-                        )
-
-                else:
-                    logger.warning(f"Draft playlist {playlist_id} not found, using provided songs")
-
-        else:
-            if user_info and user_info.get('account_type') == 'demo':
-                rate_limit_key = request.device_id
-
-            else:
-                rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
-
-            if settings.REFINEMENT_LIMIT_ENABLED and not await rate_limiter_service.can_refine_playlist(rate_limit_key):
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Maximum daily refinements reached."
-                )
-
-        is_valid_prompt = await prompt_validator_service.validate_prompt(request.prompt)
-
-        if not is_valid_prompt:
-            raise HTTPException(
-                status_code=400,
-                detail="The refinement request doesn't seem to be music-related. Please try a different description."
-            )
-
-        user_context = request.user_context
-
-        if not user_context and request.session_id:
-            try:
-                user_context = await personality_service.get_user_personality(
-                    session_id=request.session_id,
-                    device_id=request.device_id
-                )
-
-            except Exception as e:
-                logger.warning(f"Failed to load user personality: {e}")
-
-        if user_context and request.session_id:
-            try:
-                merged_artists = await personality_service.get_merged_favorite_artists(
-                    session_id=request.session_id,
-                    device_id=request.device_id,
-                    user_context=user_context
-                )
-
-                user_context.favorite_artists = merged_artists
-
-            except Exception as e:
-                logger.warning(f"Failed to merge favorite artists: {e}")
-
-        songs = await playlist_generator_service.refine_playlist(
-            original_songs=current_songs,
-            refinement_prompt=request.prompt,
-            user_context=user_context,
-            count=request.count or 30,
-            discovery_strategy=request.discovery_strategy or "balanced"
-        )
-
-        if playlist_id:
-            if user_info and user_info.get('account_type') == 'demo':
-                await db_service.increment_demo_playlist_refinements(playlist_id)
-                logger.debug(f"Incremented demo playlist {playlist_id} refinement count")
-
-            else:
-                await playlist_draft_service.update_draft(
-                    playlist_id=playlist_id,
-                    songs=songs,
-                    refinements_used=refinements_used + 1
-                )
-
-        else:
-            playlist_id = await playlist_draft_service.save_draft(
-                device_id=request.device_id,
-                session_id=request.session_id,
-                prompt=f"Refined: {request.prompt}",
-                songs=songs,
-                refinements_used=1
-            )
-
-            if user_info and user_info.get('account_type') == 'demo':
-                await db_service.add_demo_playlist(
-                    playlist_id=playlist_id,
-                    device_id=request.device_id,
-                    session_id=request.session_id,
-                    prompt=f"Refined: {request.prompt}"
-                )
-
-                await db_service.increment_demo_playlist_refinements(playlist_id)
-
-            if settings.REFINEMENT_LIMIT_ENABLED:
-                if user_info and user_info.get('account_type') == 'demo':
-                    rate_limit_key = request.device_id
-
-                else:
-                    rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
-
-                logger.debug(f"Recording refinement for rate_limit_key: {rate_limit_key}")
-                await rate_limiter_service.record_refinement(rate_limit_key)
-
-        return PlaylistResponse(
-            songs=songs,
-            generated_from=request.prompt,
-            total_count=len(songs),
-            is_refinement=True,
-            playlist_id=playlist_id
-        )
-
-    except HTTPException:
-        raise
-
-    except Exception as e:
-        sanitized_error = InputValidator.sanitize_error_message(str(e))
-        raise HTTPException(status_code=500, detail=f"Error refining playlist: {sanitized_error}")
-
 @router.post("/update-draft", response_model=PlaylistResponse)
 async def update_playlist_draft(request: PlaylistRequest):
-    """Update an existing playlist draft without AI refinement (no refinement count increase)"""
+    """Update an existing playlist draft"""
     
     try:
         user_info = await require_auth(request)
@@ -324,7 +175,6 @@ async def update_playlist_draft(request: PlaylistRequest):
         success = await playlist_draft_service.update_draft(
             playlist_id=playlist_id,
             songs=current_songs,
-            refinements_used=draft.refinements_used,
             prompt=request.prompt or draft.prompt
         )
 
@@ -335,7 +185,6 @@ async def update_playlist_draft(request: PlaylistRequest):
             songs=current_songs,
             generated_from=request.prompt or draft.prompt,
             total_count=len(current_songs),
-            is_refinement=False,
             playlist_id=playlist_id
         )
 
@@ -407,9 +256,6 @@ async def get_library_playlists(request: LibraryPlaylistsRequest):
                                     name=playlist.get('name', 'Unknown'),
                                     description=playlist.get('description'),
                                     tracks_count=tracks_count,
-                                    refinements_used=0,
-                                    max_refinements=0,
-                                    can_refine=False,
                                     spotify_url=playlist.get('external_urls', {}).get('spotify'),
                                     images=playlist.get('images', [])
                                 )

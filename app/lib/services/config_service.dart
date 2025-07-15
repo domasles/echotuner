@@ -39,13 +39,11 @@ class ConfigService {
             playlists: PlaylistConfig(
                 maxSongsPerPlaylist: 30,
                 maxPlaylistsPerDay: 3,
-                maxRefinementsPerPlaylist: 3,
             ),
 
             features: FeatureConfig(
                 authRequired: true,
                 playlistLimitEnabled: false,
-                refinementLimitEnabled: false,
             ),
         );
     }

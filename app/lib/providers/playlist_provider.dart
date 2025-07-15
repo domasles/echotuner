@@ -28,22 +28,11 @@ class PlaylistProvider extends ChangeNotifier {
     bool _isPlaylistAddedToSpotify = false;
     SpotifyPlaylistInfo? _spotifyPlaylistInfo;
 
-    int get refinementsUsed {
-        if (_isPlaylistAddedToSpotify && _spotifyPlaylistInfo != null) return _spotifyPlaylistInfo!.refinementsUsed;
-        if (_demoPlaylistRefinements != null) return _demoPlaylistRefinements!;
-        if (_currentPlaylistRefinements != null) return _currentPlaylistRefinements!;
-
-        return _rateLimitStatus?.refinementsUsed ?? 0;
-    }
-
     bool _isLoading = false;
     bool _isAddingToSpotify = false;
 
     UserContext? _userContext;
     RateLimitStatus? _rateLimitStatus;
-
-    int? _demoPlaylistRefinements;
-    int? _currentPlaylistRefinements;
 
     String? _deviceId;
     String? _error;
@@ -101,16 +90,6 @@ class PlaylistProvider extends ChangeNotifier {
 
     RateLimitStatus? get rateLimitStatus => _rateLimitStatus;
 
-    bool get canRefine {
-        if (_isPlaylistAddedToSpotify && _spotifyPlaylistInfo != null) return _spotifyPlaylistInfo!.canRefine;
-        if (_demoPlaylistRefinements != null) return _demoPlaylistRefinements! < 3;
-        if (_currentPlaylistRefinements != null) return _currentPlaylistRefinements! < 3;
-        if (_rateLimitStatus?.refinementLimitEnabled == true) return refinementsUsed < (_rateLimitStatus?.maxRefinements ?? 3);
-
-        return true;
-    }
-
-    bool get showRefinementLimits => _rateLimitStatus?.refinementLimitEnabled ?? false;
     bool get showPlaylistLimits => _rateLimitStatus?.playlistLimitEnabled ?? false;
     bool get isPlaylistAddedToSpotify => _isPlaylistAddedToSpotify;
 
@@ -335,16 +314,6 @@ class PlaylistProvider extends ChangeNotifier {
 
             final isDemoAccount = await _isDemoAccount();
     
-            if (isDemoAccount) {
-                _currentPlaylistRefinements = null;
-                _demoPlaylistRefinements = 0;
-            }
-
-            else {
-                _demoPlaylistRefinements = null;
-                _currentPlaylistRefinements = 0;
-            }
-
             if (isDemoAccount && response.playlistId != null) {
                 await _saveCurrentPlaylistLocally();
 
@@ -356,12 +325,10 @@ class PlaylistProvider extends ChangeNotifier {
                     songs: response.songs,
                     createdAt: DateTime.now(),
                     updatedAt: DateTime.now(),
-                    refinementsUsed: 0,
                     status: 'draft',
                 );
 
                 await _savePlaylistLocally(draft);
-                await _loadDemoPlaylistRefinements();
             }
 
             _loadRateLimitStatus();
@@ -387,135 +354,6 @@ class PlaylistProvider extends ChangeNotifier {
             }
 
             _currentPlaylist = [];
-        }
-
-        finally {
-            _isLoading = false;
-            notifyListeners();
-        }
-    }
-
-    Future<void> refinePlaylist(String refinementPrompt) async {
-        if (_deviceId == null || !canRefine) return;
-
-        _isLoading = true;
-        _error = null;
-
-        notifyListeners();
-
-        try {
-            final sessionId = _authService.sessionId;
-
-            if (sessionId == null) {
-                throw Exception('Not authenticated');
-            }
-
-            PlaylistResponse response;
-
-            if (_isPlaylistAddedToSpotify && _spotifyPlaylistInfo != null) {
-                response = await _apiService.refineSpotifyPlaylist(
-                    spotifyPlaylistId: _spotifyPlaylistInfo!.id,
-                    prompt: refinementPrompt,
-                    deviceId: _deviceId!,
-                    sessionId: sessionId,
-                );
- 
-                _spotifyPlaylistInfo = SpotifyPlaylistInfo(
-                    id: _spotifyPlaylistInfo!.id,
-                    name: _spotifyPlaylistInfo!.name,
-                    description: _spotifyPlaylistInfo!.description,
-                    tracksCount: response.songs.length,
-                    refinementsUsed: _spotifyPlaylistInfo!.refinementsUsed + 1,
-                    maxRefinements: _spotifyPlaylistInfo!.maxRefinements,
-                    canRefine: (_spotifyPlaylistInfo!.refinementsUsed + 1) < _spotifyPlaylistInfo!.maxRefinements,
-                    spotifyUrl: _spotifyPlaylistInfo!.spotifyUrl,
-                    images: _spotifyPlaylistInfo!.images,
-                );
-            }
-
-            else {
-                final request = PlaylistRequest(
-                    prompt: refinementPrompt,
-                    deviceId: _deviceId!,
-                    sessionId: sessionId,
-                    userContext: _userContext,
-                    currentSongs: _currentPlaylist,
-                    playlistId: _currentPlaylistId,
-                );
-
-                response = await _apiService.refinePlaylist(request);
-            }
-
-            _currentPlaylist = response.songs;
-            if (!_isPlaylistAddedToSpotify || _spotifyPlaylistInfo == null) _currentPlaylistId = response.playlistId;
-
-            _error = null;
-            final isDemoAccount = await _isDemoAccount();
-
-            if (isDemoAccount) {
-                await _loadDemoPlaylistRefinements();
-                await _saveCurrentPlaylistLocally();
-                if (_currentPlaylistId != null) {
-                    final prefs = await SharedPreferences.getInstance();
-                    final dataJson = prefs.getString(_demoPlaylistsKey);
-
-                    if (dataJson != null) {
-                        try {
-                            final List<dynamic> existingPlaylists = jsonDecode(dataJson);
-
-                            for (int i = 0; i < existingPlaylists.length; i++) {
-                                if (existingPlaylists[i]['id'] == _currentPlaylistId) {
-                                    final updatedDraft = PlaylistDraft(
-                                        id: _currentPlaylistId!,
-                                        deviceId: _authService.deviceId ?? '',
-                                        sessionId: _authService.sessionId,
-                                        prompt: _currentPrompt,
-                                        songs: _currentPlaylist,
-                                        createdAt: DateTime.parse(existingPlaylists[i]['created_at'] ?? DateTime.now().toIso8601String()),
-                                        updatedAt: DateTime.now(),
-                                        refinementsUsed: existingPlaylists[i]['refinements_used'] ?? 0,
-                                        status: 'draft',
-                                    );
-
-                                    existingPlaylists[i] = updatedDraft.toJson();
-                                    break;
-                                }
-                            }
-
-                            await prefs.setString(_demoPlaylistsKey, jsonEncode(existingPlaylists));
-                            AppLogger.playlist('Updated draft $_currentPlaylistId locally after refinement');
-                        }
-
-                        catch (e) {
-                            AppLogger.error('Failed to update local draft after refinement', error: e);
-                        }
-                    }
-                }
-            }
-
-            else {
-                if (_currentPlaylistId != null) {
-                    if (_currentPlaylistRefinements != null) _currentPlaylistRefinements = _currentPlaylistRefinements! + 1;
-                }
-            }
-
-            _loadRateLimitStatus();
-        }
-
-        catch (e, stackTrace) {
-            AppLogger.error('Playlist refinement error', error: e, stackTrace: stackTrace);
-
-            if (e.toString().contains('timeout')) {
-                _error = 'Refinement timed out. Please try again.';
-            }
-
-            else if (e.toString().contains('authentication')) {
-                _error = 'Authentication error. Please log in again.';
-            }
-
-            else {
-                _error = 'Failed to refine playlist. Please try again.';
-            }
         }
 
         finally {
@@ -594,8 +432,6 @@ class PlaylistProvider extends ChangeNotifier {
         _currentPlaylistId = null;
         _isPlaylistAddedToSpotify = false;
         _spotifyPlaylistInfo = null;
-        _demoPlaylistRefinements = null;
-        _currentPlaylistRefinements = null;
         _error = null;
 
         notifyListeners();
@@ -647,7 +483,7 @@ class PlaylistProvider extends ChangeNotifier {
                 currentSongs: _currentPlaylist,
             );
 
-            final response = await _apiService.refinePlaylist(request);
+            final response = await _apiService.updatePlaylistDraft(request);
             _currentPlaylistId = response.playlistId;
         }
 
@@ -721,12 +557,8 @@ class PlaylistProvider extends ChangeNotifier {
                 deviceId: _deviceId ?? '',
                 requestsMadeToday: 0,
                 maxRequestsPerDay: 0,
-                refinementsUsed: 0,
-                maxRefinements: 0,
                 canMakeRequest: false,
-                canRefine: false,
                 playlistLimitEnabled: false,
-                refinementLimitEnabled: false,
             );
         }
     }
@@ -744,35 +576,7 @@ class PlaylistProvider extends ChangeNotifier {
             final updatedDrafts = <PlaylistDraft>[];
 
             for (final draft in localDrafts) {
-                try {
-                    final response = await _apiService.getDemoPlaylistRefinements(
-                        draft.id,
-                        sessionId,
-                        _deviceId!
-                    );
-
-                    final apiRefinements = response['refinements_used'] as int;
-
-                    final updatedDraft = PlaylistDraft(
-                        id: draft.id,
-                        deviceId: draft.deviceId,
-                        sessionId: draft.sessionId,
-                        prompt: draft.prompt,
-                        songs: draft.songs,
-                        createdAt: draft.createdAt,
-                        updatedAt: draft.updatedAt,
-                        refinementsUsed: apiRefinements,
-                        status: draft.status,
-                        spotifyPlaylistId: draft.spotifyPlaylistId,
-                    );
-
-                    updatedDrafts.add(updatedDraft);
-                }
-
-                catch (e) {
-                    AppLogger.playlist('Failed to get refinement count for draft ${draft.id}: $e');
-                    updatedDrafts.add(draft);
-                }
+                updatedDrafts.add(draft);
             }
 
             final spotifyPlaylistInfos = localSpotifyPlaylists.map((playlist) {
@@ -780,9 +584,6 @@ class PlaylistProvider extends ChangeNotifier {
                     id: playlist['id'] as String,
                     name: playlist['name'] as String,
                     tracksCount: playlist['tracks_count'] as int? ?? 0,
-                    refinementsUsed: 0,
-                    maxRefinements: 0,
-                    canRefine: false,
                     spotifyUrl: playlist['url'] as String,
                 );
             }).toList();
@@ -817,16 +618,6 @@ class PlaylistProvider extends ChangeNotifier {
         _error = null;
 
         final isDemoAccount = await _isDemoAccount();
-
-        if (isDemoAccount) {
-            await _loadDemoPlaylistRefinements();
-            _currentPlaylistRefinements = null;
-        }
-
-        else {
-            _currentPlaylistRefinements = draft.refinementsUsed;
-            _demoPlaylistRefinements = null;
-        }
 
         if (isDemoAccount) await _saveCurrentPlaylistLocally();
         notifyListeners();
@@ -896,46 +687,6 @@ class PlaylistProvider extends ChangeNotifier {
         finally {
             _isLoading = false;
             notifyListeners();
-        }
-    }
-
-    Future<void> _loadDemoPlaylistRefinements() async {
-        if (_currentPlaylistId == null) {
-            _demoPlaylistRefinements = null;
-            return;
-        }
-
-        final isDemoAccount = await _isDemoAccount();
-
-        if (!isDemoAccount) {
-            _demoPlaylistRefinements = null;
-            return;
-        }
-
-        try {
-            final sessionId = _authService.sessionId;
-            final deviceId = _authService.deviceId;
-
-            if (sessionId != null && deviceId != null) {
-                final response = await _apiService.getDemoPlaylistRefinements(
-                    _currentPlaylistId!,
-                    sessionId,
-                    deviceId
-                );
-
-                _demoPlaylistRefinements = response['refinements_used'] as int;
-                AppLogger.playlist('Loaded demo playlist refinements: $_demoPlaylistRefinements');
-            }
-
-            else {
-                AppLogger.playlist('No session/device ID available for demo playlist refinements');
-                _demoPlaylistRefinements = null;
-            }
-        }
-
-        catch (e) {
-            AppLogger.playlist('Failed to load demo playlist refinements: $e');
-            _demoPlaylistRefinements ??= 0;
         }
     }
 }

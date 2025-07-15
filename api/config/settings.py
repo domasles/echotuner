@@ -43,11 +43,9 @@ class Settings:
     AUTH_REQUIRED: bool = os.getenv("AUTH_REQUIRED", "true").lower() == "true"
 
     PLAYLIST_LIMIT_ENABLED: bool = os.getenv("PLAYLIST_LIMIT_ENABLED", "false").lower() == "true"
-    REFINEMENT_LIMIT_ENABLED: bool = os.getenv("REFINEMENT_LIMIT_ENABLED", "false").lower() == "true"
 
     MAX_PLAYLISTS_PER_DAY: int = int(os.getenv("MAX_PLAYLISTS_PER_DAY", 3))
     MAX_SONGS_PER_PLAYLIST: int = int(os.getenv("MAX_SONGS_PER_PLAYLIST", 30))
-    MAX_REFINEMENTS_PER_PLAYLIST: int = int(os.getenv("MAX_REFINEMENTS_PER_PLAYLIST", 3))
 
     SESSION_TIMEOUT: int = int(os.getenv("SESSION_TIMEOUT", 24))
 

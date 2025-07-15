@@ -8,7 +8,7 @@ from fastapi import HTTPException, Request, APIRouter
 from datetime import datetime
 from sqlalchemy import delete
 
-from models import AuthInitRequest, AuthInitResponse, SessionValidationRequest, SessionValidationResponse, DeviceRegistrationRequest, DeviceRegistrationResponse, DemoPlaylistRefinementsRequest, RateLimitStatus
+from models import AuthInitRequest, AuthInitResponse, SessionValidationRequest, SessionValidationResponse, DeviceRegistrationRequest, DeviceRegistrationResponse, RateLimitStatus
 
 from config.settings import settings
 from database.core import get_session
@@ -322,30 +322,3 @@ async def get_auth_mode():
         "demo": settings.DEMO
     }
 
-@router.post("/demo-playlist-refinements")
-async def get_demo_playlist_refinements(request: DemoPlaylistRefinementsRequest):
-    """Get refinement count for a specific demo playlist"""
-
-    try:
-        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
-
-        if not user_info or user_info.get('account_type') != 'demo':
-            raise HTTPException(status_code=403, detail="This endpoint is only available for demo accounts")
-
-        refinements_used = await db_service.get_demo_playlist_refinements(request.playlist_id)
-
-        return {
-            "playlist_id": request.playlist_id,
-            "refinements_used": refinements_used,
-            "max_refinements": settings.MAX_REFINEMENTS_PER_PLAYLIST,
-            "can_refine": refinements_used < settings.MAX_REFINEMENTS_PER_PLAYLIST
-        }
-
-    except HTTPException:
-        raise
-
-    except Exception as e:
-        logger.error(f"Demo playlist refinements error: {e}")
-        sanitized_error = InputValidator.sanitize_error_message(str(e))
-
-        raise HTTPException(status_code=500, detail=f"Error getting demo playlist refinements: {sanitized_error}")

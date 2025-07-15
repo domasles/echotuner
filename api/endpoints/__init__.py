@@ -3,11 +3,11 @@
 from .auth import (
     auth_init, auth_callback, validate_session, check_session, 
     get_authenticated_rate_limit_status, register_device, logout,
-    cleanup_sessions, get_account_type, get_auth_mode, get_demo_playlist_refinements
+    cleanup_sessions, get_account_type, get_auth_mode
 )
 
 from .playlists import (
-    generate_playlist, refine_playlist, update_playlist_draft, 
+    generate_playlist, update_playlist_draft, 
     get_library_playlists, get_draft_playlist, delete_draft_playlist
 )
 

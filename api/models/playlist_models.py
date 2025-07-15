@@ -22,7 +22,6 @@ class PlaylistResponse(BaseModel):
     songs: List[Song]
     generated_from: str
     total_count: int
-    is_refinement: Optional[bool] = False
     playlist_id: Optional[str] = None
 
 
@@ -34,7 +33,6 @@ class PlaylistDraft(BaseModel):
     songs: List[Song]
     created_at: datetime
     updated_at: datetime
-    refinements_used: int = 0
     status: str = "draft"  # draft, added_to_spotify
     spotify_playlist_id: Optional[str] = None
     spotify_playlist_url: Optional[str] = None

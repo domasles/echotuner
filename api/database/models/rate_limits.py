@@ -7,13 +7,12 @@ from sqlalchemy import Column, String, Integer, Float
 from ..core import Base
 
 class RateLimit(Base):
-    """Rate limits table for request/refinement tracking."""
+    """Rate limits table for request tracking."""
     
     __tablename__ = "rate_limits"
     
     user_id = Column(String, primary_key=True)
     requests_count = Column(Integer, default=0)
-    refinements_count = Column(Integer, default=0)
     last_request_date = Column(String, nullable=False)
     created_at = Column(String, nullable=False)
     updated_at = Column(String, nullable=False)

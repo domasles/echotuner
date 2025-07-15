@@ -51,13 +51,9 @@ class PlaylistConfig {
     @JsonKey(name: 'max_playlists_per_day')
     final int maxPlaylistsPerDay;
 
-    @JsonKey(name: 'max_refinements_per_playlist')
-    final int maxRefinementsPerPlaylist;
-
     const PlaylistConfig({
         required this.maxSongsPerPlaylist,
         required this.maxPlaylistsPerDay,
-        required this.maxRefinementsPerPlaylist,
     });
 
     factory PlaylistConfig.fromJson(Map<String, dynamic> json) => _$PlaylistConfigFromJson(json);
@@ -72,13 +68,9 @@ class FeatureConfig {
     @JsonKey(name: 'playlist_limit_enabled')
     final bool playlistLimitEnabled;
 
-    @JsonKey(name: 'refinement_limit_enabled')
-    final bool refinementLimitEnabled;
-
     const FeatureConfig({
         required this.authRequired,
         required this.playlistLimitEnabled,
-        required this.refinementLimitEnabled,
     });
 
     factory FeatureConfig.fromJson(Map<String, dynamic> json) => _$FeatureConfigFromJson(json);

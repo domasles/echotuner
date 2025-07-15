@@ -31,11 +31,6 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
             if not request.songs:
                 raise HTTPException(status_code=400, detail="Songs list required for demo accounts")
 
-            demo_refinements = await db_service.get_demo_playlist_refinements(request.playlist_id)
-
-            if demo_refinements < 0:
-                raise HTTPException(status_code=404, detail="Demo playlist not found")
-
             songs = request.songs
             draft = None
 

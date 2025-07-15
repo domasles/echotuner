@@ -344,7 +344,7 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                         Text(
-                            '${draft.songs.length} songs • ${draft.refinementsUsed} refinements',
+                            '${draft.songs.length} songs',
                             style: const TextStyle(color: Colors.white70),
                         ),
 

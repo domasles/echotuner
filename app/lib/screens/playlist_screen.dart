@@ -35,61 +35,6 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
         }
     }
 
-    Future<void> _showRefineDialog(BuildContext context, PlaylistProvider provider) async {
-        String refinementText = '';
-
-        return showDialog<void>(
-            context: context,
-            builder: (BuildContext dialogContext) {
-                return AlertDialog(
-                    backgroundColor: AppColors.surface,
-                    title: const Text(
-                        'Refine Your Playlist',
-                        style: TextStyle(color: AppColors.textPrimary),
-                    ),
-
-                    content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                            _buildRefinementIndicatorForDialog(provider),
-                            const SizedBox(height: AppConstants.mediumSpacing),
-
-                            TextField(
-                                autofocus: true,
-                                maxLines: 3,
-
-                                decoration: const InputDecoration(
-                                    hintText: 'Tell us how you\'d like to adjust your playlist',
-                                    border: OutlineInputBorder(),
-                                ),
-
-                                onChanged: (value) => refinementText = value,
-                            ),
-                        ],
-                    ),
-
-                    actions: [
-                        TextButton(
-                            onPressed: () => Navigator.of(dialogContext).pop(),
-                            child: const Text('Cancel'),
-                        ),
-
-                        FilledButton(
-                            onPressed: () {
-                                if (refinementText.trim().isNotEmpty) {
-                                    Navigator.of(dialogContext).pop();
-                                    provider.refinePlaylist(refinementText.trim());
-                                }
-                            },
-
-                            child: const Text('Refine'),
-                        ),
-                    ],
-                );
-            },
-        );
-    }
-
     Future<void> _showAddToSpotifyDialog(BuildContext context, PlaylistProvider provider) async {
         if (provider.isPlaylistAddedToSpotify && provider.spotifyPlaylistInfo != null) {
             await _updateSpotifyPlaylist(context, provider);
@@ -273,7 +218,7 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
 
             bottomNavigationBar: Consumer<PlaylistProvider>(
                 builder: (context, provider, child) {
-                    return _buildBottomRefineButton(context, provider);
+                    return _buildBottomAddToSpotifyButton(context, provider);
                 },
             ),
         );
@@ -371,7 +316,7 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
         );
     }
 
-    Widget _buildBottomRefineButton(BuildContext context, PlaylistProvider provider) {
+    Widget _buildBottomAddToSpotifyButton(BuildContext context, PlaylistProvider provider) {
         if (provider.currentPlaylist.isEmpty) {
             return const SizedBox.shrink();
         }
@@ -403,95 +348,8 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
                                 : Text('Add to Spotify'),
                             ),
                         ),
-
-                        const SizedBox(width: AppConstants.smallSpacing),
-
-                        if (provider.canRefine) Expanded(
-                            child: FilledButton(
-                                onPressed: () => _showRefineDialog(context, provider),
-                                style: const ButtonStyle(
-                                    side: WidgetStatePropertyAll(BorderSide(color: AppColors.surfaceVariant, width: 0.5)),
-                                    elevation: WidgetStatePropertyAll(0),
-                                    shadowColor: WidgetStatePropertyAll(AppColors.transparent),
-                                    minimumSize: WidgetStatePropertyAll(Size.fromHeight(48)),
-                                ),
-
-                                child: Text(
-                                    provider.showRefinementLimits ? 'Refine (${(provider.rateLimitStatus?.maxRefinements ?? 3) - provider.refinementsUsed} left)' : 'Refine',
-                                ),
-                            ),
-                        ),
                     ],
                 ),
-            ),
-        );
-    }
-
-    Widget _buildRefinementIndicatorForDialog(PlaylistProvider provider) {
-        if (!provider.showRefinementLimits) return const SizedBox.shrink();
-        final rateLimitStatus = provider.rateLimitStatus;
-        if (rateLimitStatus == null) return const SizedBox.shrink();
-
-        final refinementsUsed = provider.refinementsUsed;
-        final maxRefinements = rateLimitStatus.maxRefinements;
-        final progress = maxRefinements > 0 ? refinementsUsed / maxRefinements : 0.0;
-
-        Color progressColor;
-
-        if (progress <= 0.5) {
-            progressColor = AppColors.progressBlue;
-        }
-
-        else if (progress <= 0.8) {
-            progressColor = AppColors.progressOrange;
-        }
-
-        else {
-            progressColor = AppColors.progressRed;
-        }
-
-        return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(AppConstants.mediumRadius),
-
-                border: Border.all(
-                    color: AppColors.surfaceVariant, 
-                    width: 1,
-                ),
-            ),
-
-            child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                    Text(
-                        refinementsUsed >= maxRefinements ? 'Refinement limit reached' : 'Refinements Used: $refinementsUsed/$maxRefinements',
-                        style: TextStyle(
-                            color: progressColor,
-                            fontSize: AppConstants.smallFontSize,
-                            fontWeight: FontWeight.bold,
-                        ),
-                    ),
-
-                    const SizedBox(height: AppConstants.tinySpacing),
-                    Container(
-                        height: 4,
-                        decoration: BoxDecoration(
-                            color: const Color(0xFF2A2A2A),
-                            borderRadius: BorderRadius.circular(AppConstants.tinyRadius),
-                        ),
-
-                        child: ClipRRect(
-                            borderRadius: BorderRadius.circular(AppConstants.tinyRadius),
-                            child: LinearProgressIndicator(
-                                value: progress,
-                                backgroundColor: Colors.transparent,
-                                valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-                            ),
-                        ),
-                    ),
-                ],
             ),
         );
     }

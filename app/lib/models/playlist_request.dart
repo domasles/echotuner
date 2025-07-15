@@ -52,9 +52,6 @@ class PlaylistResponse {
     @JsonKey(name: 'total_count')
     final int totalCount;
 
-    @JsonKey(name: 'is_refinement')
-    final bool? isRefinement;
-
     @JsonKey(name: 'confidence_score')
     final double? confidenceScore;
 
@@ -66,7 +63,6 @@ class PlaylistResponse {
         required this.generatedFrom,
         required this.totalCount,
 
-        this.isRefinement,
         this.confidenceScore,
         this.playlistId,
     });

@@ -43,10 +43,6 @@ class RateLimitStatus(BaseModel):
     device_id: str
     requests_made_today: int
     max_requests_per_day: int
-    refinements_used: int
-    max_refinements: int
     can_make_request: bool
-    can_refine: bool
     reset_time: Optional[str] = None
     playlist_limit_enabled: bool = False
-    refinement_limit_enabled: bool = False

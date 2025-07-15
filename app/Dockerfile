@@ -15,7 +15,6 @@ ENV PATH="$FLUTTER_HOME/bin:$PATH"
 
 RUN git clone https://github.com/flutter/flutter.git -b stable $FLUTTER_HOME
 
-RUN flutter doctor --android-licenses || true
 RUN flutter doctor
 RUN flutter config --enable-web
 

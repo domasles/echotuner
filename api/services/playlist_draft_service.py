@@ -74,7 +74,7 @@ class PlaylistDraftService(SingletonServiceBase):
         return str(uuid.uuid4())
 
     @handle_service_errors("save_draft")
-    async def save_draft(self, device_id: str, session_id: str, prompt: str, songs: List[Song], refinements_used: int = 0) -> str:
+    async def save_draft(self, device_id: str, session_id: str, prompt: str, songs: List[Song]) -> str:
         """Save a playlist draft using database service with error handling."""
         try:
             draft_id = self._create_draft_id()
@@ -87,7 +87,6 @@ class PlaylistDraftService(SingletonServiceBase):
                 'prompt': prompt,
                 'songs_json': songs_json,
                 'songs': songs_json,  # For backwards compatibility
-                'refinements_used': refinements_used,
                 'is_draft': True,
                 'status': 'draft',
                 'created_at': datetime.now().isoformat(),
@@ -106,7 +105,7 @@ class PlaylistDraftService(SingletonServiceBase):
         except Exception as e:
             raise_playlist_error(f"Failed to save draft: {e}", ErrorCode.PLAYLIST_CREATION_FAILED)
 
-    async def update_draft(self, draft_id: str, songs: List[Song], refinements_used: int) -> bool:
+    async def update_draft(self, draft_id: str, songs: List[Song], prompt: str = None) -> bool:
         """Update an existing draft using database service."""
 
         try:
@@ -116,9 +115,11 @@ class PlaylistDraftService(SingletonServiceBase):
                 'id': draft_id,
                 'songs_json': songs_json,
                 'songs': songs_json,  # For backwards compatibility
-                'refinements_used': refinements_used,
                 'updated_at': datetime.now().isoformat()
             }
+
+            if prompt:
+                draft_data['prompt'] = prompt
 
             success = await db_service.save_playlist_draft(draft_data)
             if success:
@@ -149,8 +150,7 @@ class PlaylistDraftService(SingletonServiceBase):
                 session_id=draft_data['session_id'],
                 prompt=draft_data['prompt'],
                 songs=songs,
-                refinements_used=draft_data['refinements_used'],
-                is_draft=draft_data['is_draft'],
+                status=draft_data.get('status', 'draft'),
                 created_at=draft_data['created_at'],
                 updated_at=draft_data['updated_at']
             )
@@ -184,8 +184,7 @@ class PlaylistDraftService(SingletonServiceBase):
                         session_id=draft_data['session_id'],
                         prompt=draft_data['prompt'],
                         songs=songs,
-                        refinements_used=draft_data['refinements_used'],
-                        is_draft=draft_data['is_draft'],
+                        status=draft_data.get('status', 'draft'),
                         created_at=draft_data['created_at'],
                         updated_at=draft_data['updated_at']
                     )
@@ -214,20 +213,7 @@ class PlaylistDraftService(SingletonServiceBase):
             logger.error(f"Failed to delete draft {draft_id}: {e}")
             return False
 
-    async def update_refinements(self, draft_id: str, refinements_used: int) -> bool:
-        """Update refinements count using database service."""
-
-        try:
-            success = await db_service.update_draft_refinements(draft_id, refinements_used)
-            if success:
-                logger.debug(f"Updated refinements for draft {draft_id} to {refinements_used}")
-            return success
-
-        except Exception as e:
-            logger.error(f"Failed to update refinements for draft {draft_id}: {e}")
-            return False
-
-    async def save_spotify_playlist(self, spotify_playlist_id: str, user_id: str, device_id: str, session_id: str, draft_id: str, playlist_name: str, refinements_used: int = 0) -> bool:
+    async def save_spotify_playlist(self, spotify_playlist_id: str, user_id: str, device_id: str, session_id: str, draft_id: str, playlist_name: str) -> bool:
         """Save Spotify playlist info using database service."""
 
         try:

@@ -39,12 +39,10 @@ async def get_config():
         "playlists": {
             "max_songs_per_playlist": settings.MAX_SONGS_PER_PLAYLIST,
             "max_playlists_per_day": settings.MAX_PLAYLISTS_PER_DAY,
-            "max_refinements_per_playlist": settings.MAX_REFINEMENTS_PER_PLAYLIST,
         },
         "features": {
             "auth_required": settings.AUTH_REQUIRED,
             "playlist_limit_enabled": settings.PLAYLIST_LIMIT_ENABLED,
-            "refinement_limit_enabled": settings.REFINEMENT_LIMIT_ENABLED,
         },
         "demo_mode": settings.DEMO
     }
@@ -76,7 +74,6 @@ async def root():
         "demo_info": "Demo mode uses a shared Spotify account with device-specific experiences" if settings.DEMO else None,
         "endpoints": {
             "generate": "/playlist/generate",
-            "refine": "/playlist/refine",
             "update_draft": "/playlist/update-draft",
             "health": "/config/health",
             "rate_limit": "/auth/rate-limit-status",

@@ -350,7 +350,6 @@ class DatabaseService(SingletonServiceBase):
                 if rate_limit:
                     return {
                         'requests_count': rate_limit.requests_count,
-                        'refinements_count': rate_limit.refinements_count,
                         'last_request_date': rate_limit.last_request_date
                     }
 
@@ -394,7 +393,6 @@ class DatabaseService(SingletonServiceBase):
                     rate_limit = RateLimit(
                         user_id=user_id,
                         requests_count=requests_count,
-                        refinements_count=0,
                         last_request_date=current_date,
                         created_at=datetime.now().isoformat(),
                         updated_at=datetime.now().isoformat()
@@ -405,54 +403,6 @@ class DatabaseService(SingletonServiceBase):
                 return True
         except Exception as e:
             raise_rate_limit_error(f"Failed to update rate limit requests: {e}", ErrorCode.RATE_LIMIT_CHECK_FAILED)
-
-    @handle_service_errors("update_rate_limit_refinements")
-    async def update_rate_limit_refinements(self, user_id: str, current_date: str, refinements_count: int) -> bool:
-        """Update rate limit refinements count using upsert operation."""
-        try:
-            async with get_session() as session:
-                # Try to get existing record
-                result = await session.execute(
-                    select(RateLimit).where(
-                        and_(
-                            RateLimit.user_id == user_id,
-                            RateLimit.last_request_date == current_date
-                        )
-                    )
-                )
-                existing = result.scalar_one_or_none()
-                
-                if existing:
-                    # Update existing record
-                    await session.execute(
-                        update(RateLimit)
-                        .where(
-                            and_(
-                                RateLimit.user_id == user_id,
-                                RateLimit.last_request_date == current_date
-                            )
-                        )
-                        .values(
-                            refinements_count=refinements_count,
-                            updated_at=datetime.now().isoformat()
-                        )
-                    )
-                else:
-                    # Create new record
-                    rate_limit = RateLimit(
-                        user_id=user_id,
-                        requests_count=0,
-                        refinements_count=refinements_count,
-                        last_request_date=current_date,
-                        created_at=datetime.now().isoformat(),
-                        updated_at=datetime.now().isoformat()
-                    )
-                    session.add(rate_limit)
-                
-                await session.commit()
-                return True
-        except Exception as e:
-            raise_rate_limit_error(f"Failed to update rate limit refinements: {e}", ErrorCode.RATE_LIMIT_CHECK_FAILED)
 
     # ===========================================
     # PLAYLIST OPERATIONS (ORM-based with standardized patterns)
@@ -487,7 +437,6 @@ class DatabaseService(SingletonServiceBase):
                         'session_id': draft.session_id,
                         'prompt': draft.prompt,
                         'songs_json': draft.songs_json,
-                        'refinements_used': draft.refinements_used,
                         'is_draft': draft.is_draft,
                         'created_at': draft.created_at,
                         'updated_at': draft.updated_at,
@@ -539,7 +488,6 @@ class DatabaseService(SingletonServiceBase):
                         'session_id': draft.session_id,
                         'prompt': draft.prompt,
                         'songs_json': draft.songs_json,
-                        'refinements_used': draft.refinements_used,
                         'is_draft': draft.is_draft,
                         'created_at': draft.created_at,
                         'updated_at': draft.updated_at
@@ -564,23 +512,6 @@ class DatabaseService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Failed to delete playlist draft: {e}")
-            return False
-
-    async def update_draft_refinements(self, draft_id: str, refinements_used: int) -> bool:
-        """Update refinements used count for a draft."""
-
-        try:
-            async with get_session() as session:
-                await session.execute(
-                    update(PlaylistDraft)
-                    .where(PlaylistDraft.id == draft_id)
-                    .values(refinements_used=refinements_used)
-                )
-                await session.commit()
-                return True
-
-        except Exception as e:
-            logger.error(f"Failed to update draft refinements: {e}")
             return False
 
     @handle_service_errors("delete_playlist_drafts_by_sessions") 
@@ -670,7 +601,7 @@ class DatabaseService(SingletonServiceBase):
     # ===========================================
 
     async def add_demo_playlist(self, playlist_id: str, device_id: str, session_id: str, prompt: str):
-        """Add a demo playlist ID to track refinement counts."""
+        """Add a demo playlist ID to track."""
 
         try:
             async with get_session() as session:
@@ -679,7 +610,6 @@ class DatabaseService(SingletonServiceBase):
                     device_id=device_id,
                     session_id=session_id,
                     prompt=prompt,
-                    refinements_used=0,
                     created_at=datetime.now().isoformat(),
                     updated_at=datetime.now().isoformat()
                 )
@@ -691,42 +621,6 @@ class DatabaseService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Failed to add demo playlist {playlist_id}: {e}")
             raise
-
-    async def increment_demo_playlist_refinements(self, playlist_id: str):
-        """Increment the refinement count for a demo playlist."""
-
-        try:
-            async with get_session() as session:
-                await session.execute(
-                    update(DemoPlaylist)
-                    .where(DemoPlaylist.playlist_id == playlist_id)
-                    .values(
-                        refinements_used=DemoPlaylist.refinements_used + 1,
-                        updated_at=datetime.now().isoformat()
-                    )
-                )
-                await session.commit()
-                logger.debug(f"Incremented refinement count for demo playlist {playlist_id}")
-
-        except Exception as e:
-            logger.error(f"Failed to increment refinements for demo playlist {playlist_id}: {e}")
-            raise
-
-    async def get_demo_playlist_refinements(self, playlist_id: str) -> int:
-        """Get the refinement count for a demo playlist."""
-
-        try:
-            async with get_session() as session:
-                result = await session.execute(
-                    select(DemoPlaylist.refinements_used)
-                    .where(DemoPlaylist.playlist_id == playlist_id)
-                )
-                count = result.scalar_one_or_none()
-                return count or 0
-
-        except Exception as e:
-            logger.error(f"Failed to get demo playlist refinements for {playlist_id}: {e}")
-            return 0
 
     async def get_demo_playlists_for_device(self, device_id: str) -> List[Dict[str, Any]]:
         """Get all demo playlist IDs for a device."""
@@ -744,7 +638,6 @@ class DatabaseService(SingletonServiceBase):
                     {
                         'playlist_id': playlist.playlist_id,
                         'prompt': playlist.prompt,
-                        'refinements_used': playlist.refinements_used,
                         'created_at': playlist.created_at,
                         'updated_at': playlist.updated_at
                     }
@@ -964,7 +857,6 @@ class DatabaseService(SingletonServiceBase):
                     session_id=session_id,
                     original_draft_id=playlist_id,
                     playlist_name=playlist_name,
-                    refinements_used=0,
                     created_at=datetime.now().isoformat(),
                     updated_at=datetime.now().isoformat()
                 )

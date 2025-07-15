@@ -122,40 +122,6 @@ class ApiService {
         }
     }
 
-    Future<PlaylistResponse> refinePlaylist(PlaylistRequest request) async {
-        final response = await _client.post(
-            Uri.parse(AppConfig.apiUrl('/playlist/refine')),
-
-            headers: {
-                'Content-Type': 'application/json',
-            },
-
-            body: jsonEncode(request.toJson()),
-        );
-
-        if (response.statusCode == 200) {
-            return PlaylistResponse.fromJson(jsonDecode(response.body));
-        }
-
-        else if (response.statusCode == 401) {
-            await _handle401();
-            throw ApiException('Authentication required');
-        }
-
-        else if (response.statusCode == 429) {
-            throw ApiException('Maximum refinements reached for this playlist.');
-        }
-
-        else if (response.statusCode == 400) {
-            final error = jsonDecode(response.body);
-            throw ApiException(error['detail'] ?? 'Invalid refinement request');
-        }
-
-        else {
-            throw ApiException('Failed to refine playlist. Please try again.');
-        }
-    }
-
     Future<RateLimitStatus> getRateLimitStatus(String deviceId) async {
         final response = await _client.get(
             Uri.parse(AppConfig.apiUrl('/rate-limit-status/$deviceId')),
@@ -414,45 +380,6 @@ class ApiService {
         }
     }
 
-    Future<PlaylistResponse> refineSpotifyPlaylist({required String spotifyPlaylistId, required String prompt, required String deviceId, required String sessionId}) async {
-        final response = await _client.post(
-            Uri.parse(AppConfig.apiUrl('/playlist/refine')),
-            headers: {
-                'Content-Type': 'application/json',
-            },
-
-            body: jsonEncode({
-                'spotify_playlist_id': spotifyPlaylistId,
-                'prompt': prompt,
-                'device_id': deviceId,
-                'session_id': sessionId,
-            }),
-        );
-
-        if (response.statusCode == 200) {
-            return PlaylistResponse.fromJson(jsonDecode(response.body));
-        }
-
-        else if (response.statusCode == 401) {
-            await _handle401();
-            throw ApiException('Authentication required');
-        }
-
-        else if (response.statusCode == 429) {
-            final error = jsonDecode(response.body);
-            throw ApiException(error['detail'] ?? 'Refinement limit reached for this playlist.');
-        }
-
-        else if (response.statusCode == 400) {
-            final error = jsonDecode(response.body);
-            throw ApiException(error['detail'] ?? 'Invalid refinement request');
-        }
-
-        else {
-            throw ApiException('Failed to refine Spotify playlist. Please try again.');
-        }
-    }
-
     Future<PlaylistResponse> updatePlaylistDraft(PlaylistRequest request) async {
         final response = await _client.post(
             Uri.parse(AppConfig.apiUrl('/playlist/update-draft')),
@@ -482,36 +409,6 @@ class ApiService {
 
         else {
             throw ApiException('Failed to update draft playlist. Please try again.');
-        }
-    }
-
-    Future<Map<String, dynamic>> getDemoPlaylistRefinements(String playlistId, String sessionId, String deviceId) async {
-        final response = await _client.post(
-            Uri.parse(AppConfig.apiUrl('/auth/demo-playlist-refinements')),
-            headers: {'Content-Type': 'application/json'},
-
-            body: jsonEncode({
-                'playlist_id': playlistId,
-                'session_id': sessionId,
-                'device_id': deviceId,
-            }),
-        );
-
-        if (response.statusCode == 200) {
-            return jsonDecode(response.body);
-        }
-
-        else if (response.statusCode == 401) {
-            await _handle401();
-            throw ApiException('Authentication required');
-        }
-
-        else if (response.statusCode == 403) {
-            throw ApiException('This endpoint is only available for demo accounts');
-        }
-
-        else {
-            throw ApiException('Failed to get demo playlist refinements: ${response.body}');
         }
     }
 

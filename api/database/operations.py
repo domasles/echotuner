@@ -240,7 +240,6 @@ class PlaylistOperationsMixin(BaseCRUDMixin):
             'session_id': draft.session_id,
             'prompt': draft.prompt,
             'songs_json': draft.songs_json,
-            'refinements_used': draft.refinements_used,
             'is_draft': draft.is_draft,
             'created_at': draft.created_at,
             'updated_at': draft.updated_at,
@@ -276,7 +275,6 @@ class RateLimitOperationsMixin(BaseCRUDMixin):
         if rate_limit:
             return {
                 'requests_count': rate_limit.requests_count,
-                'refinements_count': rate_limit.refinements_count,
                 'last_request_date': rate_limit.last_request_date
             }
         

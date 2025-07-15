@@ -45,9 +45,3 @@ class SessionValidationResponse(BaseModel):
     valid: bool
     user_id: Optional[str] = None
     spotify_user_id: Optional[str] = None
-
-
-class DemoPlaylistRefinementsRequest(BaseModel):
-    playlist_id: str
-    device_id: str
-    session_id: str

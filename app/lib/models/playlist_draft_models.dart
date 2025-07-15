@@ -23,9 +23,6 @@ class PlaylistDraft {
     @JsonKey(name: 'updated_at')
     final DateTime updatedAt;
 
-    @JsonKey(name: 'refinements_used')
-    final int refinementsUsed;
-
     final String status;
 
     @JsonKey(name: 'spotify_playlist_id')
@@ -41,7 +38,6 @@ class PlaylistDraft {
         required this.songs,
         required this.createdAt,
         required this.updatedAt,
-        required this.refinementsUsed,
         required this.status,
 
         this.spotifyPlaylistId,
@@ -157,15 +153,6 @@ class SpotifyPlaylistInfo {
     @JsonKey(name: 'tracks_count')
     final int tracksCount;
 
-    @JsonKey(name: 'refinements_used')
-    final int refinementsUsed;
-
-    @JsonKey(name: 'max_refinements')
-    final int maxRefinements;
-
-    @JsonKey(name: 'can_refine')
-    final bool canRefine;
-
     @JsonKey(name: 'spotify_url')
     final String? spotifyUrl;
 
@@ -178,9 +165,6 @@ class SpotifyPlaylistInfo {
         this.description,
 
         required this.tracksCount,
-        required this.refinementsUsed,
-        required this.maxRefinements,
-        required this.canRefine,
 
         this.spotifyUrl,
         this.images,
