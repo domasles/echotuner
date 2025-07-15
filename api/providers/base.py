@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional, List
 from abc import ABC, abstractmethod
 
 from config.settings import settings
+from decorators.session import ensure_session_initialized
 
 logger = logging.getLogger(__name__)
 

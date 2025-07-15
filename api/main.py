@@ -40,7 +40,6 @@ from services.playlist_generator_service import playlist_generator_service
 from services.playlist_draft_service import playlist_draft_service
 from services.personality_service import personality_service
 from services.auth_service import auth_service
-from utils.decorators import *
 
 # Import routers
 from endpoints.auth import router as auth_router

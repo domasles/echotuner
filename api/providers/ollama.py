@@ -9,6 +9,7 @@ import logging
 from typing import List
 
 from .base import BaseAIProvider
+from decorators.session import ensure_session_initialized
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ class OllamaProvider(BaseAIProvider):
         super().__init__()
         self.name = "ollama"
 
+    @ensure_session_initialized
     async def test_availability(self) -> bool:
         """Test if Ollama is available."""
 
@@ -32,6 +34,7 @@ class OllamaProvider(BaseAIProvider):
             logger.debug(f"Ollama availability test failed: {e}")
             return False
 
+    @ensure_session_initialized
     async def generate_text(self, prompt: str, **kwargs) -> str:
         """Generate text using Ollama."""
 
@@ -57,6 +60,7 @@ class OllamaProvider(BaseAIProvider):
             result = await response.json()
             return result.get("response", "")
 
+    @ensure_session_initialized
     async def get_embedding(self, text: str, **kwargs) -> List[float]:
         """Get embedding using Ollama."""
 

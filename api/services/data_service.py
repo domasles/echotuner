@@ -170,6 +170,6 @@ class DataLoader(SingletonServiceBase):
 
         self._executor.shutdown(wait=False)
 
-        logger.info("Service cleanup completed")
+        logger.info("Service cleanup completed.")
 
 data_loader = DataLoader()

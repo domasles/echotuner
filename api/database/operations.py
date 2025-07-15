@@ -13,6 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import delete, update, func
 
+from decorators.database import db_write_operation, db_read_operation
+
 logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
@@ -29,71 +31,9 @@ class OperationFailedError(DatabaseOperationError):
     """Raised when a database operation fails."""
     pass
 
-def db_operation(
-    operation_name: str,
-    log_success: bool = True,
-    return_on_error: Any = None,
-    raise_on_error: bool = False
-):
-    """
-    Decorator for database operations that handles common patterns:
-    - Session management
-    - Error handling and logging
-    - Transaction management
-    - Consistent return patterns
-    """
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            try:
-                from .core import get_session
-                async with get_session() as session:
-                    result = await func(session, *args, **kwargs)
-                    await session.commit()
-                    
-                    if log_success:
-                        logger.debug(f"{operation_name} completed successfully")
-                    
-                    return result
-                    
-            except Exception as e:
-                error_msg = f"{operation_name} failed: {e}"
-                logger.error(error_msg)
-                
-                if raise_on_error:
-                    # Import UniversalValidator here to avoid circular imports
-                    try:
-                        from utils.input_validator import UniversalValidator
-                        raise OperationFailedError(UniversalValidator.sanitize_error_message(str(e)))
-                    except ImportError:
-                        raise OperationFailedError(str(e))
-                
-                return return_on_error
-                
-        return wrapper
-    return decorator
 
-def db_read_operation(operation_name: str):
-    """
-    Decorator for read-only database operations.
-    No transaction commit needed.
-    """
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            try:
-                from .core import get_session
-                async with get_session() as session:
-                    result = await func(session, *args, **kwargs)
-                    logger.debug(f"{operation_name} completed successfully")
-                    return result
-                    
-            except Exception as e:
-                logger.error(f"{operation_name} failed: {e}")
-                return None
-                
-        return wrapper
-    return decorator
+# Alias for backward compatibility
+db_operation = db_write_operation
 
 class BaseCRUDMixin:
     """

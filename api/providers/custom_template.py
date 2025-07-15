@@ -16,6 +16,7 @@ import logging
 from typing import List
 
 from .base import BaseAIProvider
+from decorators.session import ensure_session_initialized
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ class CustomProvider(BaseAIProvider):
         # self.endpoint = "https://your-custom-api.com"  # Override AI_ENDPOINT
         # self.headers = {"Authorization": f"Bearer {your_api_key}"}  # Add auth headers
 
+    @ensure_session_initialized
     async def test_availability(self) -> bool:
         """
         Test if your provider is available.
@@ -53,6 +55,7 @@ class CustomProvider(BaseAIProvider):
             logger.debug(f"Custom provider availability test failed: {e}")
             return False
 
+    @ensure_session_initialized
     async def generate_text(self, prompt: str, **kwargs) -> str:
         """
         Generate text using your provider.
@@ -86,6 +89,7 @@ class CustomProvider(BaseAIProvider):
             result = await response.json()
             return result.get("text", "")  # Adjust based on your API response format
     
+    @ensure_session_initialized
     async def get_embedding(self, text: str, **kwargs) -> List[float]:
         """
         Get embedding using your provider.

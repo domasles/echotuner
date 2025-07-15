@@ -1,11 +1,18 @@
-import logging
+"""
+Mode-based endpoint decorators for EchoTuner API.
 
+This module contains decorators for controlling endpoint access based on 
+demo mode, debug mode, and production mode settings.
+"""
+
+import logging
 from fastapi import HTTPException
 from functools import wraps
 
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
+
 
 def demo_mode_restricted(func):
     """Decorator to restrict endpoints when in demo mode"""
@@ -22,6 +29,7 @@ def demo_mode_restricted(func):
 
     return wrapper
 
+
 def normal_mode_restricted(func):
     """Decorator to restrict endpoints when in normal mode"""
 
@@ -36,6 +44,7 @@ def normal_mode_restricted(func):
         return await func(*args, **kwargs)
 
     return wrapper
+
 
 def debug_only(func):
     """Decorator to restrict endpoints to debug mode only"""
@@ -53,6 +62,7 @@ def debug_only(func):
         return await func(*args, **kwargs)
 
     return wrapper
+
 
 def production_safe(func):
     """Decorator to mark endpoints as production-safe"""
