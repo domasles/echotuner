@@ -4,14 +4,14 @@ import logging
 
 from fastapi import HTTPException, APIRouter
 
-from config.app_constants import app_constants
+from shared.constants import app_constants
 from config.settings import settings
 
-from services.data_service import data_loader
+from services.data.data import data_loader
 
-from decorators.security import debug_only
+from core.auth.decorators import debug_only
 
-from utils.input_validator import InputValidator
+from core.validation.validators import UniversalValidator
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ async def reload_config():
 
     except Exception as e:
         logger.error(f"Failed to reload configuration: {e}")
-        sanitized_error = InputValidator.sanitize_error_message(str(e))
+        sanitized_error = UniversalValidator.sanitize_error_message(str(e))
 
         raise HTTPException(status_code=500, detail=f"Failed to reload configuration: {sanitized_error}")
 

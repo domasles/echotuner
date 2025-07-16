@@ -10,7 +10,7 @@ from typing import Optional, Dict
 
 from core.singleton import SingletonServiceBase
 
-from services.auth_service import auth_service
+from services.auth.auth import auth_service
 
 logger = logging.getLogger(__name__)
 

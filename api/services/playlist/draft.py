@@ -18,7 +18,7 @@ from config.app_constants import AppConstants
 from config.settings import settings
 from utils.exceptions import handle_service_errors, raise_playlist_error, ErrorCode
 
-from services.database_service import db_service
+from services.database.database import db_service
 
 from utils.input_validator import UniversalValidator
 

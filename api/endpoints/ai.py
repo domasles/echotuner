@@ -6,11 +6,11 @@ from fastapi import HTTPException, APIRouter
 
 from config.security import security_config
 
-from services.ai_service import ai_service
+from services.ai.ai import ai_service
 
-from decorators.security import debug_only
+from core.auth.decorators import debug_only
 
-from utils.input_validator import InputValidator
+from core.validation.validators import UniversalValidator
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ async def test_ai_model(request):
         }
 
     except Exception as e:
-        sanitized_error = InputValidator.sanitize_error_message(str(e))
+        sanitized_error = UniversalValidator.sanitize_error_message(str(e))
         raise HTTPException(status_code=500, detail=f"AI test failed: {sanitized_error}")
 
 @debug_only

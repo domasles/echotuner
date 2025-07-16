@@ -15,31 +15,31 @@ from pathlib import Path
 
 from models import *
 
-from config.app_constants import app_constants
+from shared.constants import app_constants
 from config.security import security_config
 from config.settings import settings
-from utils.input_validator import UniversalValidator
+from core.validation.validators import UniversalValidator
 
 # Core services
 from core.service_manager import service_manager
 from core.logging_config import configure_logging
 
 # Service imports for registration
-from services.filesystem_service import filesystem_service
-from services.database_service import db_service
-from services.embedding_cache_service import embedding_cache_service
-from services.data_service import data_loader
-from services.rate_limiter_service import rate_limiter_service
-from services.ip_rate_limiter import ip_rate_limiter_service
-from services.template_service import template_service
-from services.ai_service import ai_service
-from services.prompt_validator_service import prompt_validator_service
-from services.spotify_search_service import spotify_search_service
-from services.spotify_playlist_service import spotify_playlist_service
-from services.playlist_generator_service import playlist_generator_service
-from services.playlist_draft_service import playlist_draft_service
-from services.personality_service import personality_service
-from services.auth_service import auth_service
+from services.filesystem.filesystem import filesystem_service
+from services.database.database import db_service
+from services.ai.embedding_cache import embedding_cache_service
+from services.data.data import data_loader
+from services.rate_limiting.rate_limiter import rate_limiter_service
+from services.rate_limiting.ip_rate_limiter import ip_rate_limiter_service
+from services.template.template import template_service
+from services.ai.ai import ai_service
+from services.ai.prompt import prompt_validator_service
+from services.spotify.search import spotify_search_service
+from services.playlist.spotify import spotify_playlist_service
+from services.playlist.generator import playlist_generator_service
+from services.playlist.draft import playlist_draft_service
+from services.personality.personality import personality_service
+from services.auth.auth import auth_service
 
 # Import routers
 from endpoints.auth import router as auth_router

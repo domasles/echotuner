@@ -13,7 +13,7 @@ from models import RateLimitStatus
 
 from config.settings import settings
 
-from services.database_service import db_service
+from services.database.database import db_service
 
 from utils.input_validator import UniversalValidator
 

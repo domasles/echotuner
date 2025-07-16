@@ -20,7 +20,7 @@ class TemplateService(SingletonServiceBase):
     def _setup_service(self):
         """Initialize the TemplateService."""
 
-        self.templates_dir = Path(__file__).parent.parent / "templates"
+        self.templates_dir = Path(__file__).parent.parent.parent / "templates"
         self._cache = {}
 
     def generate_nonce(self) -> str:

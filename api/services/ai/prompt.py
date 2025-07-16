@@ -13,11 +13,11 @@ from core.singleton import SingletonServiceBase
 from providers.registry import provider_registry
 from config.settings import settings
 
-from services.embedding_cache_service import embedding_cache_service
-from services.data_service import data_loader
-from services.ai_service import ai_service
+from services.ai.embedding_cache import embedding_cache_service
+from services.data.data import data_loader
+from services.ai.ai import ai_service
 
-from utils.input_validator import UniversalValidator
+from core.validation.validators import UniversalValidator
 
 logger = logging.getLogger(__name__)
 

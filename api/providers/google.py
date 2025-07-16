@@ -11,7 +11,7 @@ from typing import List
 from config.settings import settings
 
 from .base import BaseAIProvider
-from decorators.session import ensure_session_initialized
+from core.service.session_decorators import ensure_session_initialized
 
 logger = logging.getLogger(__name__)
 

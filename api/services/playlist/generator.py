@@ -12,11 +12,11 @@ from typing import List, Dict, Any, Optional
 from core.singleton import SingletonServiceBase
 from models import Song, UserContext
 
-from services.spotify_search_service import spotify_search_service
-from services.data_service import data_loader
-from services.ai_service import ai_service
+from services.spotify.search import spotify_search_service
+from services.data.data import data_loader
+from services.ai.ai import ai_service
 
-from utils.input_validator import InputValidator
+from core.validation.validators import UniversalValidator
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +59,8 @@ class PlaylistGeneratorService(SingletonServiceBase):
         """
 
         try:
-            prompt = InputValidator.validate_prompt(prompt)
-            count = InputValidator.validate_count(count, min_count=1, max_count=100)
+            prompt = UniversalValidator.validate_prompt(prompt)
+            count = UniversalValidator.validate_count(count, min_count=1, max_count=100)
 
             if discovery_strategy not in ["new_music", "existing_music", "balanced"]:
                 discovery_strategy = "balanced"
@@ -148,7 +148,7 @@ class PlaylistGeneratorService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Playlist generation failed: {e}")
-            sanitized_error = InputValidator.sanitize_error_message(str(e))
+            sanitized_error = UniversalValidator.sanitize_error_message(str(e))
 
             raise RuntimeError(f"Playlist generation failed: {sanitized_error}")
 

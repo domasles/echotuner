@@ -16,10 +16,10 @@ from typing import Optional, Dict
 from core.singleton import SingletonServiceBase
 from config.settings import settings
 
-from utils.input_validator import UniversalValidator
+from core.validation.validators import UniversalValidator
 
 from services.database.database import db_service
-from core.validation.decorators import service_bool_operation, service_optional_operation
+from core.service.decorators import service_bool_operation, service_optional_operation
 
 logger = logging.getLogger(__name__)
 

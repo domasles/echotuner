@@ -4,15 +4,15 @@ import logging
 
 from fastapi import HTTPException, APIRouter
 
-from decorators.security import debug_only
+from core.auth.decorators import debug_only
 
 from models import SpotifyPlaylistRequest, SpotifyPlaylistResponse, SpotifyPlaylistTracksRequest, SpotifyPlaylistDeleteRequest, SpotifyPlaylistTrackRemoveRequest
 
-from services.spotify_playlist_service import spotify_playlist_service
-from services.playlist_draft_service import playlist_draft_service
-from services.auth_middleware import auth_middleware
-from services.database_service import db_service
-from services.auth_service import auth_service
+from services.playlist.spotify import spotify_playlist_service
+from services.playlist.draft import playlist_draft_service
+from core.auth.middleware import auth_middleware
+from services.database.database import db_service
+from services.auth.auth import auth_service
 
 logger = logging.getLogger(__name__)
 

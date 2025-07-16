@@ -17,7 +17,7 @@ from models import Song, UserContext
 
 from config.settings import settings
 
-from services.data_service import data_loader
+from services.data.data import data_loader
 
 from utils.input_validator import UniversalValidator
 

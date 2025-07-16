@@ -27,7 +27,7 @@ class DataLoader(SingletonServiceBase):
     def _setup_service(self):
         """Initialize the DataLoader."""
 
-        self.data_dir = os.path.join(os.path.dirname(__file__), '..', 'data')
+        self.data_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'data')
         self._cache = {}
         self._executor = ThreadPoolExecutor(max_workers=4)
 
@@ -41,7 +41,7 @@ class DataLoader(SingletonServiceBase):
             file_path = os.path.join(self.data_dir, filename)
 
             # Import filesystem service (lazy import to avoid circular dependencies)
-            from services.filesystem_service import filesystem_service
+            from services.filesystem.filesystem import filesystem_service
             
             if not filesystem_service.file_exists(file_path):
                 logger.error(f"Configuration file not found: {file_path}")

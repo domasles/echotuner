@@ -12,7 +12,7 @@ from core.singleton import SingletonServiceBase
 from providers.registry import provider_registry
 from providers.base import BaseAIProvider
 
-from utils.input_validator import UniversalValidator
+from core.validation.validators import UniversalValidator
 
 logger = logging.getLogger(__name__)
 

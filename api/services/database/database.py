@@ -23,11 +23,11 @@ from database.models import (
     PlaylistDraft, SpotifyPlaylist, DemoPlaylist,
     UserPersonality, RateLimit, IPAttempt, EmbeddingCache
 )
-from decorators import (
+from core.database.decorators import (
     db_write_operation, db_read_operation, db_count_operation, 
     db_list_operation, db_bool_operation
 )
-from utils.input_validator import UniversalValidator
+from core.validation.validators import UniversalValidator
 from utils.exceptions import (
     ErrorHandler, handle_service_errors, raise_db_error, raise_auth_error,
     raise_playlist_error, raise_rate_limit_error, ErrorCode

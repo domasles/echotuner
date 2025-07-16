@@ -13,8 +13,8 @@ from core.auth.middleware import auth_middleware
 from services.ai.ai import ai_service
 from services.playlist.spotify import spotify_playlist_service
 from services.playlist.generator import playlist_generator_service
-from services.playlist.draft_manager import playlist_draft_service
-from services.personality.personality_service import personality_service
+from services.playlist.draft import playlist_draft_service
+from services.personality.personality import personality_service
 
 
 class ServiceValidator:

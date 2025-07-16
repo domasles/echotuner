@@ -13,9 +13,9 @@ from core.singleton import SingletonServiceBase
 
 from config.settings import settings
 
-from services.spotify_search_service import spotify_search_service
-from services.database_service import db_service
-from services.auth_service import auth_service
+from services.spotify.search import spotify_search_service
+from services.database.database import db_service
+from services.auth.auth import auth_service
 
 logger = logging.getLogger(__name__)
 

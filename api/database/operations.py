@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import delete, update, func
 
-from decorators.database import db_write_operation, db_read_operation
+from core.database.decorators import db_write_operation, db_read_operation
 
 logger = logging.getLogger(__name__)
 

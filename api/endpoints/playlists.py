@@ -6,21 +6,21 @@ import re
 
 from fastapi import HTTPException, APIRouter
 
-from decorators.security import debug_only
+from core.auth.decorators import debug_only
 
 from models import PlaylistRequest, PlaylistResponse, PlaylistDraftRequest, LibraryPlaylistsRequest, LibraryPlaylistsResponse, SpotifyPlaylistInfo
 
 from config.settings import settings
 
-from services.playlist_generator_service import playlist_generator_service
-from services.spotify_playlist_service import spotify_playlist_service
-from services.prompt_validator_service import prompt_validator_service
-from services.playlist_draft_service import playlist_draft_service
-from services.rate_limiter_service import rate_limiter_service
-from services.personality_service import personality_service
-from services.auth_middleware import auth_middleware
-from services.database_service import db_service
-from services.auth_service import auth_service
+from services.playlist.generator import playlist_generator_service
+from services.playlist.spotify import spotify_playlist_service
+from services.ai.prompt import prompt_validator_service
+from services.playlist.draft import playlist_draft_service
+from services.rate_limiting.rate_limiter import rate_limiter_service
+from services.personality.personality import personality_service
+from core.auth.middleware import auth_middleware
+from services.database.database import db_service
+from services.auth.auth import auth_service
 
 from utils.input_validator import InputValidator
 

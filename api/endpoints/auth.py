@@ -14,15 +14,15 @@ from config.settings import settings
 from database.core import get_session
 from database.models import AuthAttempt
 
-from services.rate_limiter_service import rate_limiter_service
-from services.ip_rate_limiter import ip_rate_limiter_service
-from services.template_service import template_service
-from services.auth_middleware import auth_middleware
-from services.database_service import db_service
-from services.auth_service import auth_service
-from decorators.security import debug_only
+from services.rate_limiting.rate_limiter import rate_limiter_service
+from services.rate_limiting.ip_rate_limiter import ip_rate_limiter_service
+from services.template.template import template_service
+from core.auth.middleware import auth_middleware
+from services.database.database import db_service
+from services.auth.auth import auth_service
+from core.auth.decorators import debug_only
 
-from utils.input_validator import InputValidator
+from core.validation.validators import UniversalValidator
 
 logger = logging.getLogger(__name__)
 
@@ -152,8 +152,8 @@ async def validate_session(request: SessionValidationRequest):
     """Validate session"""
 
     try:
-        session_id = InputValidator.validate_session_id(request.session_id)
-        device_id = InputValidator.validate_device_id(request.device_id)
+        session_id = UniversalValidator.validate_session_id(request.session_id)
+        device_id = UniversalValidator.validate_device_id(request.device_id)
 
         user_info = await auth_service.validate_session_and_get_user(session_id, device_id)
 
@@ -219,7 +219,7 @@ async def get_authenticated_rate_limit_status(request: SessionValidationRequest)
 
     except Exception as e:
         logger.error(f"Rate limit status error: {e}")
-        sanitized_error = InputValidator.sanitize_error_message(str(e))
+        sanitized_error = UniversalValidator.sanitize_error_message(str(e))
 
         raise HTTPException(status_code=500, detail=f"Error checking rate limit: {sanitized_error}")
 
@@ -293,8 +293,8 @@ async def get_account_type(request: SessionValidationRequest):
     """Get account type for a session"""
 
     try:
-        session_id = InputValidator.validate_session_id(request.session_id)
-        device_id = InputValidator.validate_device_id(request.device_id)
+        session_id = UniversalValidator.validate_session_id(request.session_id)
+        device_id = UniversalValidator.validate_device_id(request.device_id)
 
         user_info = await auth_middleware.validate_session_from_request(session_id, device_id)
 
