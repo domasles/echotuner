@@ -5,7 +5,6 @@ Service-level decorators for standardizing service method patterns.
 import logging
 from functools import wraps
 from typing import Callable, Any, Optional, Union
-from utils.input_validator import UniversalValidator
 
 def service_operation(operation_name: str = None, return_on_error: Any = None, log_errors: bool = True):
     """

@@ -20,7 +20,7 @@ from utils.exceptions import handle_service_errors, raise_playlist_error, ErrorC
 
 from services.database.database import db_service
 
-from utils.input_validator import UniversalValidator
+from core.validation.validators import UniversalValidator
 
 logger = logging.getLogger(__name__)
 

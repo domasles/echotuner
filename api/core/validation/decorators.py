@@ -5,9 +5,9 @@ Validation decorators for standardizing validation method patterns.
 import logging
 from functools import wraps
 from typing import Callable, Any, Optional, Union
-from core.validation.validators import UniversalValidator
+from core.validation.validators import UniversalValidator, validate_request, validate_input
 
-def validate_request(validation_func: Callable = None, **validation_kwargs):
+def validate_request_data(validation_func: Callable = None, **validation_kwargs):
     """
     Decorator for validating request inputs.
     
@@ -27,7 +27,7 @@ def validate_request(validation_func: Callable = None, **validation_kwargs):
         return wrapper
     return decorator
 
-def validate_input(input_type: str = "general"):
+def validate_input_data(input_type: str = "general"):
     """
     Decorator for input validation.
     
@@ -41,3 +41,6 @@ def validate_input(input_type: str = "general"):
             return await func(*args, **kwargs)
         return wrapper
     return decorator
+
+# Re-export the main validation decorators
+__all__ = ['validate_request', 'validate_input', 'validate_request_data', 'validate_input_data', 'UniversalValidator']

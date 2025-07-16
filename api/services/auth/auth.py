@@ -37,10 +37,22 @@ class AuthService(SingletonServiceBase):
         self.spotify_oauth = None
         self._initialize_spotify_oauth()
 
-        if not settings.DEMO:
-            self._cleanup_demo_accounts()
-
+        # Note: Demo cleanup is deferred to initialize() method 
+        # to ensure database service is available
         self._log_initialization("Auth service initialized successfully", logger)
+
+    async def initialize(self):
+        """Initialize the auth service with async operations"""
+        try:
+            # Only cleanup demo accounts if not in demo mode and database is available
+            if not settings.DEMO and hasattr(self, '_setup_service'):
+                await self._async_cleanup_demo_accounts()
+            
+            logger.info("Auth service async initialization completed")
+            
+        except Exception as e:
+            logger.warning(f"Auth service initialization warning: {e}")
+            # Don't fail initialization for cleanup issues
 
     def _initialize_spotify_oauth(self):
         """Initialize Spotify OAuth configuration"""

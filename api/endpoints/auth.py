@@ -22,7 +22,7 @@ from services.database.database import db_service
 from services.auth.auth import auth_service
 from core.auth.decorators import debug_only
 
-from core.validation.validators import UniversalValidator
+from core.validation.validators import UniversalValidator, validate_request
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,7 @@ def get_client_ip(request: Request) -> str:
     return "unknown"
 
 @router.post("/init", response_model=AuthInitResponse)
+@validate_request('device_id')
 async def auth_init(request: AuthInitRequest, http_request: Request):
     """Initialize Spotify OAuth flow"""
 
@@ -148,17 +149,15 @@ async def auth_callback(code: str = None, state: str = None, error: str = None, 
         return HTMLResponse(content=html_content)
 
 @router.post("/validate", response_model=SessionValidationResponse)
+@validate_request('session_id', 'device_id')
 async def validate_session(request: SessionValidationRequest):
     """Validate session"""
 
     try:
-        session_id = UniversalValidator.validate_session_id(request.session_id)
-        device_id = UniversalValidator.validate_device_id(request.device_id)
-
-        user_info = await auth_service.validate_session_and_get_user(session_id, device_id)
+        user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
 
         if user_info is None:
-            basic_valid = await auth_service.validate_session(session_id, device_id)
+            basic_valid = await auth_service.validate_session(request.session_id, request.device_id)
 
             if basic_valid:
                 raise HTTPException(status_code=401, detail="Session invalid due to server mode mismatch")
@@ -224,6 +223,7 @@ async def get_authenticated_rate_limit_status(request: SessionValidationRequest)
         raise HTTPException(status_code=500, detail=f"Error checking rate limit: {sanitized_error}")
 
 @router.post("/register-device", response_model=DeviceRegistrationResponse)
+@validate_request('device_id')
 async def register_device(request: DeviceRegistrationRequest):
     """Register a new device and get server-generated UUID"""
 
@@ -289,14 +289,12 @@ async def cleanup_sessions():
         raise HTTPException(status_code=500, detail="Cleanup failed")
 
 @router.post("/account-type")
+@validate_request('session_id', 'device_id')
 async def get_account_type(request: SessionValidationRequest):
     """Get account type for a session"""
 
     try:
-        session_id = UniversalValidator.validate_session_id(request.session_id)
-        device_id = UniversalValidator.validate_device_id(request.device_id)
-
-        user_info = await auth_middleware.validate_session_from_request(session_id, device_id)
+        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
 
         if not user_info:
             raise HTTPException(status_code=404, detail="Session not found")

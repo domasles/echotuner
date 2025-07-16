@@ -9,7 +9,7 @@ from pathlib import Path
 
 from core.singleton import SingletonServiceBase
 
-from utils.input_validator import UniversalValidator
+from core.validation.validators import UniversalValidator
 
 class TemplateService(SingletonServiceBase):
     """Service for loading and rendering HTML templates"""

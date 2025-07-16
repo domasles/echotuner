@@ -15,7 +15,7 @@ from core.singleton import SingletonServiceBase
 from models import Song, UserContext
 from config.settings import settings
 
-from utils.input_validator import UniversalValidator
+from core.validation.validators import UniversalValidator
 
 logger = logging.getLogger(__name__)
 

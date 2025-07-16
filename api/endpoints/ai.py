@@ -9,8 +9,7 @@ from config.security import security_config
 from services.ai.ai import ai_service
 
 from core.auth.decorators import debug_only
-
-from core.validation.validators import UniversalValidator
+from core.validation.validators import UniversalValidator, validate_request
 
 logger = logging.getLogger(__name__)
 

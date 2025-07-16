@@ -131,4 +131,16 @@ class ProviderRegistry:
 
         return self._providers.get(name.lower())
 
+    async def close_all(self):
+        """Close all provider instances."""
+        
+        for provider_id, provider in self._provider_instances.items():
+            try:
+                await provider.close()
+                logger.debug(f"Closed provider: {provider_id}")
+            except Exception as e:
+                logger.warning(f"Error closing provider {provider_id}: {e}")
+        
+        self._provider_instances.clear()
+
 provider_registry = ProviderRegistry()

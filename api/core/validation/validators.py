@@ -1,28 +1,38 @@
 """
-Input validation and sanitization utilities for enhanced security.
+Comprehensive validation system for EchoTuner API.
+Provides unified validation with decorators and validators.
 """
 
 import re
 import logging
-
-from typing import Optional, Any, Union
+from functools import wraps
+from typing import Callable, Any, Optional, Union, List, Dict
+from fastapi import HTTPException
+from pydantic import BaseModel
 
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-class UniversalValidator:
-    """Universal validator for all input types with security focus."""
+class ValidationError(Exception):
+    """Custom validation error for internal use"""
+    pass
 
+class UniversalValidator:
+    """Enhanced universal validator with comprehensive validation methods."""
+
+    # Configuration constants
     MAX_PLAYLIST_NAME_LENGTH = settings.MAX_PLAYLIST_NAME_LENGTH
     MAX_PROMPT_LENGTH = settings.MAX_PROMPT_LENGTH
     MAX_DEVICE_ID_LENGTH = 100
     MAX_SESSION_ID_LENGTH = 100
 
+    # Validation patterns
     DEVICE_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
     SESSION_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
     PLAYLIST_NAME_PATTERN = re.compile(r'^[\w\s\-_.,!?()\u0080-\U0001F6FF]+$', re.UNICODE)
 
+    # Security patterns
     DANGEROUS_PROMPT_PATTERNS = [
         r'<script.*?>.*?</script>', # Script tags
         r'javascript:',             # JavaScript protocol
@@ -39,7 +49,6 @@ class UniversalValidator:
     @classmethod
     def sanitize_error_message(cls, error_message: str) -> str:
         """Sanitize error messages to prevent information disclosure."""
-
         if not isinstance(error_message, str):
             return "Internal error occurred"
             
@@ -52,101 +61,146 @@ class UniversalValidator:
         return sanitized
 
     @classmethod
+    def validate_string(cls, value: Any, field_name: str, max_length: int, 
+                       pattern: Optional[re.Pattern] = None, required: bool = True) -> str:
+        """Universal string validation with security checks."""
+        
+        if value is None or value == "":
+            if required:
+                raise ValidationError(f"{field_name} must be provided")
+            return ""
+
+        if not isinstance(value, str):
+            raise ValidationError(f"{field_name} must be a string")
+
+        if len(value) > max_length:
+            raise ValidationError(f"{field_name} exceeds maximum length of {max_length} characters")
+
+        if pattern and not pattern.match(value):
+            raise ValidationError(f"{field_name} contains invalid characters")
+
+        return value.strip()
+
+    @classmethod
+    def validate_prompt(cls, prompt: str) -> str:
+        """Validate and sanitize AI prompt input."""
+        if not prompt or not isinstance(prompt, str):
+            raise ValidationError("Prompt must be a non-empty string")
+
+        # Check for dangerous patterns
+        for pattern in cls.DANGEROUS_PROMPT_PATTERNS:
+            if re.search(pattern, prompt, re.IGNORECASE):
+                raise ValidationError("Prompt contains potentially dangerous content")
+
+        return cls.validate_string(prompt, "prompt", cls.MAX_PROMPT_LENGTH)
+
+    @classmethod
     def validate_device_id(cls, device_id: str) -> str:
         """Validate device ID format."""
-        
-        if not isinstance(device_id, str):
-            raise ValueError("Device ID must be a string")
-        
-        if len(device_id) > cls.MAX_DEVICE_ID_LENGTH:
-            raise ValueError(f"Device ID exceeds maximum length of {cls.MAX_DEVICE_ID_LENGTH} characters")
-        
-        if not cls.DEVICE_ID_PATTERN.match(device_id):
-            raise ValueError("Device ID contains invalid characters")
-        
-        return device_id
+        return cls.validate_string(device_id, "device_id", cls.MAX_DEVICE_ID_LENGTH, cls.DEVICE_ID_PATTERN)
 
     @classmethod
     def validate_session_id(cls, session_id: str) -> str:
         """Validate session ID format."""
-        
-        if not isinstance(session_id, str):
-            raise ValueError("Session ID must be a string")
-        
-        if len(session_id) > cls.MAX_SESSION_ID_LENGTH:
-            raise ValueError(f"Session ID exceeds maximum length of {cls.MAX_SESSION_ID_LENGTH} characters")
-        
-        if not cls.SESSION_ID_PATTERN.match(session_id):
-            raise ValueError("Session ID contains invalid characters")
-        
-        return session_id
+        return cls.validate_string(session_id, "session_id", cls.MAX_SESSION_ID_LENGTH, cls.SESSION_ID_PATTERN)
 
     @classmethod
-    def validate_prompt(cls, prompt: str) -> str:
-        """Validate AI prompt with security checks."""
+    def validate_count(cls, count: int, min_count: int = 1, max_count: int = 100) -> int:
+        """Validate count parameter."""
+        if not isinstance(count, int):
+            raise ValidationError("Count must be an integer")
         
-        if not isinstance(prompt, str):
-            raise ValueError("Prompt must be a string")
+        if count < min_count:
+            raise ValidationError(f"Count must be at least {min_count}")
         
-        if len(prompt) > cls.MAX_PROMPT_LENGTH:
-            raise ValueError(f"Prompt exceeds maximum length of {cls.MAX_PROMPT_LENGTH} characters")
+        if count > max_count:
+            raise ValidationError(f"Count cannot exceed {max_count}")
         
-        # Check for dangerous patterns
-        for pattern in cls.DANGEROUS_PROMPT_PATTERNS:
-            if re.search(pattern, prompt, re.IGNORECASE):
-                logger.warning(f"Potentially dangerous prompt detected: {pattern}")
-                raise ValueError("Prompt contains potentially dangerous content")
-        
-        # Basic sanitization
-        sanitized = prompt.strip()
-        
-        if not sanitized:
-            raise ValueError("Prompt cannot be empty")
-        
-        return sanitized
-
-    @classmethod
-    def validate_optional_prompt(cls, prompt: Optional[str]) -> Optional[str]:
-        """Validate optional prompt."""
-        
-        if prompt is None:
-            return None
-        
-        return cls.validate_prompt(prompt)
+        return count
 
     @classmethod
     def validate_playlist_name(cls, name: str) -> str:
         """Validate playlist name."""
-        
-        if not isinstance(name, str):
-            raise ValueError("Playlist name must be a string")
-        
-        if not name.strip():
-            raise ValueError("Playlist name must be a non-empty string")
-
-        if len(name) > cls.MAX_PLAYLIST_NAME_LENGTH:
-            raise ValueError(f"Playlist name exceeds maximum length of {cls.MAX_PLAYLIST_NAME_LENGTH} characters")
-
-        if not cls.PLAYLIST_NAME_PATTERN.match(name):
-            raise ValueError("Playlist name contains invalid characters")
-
-        return name.strip()
+        return cls.validate_string(name, "playlist_name", cls.MAX_PLAYLIST_NAME_LENGTH, cls.PLAYLIST_NAME_PATTERN)
 
     @classmethod
-    def validate_count(cls, count: Union[int, str], min_count: int = 1, max_count: int = 100) -> int:
-        """Validate numeric count parameters."""
+    def validate_ip_address(cls, ip_address: str) -> str:
+        """Validate IP address format."""
+        if not ip_address:
+            raise ValidationError("IP address is required")
+
+        ip_pattern = re.compile(
+            r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|'
+            r'^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$'
+        )
         
-        if isinstance(count, str):
+        if not ip_pattern.match(ip_address):
+            raise ValidationError("Invalid IP address format")
+            
+        return ip_address
+
+
+def validate_request(*field_names: str):
+    """
+    Decorator for automatic request validation.
+    
+    Args:
+        *field_names: Fields to validate (e.g., 'prompt', 'device_id', 'session_id', 'count')
+    """
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            # Find the request object in args
+            request = None
+            for arg in args:
+                if hasattr(arg, '__class__') and issubclass(arg.__class__, BaseModel):
+                    request = arg
+                    break
+            
+            if not request:
+                return await func(*args, **kwargs)
+            
+            # Validate each requested field
+            validated_data = {}
+            
             try:
-                count = int(count)
+                for field_name in field_names:
+                    if hasattr(request, field_name):
+                        field_value = getattr(request, field_name)
+                        
+                        if field_name == 'prompt' and field_value:
+                            validated_data[field_name] = UniversalValidator.validate_prompt(field_value)
+                        elif field_name == 'device_id' and field_value:
+                            validated_data[field_name] = UniversalValidator.validate_device_id(field_value)
+                        elif field_name == 'session_id' and field_value:
+                            validated_data[field_name] = UniversalValidator.validate_session_id(field_value)
+                        elif field_name == 'count' and field_value is not None:
+                            validated_data[field_name] = UniversalValidator.validate_count(field_value)
+                        elif field_name == 'playlist_name' and field_value:
+                            validated_data[field_name] = UniversalValidator.validate_playlist_name(field_value)
+                
+                # Update request object with validated data
+                for field_name, validated_value in validated_data.items():
+                    setattr(request, field_name, validated_value)
+                
+            except ValidationError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+            
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator
 
-            except ValueError:
-                raise ValueError("Count must be a valid integer")
-
-        if not isinstance(count, int):
-            raise ValueError("Count must be an integer")
-
-        if count < min_count or count > max_count:
-            raise ValueError(f"Count must be between {min_count} and {max_count}")
-
-        return count
+def validate_input(input_type: str = "general"):
+    """
+    Decorator for specific input type validation.
+    
+    Args:
+        input_type: Type of input to validate
+    """
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            # This can be extended for specific input types
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator

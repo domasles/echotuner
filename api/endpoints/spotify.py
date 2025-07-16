@@ -5,6 +5,7 @@ import logging
 from fastapi import HTTPException, APIRouter
 
 from core.auth.decorators import debug_only
+from core.validation.validators import validate_request
 
 from models import SpotifyPlaylistRequest, SpotifyPlaylistResponse, SpotifyPlaylistTracksRequest, SpotifyPlaylistDeleteRequest, SpotifyPlaylistTrackRemoveRequest
 
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/spotify", tags=["spotify"])
 
 @router.post("/create-playlist", response_model=SpotifyPlaylistResponse)
+@validate_request('session_id', 'device_id')
 async def create_spotify_playlist(request: SpotifyPlaylistRequest):
     """Create a Spotify playlist from a draft."""
 
@@ -102,6 +104,7 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
         raise HTTPException(status_code=500, detail="Failed to create Spotify playlist")
 
 @router.post("/playlist/tracks")
+@validate_request('session_id', 'device_id')
 async def get_spotify_playlist_tracks(request: SpotifyPlaylistTracksRequest):
     """Get tracks from a Spotify playlist."""
 

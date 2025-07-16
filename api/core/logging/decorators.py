@@ -10,7 +10,7 @@ from functools import wraps
 from typing import Callable, Any, Optional
 from fastapi import HTTPException
 
-from utils.input_validator import InputValidator
+from core.validation.validators import UniversalValidator
 
 
 def log_endpoint_call(operation_name: str, log_level: str = "info"):
@@ -61,13 +61,13 @@ def handle_endpoint_errors(operation_name: str, default_status_code: int = 500):
                 # Handle validation errors
                 logger = logging.getLogger(func.__module__)
                 logger.warning(f"{operation_name} validation failed: {e}")
-                sanitized_error = InputValidator.sanitize_error_message(str(e))
+                sanitized_error = UniversalValidator.sanitize_error_message(str(e))
                 raise HTTPException(status_code=400, detail=f"Invalid input: {sanitized_error}")
             except Exception as e:
                 # Handle all other errors
                 logger = logging.getLogger(func.__module__)
                 logger.error(f"{operation_name} failed: {e}")
-                sanitized_error = InputValidator.sanitize_error_message(str(e))
+                sanitized_error = UniversalValidator.sanitize_error_message(str(e))
                 raise HTTPException(status_code=default_status_code, detail=f"Error in {operation_name}: {sanitized_error}")
                 
         return wrapper
@@ -101,12 +101,12 @@ def log_and_handle_errors(operation_name: str, log_level: str = "info", default_
             except ValueError as e:
                 # Handle validation errors
                 logger.warning(f"{operation_name} validation failed: {e}")
-                sanitized_error = InputValidator.sanitize_error_message(str(e))
+                sanitized_error = UniversalValidator.sanitize_error_message(str(e))
                 raise HTTPException(status_code=400, detail=f"Invalid input: {sanitized_error}")
             except Exception as e:
                 # Handle all other errors
                 logger.error(f"{operation_name} failed: {e}")
-                sanitized_error = InputValidator.sanitize_error_message(str(e))
+                sanitized_error = UniversalValidator.sanitize_error_message(str(e))
                 raise HTTPException(status_code=default_status_code, detail=f"Error in {operation_name}: {sanitized_error}")
                 
         return wrapper

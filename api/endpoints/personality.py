@@ -5,6 +5,7 @@ from typing import Dict, Any
 from fastapi import HTTPException, APIRouter, Request
 
 from core.auth.decorators import debug_only
+from core.validation.validators import validate_request
 
 from models import UserPersonalityRequest, UserPersonalityResponse, UserPersonalityClearRequest, FollowedArtistsResponse, ArtistSearchRequest, ArtistSearchResponse
 from services.personality.personality import personality_service
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/personality", tags=["personality"])
 
 @router.post("/save", response_model=UserPersonalityResponse)
+@validate_request('session_id', 'device_id')
 async def save_user_personality(request: UserPersonalityRequest):
     """Save user personality preferences"""
 
@@ -71,6 +73,7 @@ async def load_user_personality(request: Request):
 
 @router.post("/clear")
 @debug_only
+@validate_request('session_id', 'device_id')
 async def clear_user_personality(request: UserPersonalityClearRequest):
     """Clear user personality preferences"""
 
@@ -112,6 +115,7 @@ async def get_followed_artists(request: Request, limit: int = 50):
         return FollowedArtistsResponse(artists=[])
 
 @router.post("/search-artists", response_model=ArtistSearchResponse)
+@validate_request('session_id', 'device_id')
 async def search_artists(request: ArtistSearchRequest):
     """Search for artists on Spotify"""
 

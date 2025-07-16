@@ -7,6 +7,7 @@ import re
 from fastapi import HTTPException, APIRouter
 
 from core.auth.decorators import debug_only
+from core.validation.validators import validate_request, UniversalValidator
 
 from models import PlaylistRequest, PlaylistResponse, PlaylistDraftRequest, LibraryPlaylistsRequest, LibraryPlaylistsResponse, SpotifyPlaylistInfo
 
@@ -21,8 +22,6 @@ from services.personality.personality import personality_service
 from core.auth.middleware import auth_middleware
 from services.database.database import db_service
 from services.auth.auth import auth_service
-
-from utils.input_validator import InputValidator
 
 logger = logging.getLogger(__name__)
 
@@ -51,22 +50,18 @@ async def require_auth(request: PlaylistRequest):
         raise HTTPException(status_code=401, detail="Authentication failed")
 
 @router.post("/generate", response_model=PlaylistResponse)
+@validate_request('prompt', 'device_id', 'session_id', 'count')
 async def generate_playlist(request: PlaylistRequest):
     """Generate a playlist using AI-powered real-time song search"""
 
     try:
-        sanitized_prompt = InputValidator.validate_prompt(request.prompt)
-        validated_device_id = InputValidator.validate_device_id(request.device_id)
-        validated_session_id = InputValidator.validate_session_id(request.session_id)
-        validated_count = InputValidator.validate_count(request.count, min_count=1, max_count=100)
-
+        # Validation is now handled by the decorator
         user_info = await require_auth(request)
 
         if user_info and user_info.get('account_type') == 'demo':
-            rate_limit_key = validated_device_id
-
+            rate_limit_key = request.device_id
         else:
-            rate_limit_key = user_info["spotify_user_id"] if user_info else validated_device_id
+            rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
 
         if settings.PLAYLIST_LIMIT_ENABLED and not await rate_limiter_service.can_make_request(rate_limit_key):
             raise HTTPException(
@@ -74,7 +69,7 @@ async def generate_playlist(request: PlaylistRequest):
                 detail=f"Daily limit of {settings.MAX_PLAYLISTS_PER_DAY} playlists reached. Try again tomorrow."
             )
 
-        is_valid_prompt = await prompt_validator_service.validate_prompt(sanitized_prompt)
+        is_valid_prompt = await prompt_validator_service.validate_prompt(request.prompt)
 
         if not is_valid_prompt:
             raise HTTPException(
@@ -94,11 +89,11 @@ async def generate_playlist(request: PlaylistRequest):
             except Exception as e:
                 logger.warning(f"Failed to load user personality: {e}")
 
-        if user_context and validated_session_id:
+        if user_context and request.session_id:
             try:
                 merged_artists = await personality_service.get_merged_favorite_artists(
-                    session_id=validated_session_id,
-                    device_id=validated_device_id,
+                    session_id=request.session_id,
+                    device_id=request.device_id,
                     user_context=user_context
                 )
 
@@ -108,9 +103,9 @@ async def generate_playlist(request: PlaylistRequest):
                 logger.warning(f"Failed to merge favorite artists: {e}")
 
         songs = await playlist_generator_service.generate_playlist(
-            prompt=sanitized_prompt,
+            prompt=request.prompt,
             user_context=user_context,
-            count=validated_count if settings.DEBUG else settings.MAX_SONGS_PER_PLAYLIST,
+            count=request.count if settings.DEBUG else settings.MAX_SONGS_PER_PLAYLIST,
             discovery_strategy=request.discovery_strategy or "balanced",
             session_id=request.session_id,
             device_id=request.device_id
@@ -123,14 +118,14 @@ async def generate_playlist(request: PlaylistRequest):
                 playlist_id=playlist_id,
                 device_id=request.device_id,
                 session_id=request.session_id,
-                prompt=sanitized_prompt
+                prompt=request.prompt
             )
 
         else:
             playlist_id = await playlist_draft_service.save_draft(
                 device_id=request.device_id,
                 session_id=request.session_id,
-                prompt=sanitized_prompt,
+                prompt=request.prompt,
                 songs=songs
             )
 
@@ -139,14 +134,14 @@ async def generate_playlist(request: PlaylistRequest):
 
         return PlaylistResponse(
             songs=songs,
-            generated_from=sanitized_prompt,
+            generated_from=request.prompt,
             total_count=len(songs),
             playlist_id=playlist_id
         )
 
     except ValueError as e:
         logger.warning(f"Playlist generation input validation failed: {e}")
-        sanitized_error = InputValidator.sanitize_error_message(str(e))
+        sanitized_error = UniversalValidator.sanitize_error_message(str(e))
 
         raise HTTPException(status_code=400, detail=f"Invalid input: {sanitized_error}")
 
@@ -155,11 +150,12 @@ async def generate_playlist(request: PlaylistRequest):
 
     except Exception as e:
         logger.error(f"Playlist generation failed: {e}")
-        sanitized_error = InputValidator.sanitize_error_message(str(e))
+        sanitized_error = UniversalValidator.sanitize_error_message(str(e))
 
         raise HTTPException(status_code=500, detail=f"Error generating playlist: {sanitized_error}")
 
 @router.post("/update-draft", response_model=PlaylistResponse)
+@validate_request('device_id', 'session_id')
 async def update_playlist_draft(request: PlaylistRequest):
     """Update an existing playlist draft"""
     
@@ -211,10 +207,11 @@ async def update_playlist_draft(request: PlaylistRequest):
         raise
 
     except Exception as e:
-        sanitized_error = InputValidator.sanitize_error_message(str(e))
+        sanitized_error = UniversalValidator.sanitize_error_message(str(e))
         raise HTTPException(status_code=500, detail=f"Error updating playlist draft: {sanitized_error}")
 
 @router.post("/library", response_model=LibraryPlaylistsResponse)
+@validate_request('device_id', 'session_id')
 async def get_library_playlists(request: LibraryPlaylistsRequest):
     try:
         user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
@@ -297,6 +294,7 @@ async def get_library_playlists(request: LibraryPlaylistsRequest):
         raise HTTPException(status_code=500, detail="Failed to get library playlists")
 
 @router.post("/drafts")
+@validate_request('device_id')
 async def get_draft_playlist(request: PlaylistDraftRequest):
     """Get a specific draft playlist."""
 

@@ -15,7 +15,7 @@ from config.settings import settings
 
 from services.database.database import db_service
 
-from utils.input_validator import UniversalValidator
+from core.validation.validators import UniversalValidator
 
 logger = logging.getLogger(__name__)
 

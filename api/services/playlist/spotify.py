@@ -15,7 +15,7 @@ from models import Song
 from config.app_constants import AppConstants
 from config.settings import settings
 
-from utils.input_validator import UniversalValidator
+from core.validation.validators import UniversalValidator
 
 logger = logging.getLogger(__name__)
 

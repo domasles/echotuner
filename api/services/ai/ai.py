@@ -52,6 +52,10 @@ class AIService(SingletonServiceBase):
         if self._current_provider:
             await self._current_provider.close()
             self._current_provider = None
+            
+        # Close all provider instances in the registry
+        await provider_registry.close_all()
+        logger.info("AI service closed and all providers cleaned up")
 
     async def generate_text(self, prompt: str, provider_id: Optional[str] = None, **kwargs) -> str:
         """
