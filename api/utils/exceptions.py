@@ -49,112 +49,96 @@ class ErrorCode(Enum):
     
     # Validation errors
     VALIDATION_FAILED = "VAL001"
-    INPUT_INVALID = "VAL002"
-    CONFIG_INVALID = "VAL003"
+    VALIDATION_INVALID_INPUT = "VAL002"
+    VALIDATION_MISSING_FIELD = "VAL003"
     
-    # General errors
-    INTERNAL_ERROR = "GEN001"
-    EXTERNAL_SERVICE_ERROR = "GEN002"
-    TIMEOUT_ERROR = "GEN003"
-    RESOURCE_UNAVAILABLE = "GEN004"
+    # Generic errors
+    INTERNAL_ERROR = "INT001"
+    OPERATION_FAILED = "OPR001"
+    CONFIGURATION_ERROR = "CFG001"
+    EXTERNAL_SERVICE_ERROR = "EXT001"
 
 class EchoTunerException(Exception):
-    """Base exception class for all EchoTuner-specific exceptions."""
+    """Base exception for all EchoTuner custom exceptions."""
     
-    def __init__(
-        self,
-        message: str,
-        error_code: ErrorCode,
-        details: Optional[Dict[str, Any]] = None,
-        user_message: Optional[str] = None
-    ):
+    def __init__(self, message: str, error_code: ErrorCode = ErrorCode.INTERNAL_ERROR, 
+                 details: Optional[Dict[str, Any]] = None, status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR):
         super().__init__(message)
         self.message = message
         self.error_code = error_code
         self.details = details or {}
-        self.user_message = user_message or self._get_default_user_message()
-    
-    def _get_default_user_message(self) -> str:
-        """Get default user-friendly message based on error code."""
-        user_messages = {
-            ErrorCode.AUTH_INVALID_CREDENTIALS: "Invalid credentials provided.",
-            ErrorCode.AUTH_SESSION_EXPIRED: "Your session has expired. Please log in again.",
-            ErrorCode.AUTH_INSUFFICIENT_PERMISSIONS: "You don't have permission to perform this action.",
-            ErrorCode.AUTH_STATE_INVALID: "Authentication state is invalid.",
-            
-            ErrorCode.DB_CONNECTION_FAILED: "Database connection failed. Please try again.",
-            ErrorCode.DB_OPERATION_FAILED: "Database operation failed. Please try again.",
-            ErrorCode.DB_ENTITY_NOT_FOUND: "Requested item not found.",
-            ErrorCode.DB_CONSTRAINT_VIOLATION: "Data validation failed.",
-            
-            ErrorCode.PLAYLIST_NOT_FOUND: "Playlist not found.",
-            ErrorCode.PLAYLIST_CREATION_FAILED: "Failed to create playlist. Please try again.",
-            ErrorCode.PLAYLIST_UPDATE_FAILED: "Failed to update playlist. Please try again.",
-            ErrorCode.PLAYLIST_DRAFT_INVALID: "Playlist draft is invalid.",
-            
-            ErrorCode.RATE_LIMIT_EXCEEDED: "Rate limit exceeded. Please wait before trying again.",
-            ErrorCode.RATE_LIMIT_CHECK_FAILED: "Rate limit check failed.",
-            
-            ErrorCode.AI_PROVIDER_UNAVAILABLE: "AI service is currently unavailable.",
-            ErrorCode.AI_GENERATION_FAILED: "Failed to generate playlist. Please try again.",
-            ErrorCode.AI_EMBEDDING_FAILED: "AI processing failed. Please try again.",
-            ErrorCode.AI_RESPONSE_INVALID: "Invalid AI response received.",
-            
-            ErrorCode.SPOTIFY_AUTH_FAILED: "Spotify authentication failed.",
-            ErrorCode.SPOTIFY_API_ERROR: "Spotify service error. Please try again.",
-            ErrorCode.SPOTIFY_PLAYLIST_ERROR: "Failed to create Spotify playlist.",
-            ErrorCode.SPOTIFY_SEARCH_ERROR: "Spotify search failed. Please try again.",
-            
-            ErrorCode.VALIDATION_FAILED: "Input validation failed.",
-            ErrorCode.INPUT_INVALID: "Invalid input provided.",
-            ErrorCode.CONFIG_INVALID: "Configuration is invalid.",
-            
-            ErrorCode.INTERNAL_ERROR: "An internal error occurred. Please try again.",
-            ErrorCode.EXTERNAL_SERVICE_ERROR: "External service error. Please try again.",
-            ErrorCode.TIMEOUT_ERROR: "Request timed out. Please try again.",
-            ErrorCode.RESOURCE_UNAVAILABLE: "Resource is currently unavailable."
-        }
-        return user_messages.get(self.error_code, "An error occurred. Please try again.")
+        self.status_code = status_code
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert exception to dictionary format."""
+        """Convert exception to dictionary for JSON serialization."""
         return {
             "error_code": self.error_code.value,
-            "message": self.user_message,
+            "message": self.message,
             "details": self.details
         }
+    
+    def to_http_exception(self) -> HTTPException:
+        """Convert to FastAPI HTTPException."""
+        return HTTPException(
+            status_code=self.status_code,
+            detail=self.to_dict()
+        )
 
 class AuthenticationError(EchoTunerException):
-    """Authentication-related errors."""
-    pass
+    """Authentication and authorization errors."""
+    
+    def __init__(self, message: str, error_code: ErrorCode = ErrorCode.AUTH_INVALID_CREDENTIALS, 
+                 details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, error_code, details, status.HTTP_401_UNAUTHORIZED)
 
 class DatabaseError(EchoTunerException):
-    """Database-related errors."""
-    pass
+    """Database operation errors."""
+    
+    def __init__(self, message: str, error_code: ErrorCode = ErrorCode.DB_OPERATION_FAILED, 
+                 details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, error_code, details, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class PlaylistError(EchoTunerException):
-    """Playlist-related errors."""
-    pass
+class OperationFailedError(EchoTunerException):
+    """Generic operation failure."""
+    
+    def __init__(self, message: str, error_code: ErrorCode = ErrorCode.OPERATION_FAILED, 
+                 details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, error_code, details, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class ValidationError(EchoTunerException):
+    """Input validation errors."""
+    
+    def __init__(self, message: str, error_code: ErrorCode = ErrorCode.VALIDATION_FAILED, 
+                 details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, error_code, details, status.HTTP_400_BAD_REQUEST)
 
 class RateLimitError(EchoTunerException):
     """Rate limiting errors."""
-    pass
+    
+    def __init__(self, message: str, error_code: ErrorCode = ErrorCode.RATE_LIMIT_EXCEEDED, 
+                 details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, error_code, details, status.HTTP_429_TOO_MANY_REQUESTS)
 
 class AIServiceError(EchoTunerException):
     """AI service errors."""
-    pass
+    
+    def __init__(self, message: str, error_code: ErrorCode = ErrorCode.AI_GENERATION_FAILED, 
+                 details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, error_code, details, status.HTTP_503_SERVICE_UNAVAILABLE)
 
 class SpotifyError(EchoTunerException):
-    """Spotify integration errors."""
-    pass
+    """Spotify API errors."""
+    
+    def __init__(self, message: str, error_code: ErrorCode = ErrorCode.SPOTIFY_API_ERROR, 
+                 details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, error_code, details, status.HTTP_503_SERVICE_UNAVAILABLE)
 
-class ValidationError(EchoTunerException):
-    """Validation errors."""
-    pass
-
-class ExternalServiceError(EchoTunerException):
-    """External service errors."""
-    pass
+class PlaylistError(EchoTunerException):
+    """Playlist operation errors."""
+    
+    def __init__(self, message: str, error_code: ErrorCode = ErrorCode.PLAYLIST_CREATION_FAILED, 
+                 details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, error_code, details, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ErrorHandler:
     """Centralized error handling and response formatting."""

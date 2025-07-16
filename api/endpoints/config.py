@@ -4,7 +4,7 @@ import logging
 
 from fastapi import HTTPException, APIRouter
 
-from shared.constants import app_constants
+from config.app_constants import app_constants
 from config.settings import settings
 
 from services.data.data import data_loader

@@ -12,7 +12,6 @@ from core.singleton import SingletonServiceBase
 from core.service_manager import ServiceManager
 from config.app_constants import AppConstants
 from utils.input_validator import UniversalValidator
-from database.operations import EmbeddingOperationsMixin
 from utils.exceptions import handle_service_errors, raise_ai_error, ErrorCode
 
 from database.core import get_session

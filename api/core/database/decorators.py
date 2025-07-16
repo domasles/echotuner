@@ -42,13 +42,8 @@ def db_write_operation(operation_name: str = None, log_success: bool = True, rai
                 
                 if raise_on_error:
                     # Import UniversalValidator here to avoid circular imports
-                    try:
-                        from core.validation.validators import UniversalValidator
-                        from shared.exceptions import OperationFailedError
-                        raise OperationFailedError(UniversalValidator.sanitize_error_message(str(e)))
-                    except ImportError:
-                        from shared.exceptions import OperationFailedError
-                        raise OperationFailedError(str(e))
+                    from utils.exceptions import OperationFailedError
+                    raise OperationFailedError(str(e))
                 
                 return return_on_error
                 

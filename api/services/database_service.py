@@ -44,6 +44,7 @@ class DatabaseService(SingletonServiceBase):
     def _setup_service(self):
         """Initialize database service."""
 
+        self.db_path = AppConstants.DATABASE_FILEPATH  # Keep for compatibility
         self._log_initialization("Database service initialized with SQLAlchemy ORM", logger)
 
     async def initialize(self):

@@ -277,6 +277,29 @@ class PlaylistProvider extends ChangeNotifier {
         }
     }
 
+    Future<void> _deleteSpotifyPlaylistLocally(String playlistId) async {
+        try {
+            final prefs = await SharedPreferences.getInstance();
+            const spotifyPlaylistsKey = 'demo_spotify_playlists';
+            final existingDataJson = prefs.getString(spotifyPlaylistsKey);
+
+            if (existingDataJson == null) return;
+
+            List<dynamic> existingSpotifyPlaylists = jsonDecode(existingDataJson);
+            
+            // Remove the playlist with the matching ID
+            existingSpotifyPlaylists.removeWhere((playlist) => playlist['id'] == playlistId);
+            
+            await prefs.setString(spotifyPlaylistsKey, jsonEncode(existingSpotifyPlaylists));
+            AppLogger.playlist('Deleted Spotify playlist $playlistId from local storage');
+        }
+
+        catch (e) {
+            AppLogger.playlist('Failed to delete Spotify playlist locally: $e');
+            throw Exception('Failed to delete playlist from library');
+        }
+    }
+
     Future<void> generatePlaylist(String prompt, {String? discoveryStrategy}) async {
         if (_deviceId == null) await _initializeDeviceId();
 
@@ -654,7 +677,15 @@ class PlaylistProvider extends ChangeNotifier {
         final sessionId = _authService.sessionId;
 
         if (sessionId == null) throw Exception('Not authenticated');
+        
+        // Always call the API to delete from Spotify
         await _apiService.deleteSpotifyPlaylist(playlistId, sessionId, _deviceId!);
+        
+        // Additionally, if this is a demo account, remove from local storage
+        final isDemoAccount = await _isDemoAccount();
+        if (isDemoAccount) {
+            await _deleteSpotifyPlaylistLocally(playlistId);
+        }
     }
 
     Future<void> loadSpotifyPlaylist(Map<String, dynamic> spotifyPlaylist) async {

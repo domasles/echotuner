@@ -15,7 +15,7 @@ from pathlib import Path
 
 from models import *
 
-from shared.constants import app_constants
+from config.app_constants import app_constants
 from config.security import security_config
 from config.settings import settings
 from core.validation.validators import UniversalValidator
