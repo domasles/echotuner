@@ -11,10 +11,13 @@ from typing import List, Dict, Any, Optional
 
 from core.singleton import SingletonServiceBase
 from models import Song, UserContext
+from config.settings import settings
+from config.app_constants import app_constants
 
 from services.spotify.search import spotify_search_service
 from services.data.data import data_loader
 from services.ai.ai import ai_service
+from services.personality.personality import personality_service
 
 from core.validation.validators import UniversalValidator
 
@@ -44,15 +47,17 @@ class PlaylistGeneratorService(SingletonServiceBase):
             logger.error(f"Playlist generation initialization failed: {e}")
             raise RuntimeError(f"Playlist generation initialization failed: {e}")
 
-    async def generate_playlist(self, prompt: str, user_context: Optional[UserContext] = None, count: int = 30, discovery_strategy: str = "balanced") -> List[Song]:
+    async def generate_playlist(self, prompt: str, user_context: Optional[UserContext] = None, count: int = 30, discovery_strategy: str = "balanced", session_id: str = None, device_id: str = None) -> List[Song]:
         """
-        Generate a playlist using AI-powered real-time song search.
+        Generate a playlist using AI-powered real-time song search with full personality context.
 
         Args:
             prompt: User's mood/context description
             user_context: Additional user preferences
             count: Number of songs to generate
             discovery_strategy: "new_music", "existing_music", or "balanced"
+            session_id: User session for personality data
+            device_id: Device ID for personality data
 
         Returns:
             List of exactly 'count' songs
@@ -65,7 +70,16 @@ class PlaylistGeneratorService(SingletonServiceBase):
             if discovery_strategy not in ["new_music", "existing_music", "balanced"]:
                 discovery_strategy = "balanced"
 
-            search_strategy = await self._ai_generate_strategy(prompt, user_context, discovery_strategy)
+            # Get enhanced personality context if session info provided
+            enhanced_prompt = prompt
+            if session_id and device_id:
+                enhanced_prompt = await personality_service.get_personality_enhanced_context(
+                    session_id=session_id, 
+                    device_id=device_id, 
+                    prompt=prompt
+                )
+
+            search_strategy = await self._ai_generate_strategy(enhanced_prompt, user_context, discovery_strategy, original_prompt=prompt)
 
             songs = await self.spotify_search.search_songs_by_mood(
                 mood_keywords=search_strategy["mood_keywords"],
@@ -152,241 +166,88 @@ class PlaylistGeneratorService(SingletonServiceBase):
 
             raise RuntimeError(f"Playlist generation failed: {sanitized_error}")
 
-    async def _ai_generate_strategy(self, prompt: str, user_context: Optional[UserContext] = None, discovery_strategy: str = "balanced") -> Dict[str, Any]:
-        """Generate search strategy using AI model"""
+    async def _ai_generate_strategy(self, prompt: str, user_context: Optional[UserContext] = None, discovery_strategy: str = "balanced", original_prompt: str = None) -> Dict[str, Any]:
+        """Generate search strategy - simplified and user-focused"""
 
         try:
-            context = f"User prompt: {prompt}\n\n"
-            context += "CRITICAL CONSTRAINTS:\n"
-
+            # Use original prompt for keyword extraction if available
+            prompt_for_keywords = original_prompt or prompt
+            
+            # Build focused context
+            context = f"MODE: {discovery_strategy}\nREQUEST: {prompt_for_keywords}\n"
+            
+            # Critical: User's preferences
             if user_context:
-                if user_context.disliked_artists:
-                    context += f"STRICTLY FORBIDDEN artists that must be avoided at ALL COSTS: {', '.join(user_context.disliked_artists)}\n\n"
-
-                context += "USER PREFERENCES:\n"
-
-                if user_context.favorite_genres:
-                    context += f"Preferred genres (prioritize these): {', '.join(user_context.favorite_genres)}\n"
-
                 if user_context.favorite_artists:
-                    context += f"Favorite artists (include similar artists): {', '.join(user_context.favorite_artists)}\n"
-
-                if user_context.energy_preference:
-                    context += f"Energy preference: {user_context.energy_preference}\n"
-
+                    context += f"FAVORITE ARTISTS: {', '.join(user_context.favorite_artists[:settings.MAX_FAVORITE_ARTISTS])}\n"
+                if user_context.favorite_genres:
+                    context += f"FAVORITE GENRES: {', '.join(user_context.favorite_genres[:settings.MAX_FAVORITE_GENRES])}\n"
                 if user_context.decade_preference:
-                    context += f"Preferred decades: {', '.join(user_context.decade_preference)}\n"
+                    context += f"PREFERRED DECADES: {', '.join(user_context.decade_preference[:settings.MAX_PREFERRED_DECADES])}\n"
+                if user_context.disliked_artists:
+                    context += f"NEVER USE: {', '.join(user_context.disliked_artists[:settings.MAX_DISLIKED_ARTISTS])}\n"
 
-            context += f"\nDISCOVERY STRATEGY: {discovery_strategy}\n"
-
-            if discovery_strategy == "new_music":
-                context += "PRIORITIZE discovering new artists and hidden gems. Focus on lesser-known tracks and emerging artists.\n"
-
-            elif discovery_strategy == "existing_music":
-                context += "PRIORITIZE familiar favorites from user's taste profile. Focus on artists and songs similar to user's preferences.\n"
-
+            # Enhanced AI prompt - focus on user's preferences AND decades
+            if discovery_strategy == "existing_music":
+                instruction = "ONLY use the favorite artists, genres, and decades listed above. Do not suggest any other artists or time periods."
+            elif discovery_strategy == "new_music":
+                instruction = "Find NEW artists similar to favorites from the user's preferred decades. Avoid mainstream hits."
             else:
-                context += "BALANCE between familiar favorites and new discoveries. Mix popular tracks with some hidden gems.\n"
+                instruction = "Mix user's favorites with some new discoveries from their preferred decades."
 
-            if user_context:
-                mood_preferences = []
+            # Special handling for nostalgic requests
+            if "nostalgic" in prompt_for_keywords.lower() or "nostalgia" in prompt_for_keywords.lower():
+                instruction += " Focus on music from the user's preferred decades that evokes nostalgia and memories."
 
-                if user_context.happy_music_preference:
-                    mood_preferences.append(f"When happy: {user_context.happy_music_preference}")
-
-                if user_context.sad_music_preference:
-                    mood_preferences.append(f"When sad: {user_context.sad_music_preference}")
-
-                if user_context.workout_music_preference:
-                    mood_preferences.append(f"For workouts: {user_context.workout_music_preference}")
-
-                if user_context.focus_music_preference:
-                    mood_preferences.append(f"For focus: {user_context.focus_music_preference}")
-
-                if user_context.relaxation_music_preference:
-                    mood_preferences.append(f"For relaxation: {user_context.relaxation_music_preference}")
-
-                if user_context.party_music_preference:
-                    mood_preferences.append(f"For parties: {user_context.party_music_preference}")
-
-                if mood_preferences:
-                    context += f"Mood preferences: {'; '.join(mood_preferences)}\n"
-
-                if user_context.discovery_openness:
-                    context += f"Discovery openness: {user_context.discovery_openness}\n"
-
-                if user_context.explicit_content_preference:
-                    context += f"Explicit content preference: {user_context.explicit_content_preference}\n"
-
-                if user_context.instrumental_preference:
-                    context += f"Instrumental music preference: {user_context.instrumental_preference}\n"
-
-            genre_patterns = data_loader.get_genre_patterns()
-            genre_artists = data_loader.get_genre_artists()
-
-            activity_patterns = data_loader.get_activity_patterns()
-            activity_energy_mapping = data_loader.get_activity_energy_mapping()
-
-            mood_patterns = data_loader.get_mood_patterns()
-
-            available_genres = list(genre_patterns.keys())
-            available_activities = list(activity_patterns.keys())
-            activity_energies = {k: v for k, v in activity_energy_mapping.items() if k in available_activities}
-            available_moods = list(mood_patterns.keys())
-
-            genre_examples = {}
-
-            for genre in available_genres:
-                if genre in genre_artists:
-                    artists = genre_artists[genre][:3]
-                    genre_examples[genre] = f"{genre} (e.g., {', '.join(artists)})"
-
-                else:
-                    genre_examples[genre] = genre
-
+            # Use full personality context if available, otherwise use basic context
             ai_prompt = f"""
-                You are an expert Spotify music curator AI. Analyze user input ({context}) with access to:
-                - Genres, example artists: {', '.join(genre_examples.values())}
-                - Activities, their energy levels: {activity_energies}
-                - Moods: {', '.join(available_moods)}
+{prompt if original_prompt else context}
 
-                Follow strict rules:
+{instruction}
 
-                1. Match genres precisely using artist examples.
-                - Hip hop/rap → only hip hop, trap, rap genres
-                - Pop → pop, dance pop, mainstream only
-                - Rock → rock, alternative, metal only
-                - Never mix incompatible genres.
+IMPORTANT: Extract mood keywords ONLY from this request: "{prompt_for_keywords}"
+If user mentions "nostalgic" or "nostalgia", extract keywords that relate to their preferred decades, not current music.
 
-                2. Treat any mentioned artist as valid; identify their genre. Respect user's favorite and avoided artists.
-                3. Consider user personality: mood, preferences, discovery openness, decades, explicit/instrumental, and context.
-                4. Match energy level ("low", "medium", "high") based on activity and mood.
-
-                Return JSON with:
-                - mood_keywords (3-5)
-                - genres (2-3 from list)
-                - energy_level
-                - brief explanation considering user preferences.
-
-                Examples:
-                - "I want rap music" → genres: ["hip hop", "trap"]
-                - "Heavy metal for workout" → genres: ["metal", "rock"]
-                - "Chill indie songs" → genres: ["indie", "alternative"]
-                - "90s gangsta rap" → genres: ["90s rap", "hip hop"]
-                - "Electronic dance music" → genres: ["electronic", "dance"]
-
-                User request guides output; preferences strongly influence it.
-            """
+Extract mood keywords from the request and return JSON:
+{{"mood_keywords": ["word1", "word2", "word3"], "genres": ["genre1", "genre2"], "energy_level": "medium"}}
+"""
 
             response_text = await self._call_ai_model(ai_prompt)
-
+            
+            # Parse JSON response
             try:
                 start_idx = response_text.find("{")
                 end_idx = response_text.rfind("}") + 1
-
                 if start_idx >= 0 and end_idx > start_idx:
-                    json_str = response_text[start_idx:end_idx]
-                    strategy = json.loads(json_str)
-
-                    if "mood_keywords" in strategy and isinstance(strategy["mood_keywords"], list):
+                    strategy = json.loads(response_text[start_idx:end_idx])
+                    if "mood_keywords" in strategy:
                         return strategy
-
             except json.JSONDecodeError:
                 pass
 
-            return await self._parse_ai_response(response_text, prompt, user_context)
+            # Fallback parsing
+            return self._parse_ai_response(response_text, prompt_for_keywords, user_context)
 
         except Exception as e:
             logger.error(f"AI strategy generation failed: {e}")
             raise RuntimeError(f"AI strategy generation failed: {e}")
 
-    async def _parse_ai_response(self, ai_text: str, prompt: str, user_context: Optional[UserContext] = None) -> Dict[str, Any]:
-        """Parse AI response when JSON extraction fails"""
-
-        mood_keywords = []
-        genres = []
-        energy_level = "medium"
-
-        text_to_analyze = f"{prompt} {ai_text}".lower()
-        mood_patterns = data_loader.get_mood_patterns()
-
-        for mood, keywords in mood_patterns.items():
-            if any(keyword in text_to_analyze for keyword in keywords):
-                mood_keywords.append(mood)
-
-        genre_patterns = data_loader.get_genre_patterns()
-
-        for genre, keywords in genre_patterns.items():
-            if any(keyword in text_to_analyze for keyword in keywords):
-                genres.append(genre)
-
-        energy_trigger_words = data_loader.get_energy_trigger_words()
-
-        if any(word in text_to_analyze for word in energy_trigger_words.get("high", [])):
-            energy_level = "high"
-
-        elif any(word in text_to_analyze for word in energy_trigger_words.get("low", [])):
-            energy_level = "low"
-
-        elif any(word in text_to_analyze for word in energy_trigger_words.get("ultra-high", [])):
-            energy_level = "high"
-
-        elif any(word in text_to_analyze for word in energy_trigger_words.get("ultra-low", [])):
-            energy_level = "low"
-
-        activity_patterns = data_loader.get_activity_patterns()
-        activity_energy_mapping = data_loader.get_activity_energy_mapping()
-
-        for activity, keywords in activity_patterns.items():
-            if any(keyword in text_to_analyze for keyword in keywords):
-                if activity in activity_energy_mapping:
-                    mapped_energy = activity_energy_mapping[activity]
-
-                    if mapped_energy in ["ultra-low", "ultra-high"]:
-                        energy_level = "low" if mapped_energy == "ultra-low" else "high"
-
-                    else:
-                        energy_level = mapped_energy
-
-                    break
-
-        time_contexts = data_loader.get_time_contexts()
-
-        for time_period, keywords in time_contexts.items():
-            if any(keyword in text_to_analyze for keyword in keywords):
-                mood_keywords.append(time_period)
-                break
-
-        emotion_intensities = data_loader.get_emotion_intensities()
-
-        for intensity_level, modifiers in emotion_intensities.items():
-            if any(modifier in text_to_analyze for modifier in modifiers):
-                if intensity_level == "extreme" and energy_level == "medium":
-                    energy_level = "high"
-
-                elif intensity_level == "mild" and energy_level == "high":
-                    energy_level = "medium"
-
-                break
-
-        if user_context:
-            if user_context.favorite_genres:
-                genres.extend(user_context.favorite_genres[:2])
-
-            if user_context.energy_preference:
-                energy_level = user_context.energy_preference
-
-        if not mood_keywords:
-            mood_keywords = ["upbeat", "popular"]
-
-        if not genres:
-            genres = ["pop", "indie"]
-
+    async def _parse_ai_response(self, response_text: str, prompt: str, user_context: Optional[UserContext] = None) -> Dict[str, Any]:
+        """Simple fallback parsing"""
+        
+        # Extract basic info from original prompt only
+        words = prompt.lower().split()
+        mood_keywords = [word for word in words if len(word) > 2][:settings.MAX_SONGS_PER_PLAYLIST//10]
+        
+        # Default genre based on user preferences or fallback
+        genres = ["pop", "rock"]
+        if user_context and user_context.favorite_genres:
+            genres = user_context.favorite_genres[:settings.MAX_FAVORITE_GENRES//5]
+        
         return {
-            "mood_keywords": mood_keywords[:5],
-            "genres": genres[:3],
-            "energy_level": energy_level,
-            "explanation": f"Generated strategy for: {prompt}"
+            "mood_keywords": mood_keywords or ["music", "songs", "playlist"],
+            "genres": genres,
+            "energy_level": "medium"
         }
 
     async def _get_additional_songs(self, existing_songs: List[Song], target_count: int, search_strategy: Dict[str, Any]) -> List[Song]:

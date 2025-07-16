@@ -28,4 +28,9 @@ class AppConstants:
         API_NAME: 'magenta'
     }
 
+    # Year ranges for music search
+    RECENT_YEARS = ["2020", "2021", "2022", "2023", "2024"]
+    POPULAR_YEARS = ["2018", "2019", "2020", "2021", "2022", "2023", "2024"]
+    DISCOVERY_YEARS = ["2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024"]
+
 app_constants = AppConstants()

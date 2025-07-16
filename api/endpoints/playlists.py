@@ -111,7 +111,9 @@ async def generate_playlist(request: PlaylistRequest):
             prompt=sanitized_prompt,
             user_context=user_context,
             count=validated_count if settings.DEBUG else settings.MAX_SONGS_PER_PLAYLIST,
-            discovery_strategy=request.discovery_strategy or "balanced"
+            discovery_strategy=request.discovery_strategy or "balanced",
+            session_id=request.session_id,
+            device_id=request.device_id
         )
 
         if user_info and user_info.get('account_type') == 'demo':

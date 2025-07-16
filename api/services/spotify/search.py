@@ -14,8 +14,8 @@ from spotipy.oauth2 import SpotifyClientCredentials
 
 from core.singleton import SingletonServiceBase
 from models import Song, UserContext
-
 from config.settings import settings
+from config.app_constants import app_constants
 
 from services.data.data import data_loader
 
@@ -99,17 +99,22 @@ class SpotifySearchService(SingletonServiceBase):
 
             if discovery_strategy == "existing_music":
                 search_queries = self._generate_familiar_queries(mood_keywords, genres, energy_level, user_context)
-
             elif discovery_strategy == "new_music":
                 search_queries = self._generate_discovery_queries(mood_keywords, genres, energy_level, user_context)
-
             else:
-                familiar_queries = self._generate_familiar_queries(mood_keywords, genres, energy_level, user_context)
-                discovery_queries = self._generate_discovery_queries(mood_keywords, genres, energy_level, user_context)
-                search_queries = familiar_queries[:len(familiar_queries)//2] + discovery_queries[:len(discovery_queries)//2]
+                # Only use balanced if NO user context provided at all
+                if not user_context:
+                    # No user context, use balanced approach
+                    familiar = self._generate_familiar_queries(mood_keywords, genres, energy_level, user_context)
+                    discovery = self._generate_discovery_queries(mood_keywords, genres, energy_level, user_context)
+                    search_queries = familiar[:settings.MAX_SONGS_PER_PLAYLIST//6] + discovery[:settings.MAX_SONGS_PER_PLAYLIST//6]
+                else:
+                    # User has context, default to existing music
+                    search_queries = self._generate_familiar_queries(mood_keywords, genres, energy_level, user_context)
 
+            # Search and collect results
             for query in search_queries:
-                songs = await self._search_spotify(query, count // len(search_queries) + 5)
+                songs = await self._search_spotify(query, settings.MAX_SONGS_PER_PLAYLIST // 3)
                 all_songs.extend(songs)
 
             unique_songs = self._remove_duplicates(all_songs)
@@ -129,66 +134,103 @@ class SpotifySearchService(SingletonServiceBase):
         return self._generate_familiar_queries(mood_keywords, genres, energy_level, user_context)
 
     def _generate_familiar_queries(self, mood_keywords: List[str], genres: Optional[List[str]] = None, energy_level: Optional[str] = None, user_context: Optional[UserContext] = None) -> List[str]:
-        """Generate search queries focused on familiar music and user preferences"""
+        """Generate queries ONLY from user's favorite artists and decades"""
 
         queries = []
-
+        
+        # Build year ranges from user's decade preferences
+        year_ranges = self._get_user_year_ranges(user_context)
+        
+        # STRICT: Only user's favorite artists - nothing else
         if user_context and user_context.favorite_artists:
-            favorite_artists = user_context.favorite_artists[:8]
-
-            for artist in favorite_artists:
+            for artist in user_context.favorite_artists[:settings.MAX_FAVORITE_ARTISTS]:
                 queries.append(f'artist:"{artist}"')
-
-                if mood_keywords:
-                    queries.append(f'{mood_keywords[0]} artist:"{artist}"')
-
-        for keyword in mood_keywords[:2]:
-            queries.append(f'{keyword} year:2010-2024')
-
-        if genres:
-            genre_artists = data_loader.get_genre_artists()
-
-            for genre in genres[:2]:
-                if genre in genre_artists:
-                    for artist in genre_artists[genre][:3]:
-                        queries.append(f'artist:"{artist}" genre:"{genre}"')
-
+                # Add mood + artist combination
+                for keyword in mood_keywords[:settings.MAX_SONGS_PER_PLAYLIST//15]:
+                    queries.append(f'artist:"{artist}" {keyword}')
+        
+        # Use user's favorite genres with their preferred decades
         if user_context and user_context.favorite_genres:
-            for genre in user_context.favorite_genres[:3]:
-                queries.append(f'genre:"{genre}"')
+            for genre in user_context.favorite_genres[:settings.MAX_FAVORITE_GENRES]:
+                for year_range in year_ranges[:settings.MAX_PREFERRED_DECADES]:
+                    queries.append(f'genre:"{genre}" {year_range}')
+        
+        # Use mood with user's preferred decades
+        if user_context and user_context.decade_preference:
+            for keyword in mood_keywords[:settings.MAX_SONGS_PER_PLAYLIST//15]:
+                for year_range in year_ranges[:settings.MAX_PREFERRED_DECADES]:
+                    queries.append(f'{keyword} {year_range}')
+        
+        # Last resort: use mood with broad year range
+        if not queries:
+            default_year_range = f"year:{app_constants.POPULAR_YEARS[0]}-{app_constants.POPULAR_YEARS[-1]}"
+            for keyword in mood_keywords[:settings.MAX_SONGS_PER_PLAYLIST//15]:
+                queries.append(f'{keyword} {default_year_range}')
 
-        return queries[:12]
+        return queries
 
     def _generate_discovery_queries(self, mood_keywords: List[str], genres: Optional[List[str]] = None, energy_level: Optional[str] = None, user_context: Optional[UserContext] = None) -> List[str]:
-        """Generate search queries focused on music discovery and lesser-known tracks"""
+        """Generate discovery queries respecting user's decade preferences"""
 
         queries = []
+        
+        # Get mainstream artists from data to exclude
+        genre_artists = data_loader.get_genre_artists()
+        mainstream_artists = []
+        for genre in ["pop", "mainstream", "top 40"]:
+            if genre in genre_artists:
+                mainstream_artists.extend(genre_artists[genre][:settings.MAX_DISLIKED_ARTISTS])
+        
+        # Build exclusions from user's dislikes or mainstream artists
+        exclusions = []
+        if user_context and user_context.disliked_artists:
+            exclusions = [f'NOT artist:"{artist}"' for artist in user_context.disliked_artists[:settings.MAX_DISLIKED_ARTISTS]]
+        else:
+            exclusions = [f'NOT artist:"{artist}"' for artist in mainstream_artists[:settings.MAX_DISLIKED_ARTISTS]]
 
-        for keyword in mood_keywords[:3]:
-            queries.append(f'{keyword} year:1990-2024')
-            queries.append(f'{keyword} NOT artist:"Taylor Swift" NOT artist:"Drake" NOT artist:"Ed Sheeran"')
+        # Use user's preferred decades for discovery
+        year_ranges = self._get_user_year_ranges(user_context)
+        
+        # Discovery with mood and user's preferred decades
+        exclusion_str = " ".join(exclusions)
+        for keyword in mood_keywords[:settings.MAX_SONGS_PER_PLAYLIST//15]:
+            for year_range in year_ranges[:settings.MAX_PREFERRED_DECADES]:
+                base_query = f'{keyword} indie {year_range}'
+                
+                # Add exclusions but respect 250-character Spotify limit
+                full_query = f'{base_query} {exclusion_str}'
+                if len(full_query) > 250:
+                    # Truncate exclusions to fit within 250 characters
+                    available_space = 250 - len(base_query) - 1  # -1 for space
+                    truncated_exclusions = []
+                    current_length = 0
+                    
+                    for exclusion in exclusions:
+                        if current_length + len(exclusion) + 1 <= available_space:  # +1 for space
+                            truncated_exclusions.append(exclusion)
+                            current_length += len(exclusion) + 1
+                        else:
+                            break
+                    
+                    final_query = f'{base_query} {" ".join(truncated_exclusions)}' if truncated_exclusions else base_query
+                else:
+                    final_query = full_query
+                
+                queries.append(final_query)
 
+        # Discovery with genres and user's preferred decades
         if genres:
-            for genre in genres[:2]:
-                queries.append(f'genre:"{genre}" year:2000-2024')
+            for genre in genres[:settings.MAX_FAVORITE_GENRES]:
+                for year_range in year_ranges[:settings.MAX_PREFERRED_DECADES]:
+                    queries.append(f'genre:"{genre}" underground {year_range}')
 
-        if energy_level:
-            energy_terms = data_loader.get_energy_trigger_words()
+        return queries
 
-            if energy_level in energy_terms:
-                for term in energy_terms[energy_level][:2]:
-                    queries.append(f'{term}')
-
-        exploration_terms = ["indie", "alternative", "underground", "emerging", "new artist"]
-
-        for term in exploration_terms[:3]:
-            if mood_keywords:
-                queries.append(f'{mood_keywords[0]} {term}')
-
-        return queries[:10]
-
-    async def _search_spotify(self, query: str, limit: int = 10) -> List[Song]:
+    async def _search_spotify(self, query: str, limit: int = None) -> List[Song]:
         """Perform actual Spotify search"""
+
+        if limit is None:
+            limit = settings.MAX_SONGS_PER_PLAYLIST // 3
 
         try:
             results = self.spotify.search(q=query, type="track", limit=limit)
@@ -230,43 +272,32 @@ class SpotifySearchService(SingletonServiceBase):
         return unique_songs
 
     def _select_best_songs(self, songs: List[Song], count: int, discovery_strategy: str = "balanced") -> List[Song]:
-        """Select the best songs based on popularity, diversity, and discovery strategy"""
+        """Simple song selection based on discovery strategy"""
 
         if len(songs) <= count:
             return songs
 
         if discovery_strategy == "existing_music":
-            sorted_songs = sorted(songs, key=lambda s: s.popularity or 0, reverse=True)
-            return sorted_songs[:count]
+            # STRICT: Only high popularity songs (60+) - NO random artists
+            high_pop_songs = [s for s in songs if (s.popularity or 0) >= 60]
+            if len(high_pop_songs) >= count:
+                return high_pop_songs[:count]
+            
+            # If not enough high popularity, fill with medium (50+)
+            med_pop_songs = [s for s in songs if 50 <= (s.popularity or 0) < 60]
+            selected = high_pop_songs + med_pop_songs
+            return selected[:count]
         
         elif discovery_strategy == "new_music":
-            sorted_songs = sorted(songs, key=lambda s: s.popularity or 50)
-            low_pop = [s for s in sorted_songs if (s.popularity or 50) < 40]
-            med_pop = [s for s in sorted_songs if 40 <= (s.popularity or 50) < 70]
-            selected = []
-            discovery_count = int(count * 0.6)
-            balance_count = count - discovery_count
-            selected.extend(low_pop[:discovery_count])
-            selected.extend(med_pop[:balance_count])
-
-            if len(selected) < count:
-                remaining = [s for s in sorted_songs if s not in selected]
-                selected.extend(remaining[:count - len(selected)])
-
-            return selected[:count]
-
+            # Low popularity for discovery
+            return sorted(songs, key=lambda s: s.popularity or 50)[:count]
+        
         else:
+            # Balanced mix
             sorted_songs = sorted(songs, key=lambda s: s.popularity or 0, reverse=True)
-            top_count = int(count * 0.7)
-            variety_count = count - top_count
-            selected = sorted_songs[:top_count]
-            remaining = sorted_songs[top_count:]
-
-            if remaining and variety_count > 0:
-                random.shuffle(remaining)
-                selected.extend(remaining[:variety_count])
-
-            return selected
+            popular = sorted_songs[:count//2]
+            discovery = sorted_songs[count//2:]
+            return popular + discovery[:count - len(popular)]
 
     async def get_followed_artists(self, access_token: str, limit: int = 50) -> List[dict]:
         """Get user's followed artists using access token"""
@@ -312,5 +343,21 @@ class SpotifySearchService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Failed to search artists: {e}")
             return []
+
+    def _get_user_year_ranges(self, user_context: Optional[UserContext] = None) -> List[str]:
+        """Get user's year ranges directly from decade preferences"""
+        
+        year_ranges = []
+        
+        if user_context and user_context.decade_preference:
+            # User context now contains year ranges like "1950-1959"
+            for year_range in user_context.decade_preference:
+                year_ranges.append(f"year:{year_range}")
+        
+        # Fallback to popular years if no preferences
+        if not year_ranges:
+            year_ranges = [f"year:{app_constants.POPULAR_YEARS[0]}-{app_constants.POPULAR_YEARS[-1]}"]
+        
+        return year_ranges
 
 spotify_search_service = SpotifySearchService()
