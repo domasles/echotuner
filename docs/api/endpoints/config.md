@@ -95,7 +95,7 @@ Check API health and service status.
 ```json
 {
     "status": "healthy",
-    "version": "1.6.1-beta",
+    "version": "1.6.3-beta",
     "features": {
         "rate_limiting": true
     }
@@ -192,7 +192,7 @@ Health checks in debug mode only return basic status:
 ```json
 {
     "status": "healthy",
-    "version": "1.6.1-beta",
+    "version": "1.6.3-beta",
     "features": {
         "rate_limiting": true
     }

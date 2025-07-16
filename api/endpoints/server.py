@@ -7,6 +7,8 @@ from core.auth.decorators import debug_only
 from config.settings import settings
 from core.service_manager import service_manager
 
+from config.app_constants import app_constants
+
 logger = logging.getLogger(__name__)
 
 # Create FastAPI router
@@ -39,5 +41,5 @@ async def health_check():
             "total": total_services,
             "details": service_status
         },
-        "version": "1.6.1-beta"
+        "version": app_constants.API_VERSION
     }
