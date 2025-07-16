@@ -21,6 +21,8 @@ from core.validation.validators import UniversalValidator
 from services.database.database import db_service
 from core.service.decorators import service_bool_operation, service_optional_operation
 
+from config.app_constants import app_constants
+
 logger = logging.getLogger(__name__)
 
 class AuthService(SingletonServiceBase):
@@ -53,6 +55,7 @@ class AuthService(SingletonServiceBase):
                 client_secret=settings.SPOTIFY_CLIENT_SECRET,
                 redirect_uri=settings.SPOTIFY_REDIRECT_URI,
                 scope="user-read-private user-read-email user-follow-read user-top-read playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private",
+                cache_path=app_constants.SPOTIFY_TOKEN_CACHE_FILEPATH,
                 show_dialog=True
             )
 
@@ -107,7 +110,7 @@ class AuthService(SingletonServiceBase):
                 logger.error("Failed to get access token from Spotify")
                 return None
 
-            spotify = spotipy.Spotify(auth=token_info['access_token'])
+            spotify = spotipy.Spotify(auth_manager=self.spotify_oauth)
             user_info = spotify.current_user()
             
             session_id = str(uuid.uuid4())

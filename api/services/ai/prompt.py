@@ -141,7 +141,7 @@ class PromptValidatorService(SingletonServiceBase):
 
         prompt = prompt.lower().strip()
 
-        if len(prompt) < 3 or len(prompt) > 500:
+        if len(prompt) < 3 or len(prompt) > settings.MAX_PROMPT_LENGTH:
             return False
 
         if self.music_reference_embeddings is not None:
