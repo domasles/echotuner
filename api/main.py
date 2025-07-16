@@ -188,5 +188,5 @@ if __name__ == "__main__":
         log_level=settings.LOG_LEVEL.lower(),
 
         reload=settings.DEBUG,
-        reload_excludes=["__pycache__", "storage", "templates", ".cache"]
+        reload_excludes=["__pycache__", "storage", "templates", ".git", ".github", "venv"]
     )
