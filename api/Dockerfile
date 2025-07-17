@@ -4,8 +4,11 @@ FROM python:3.12-alpine
 # Install system dependencies
 RUN apk add --no-cache curl
 
+# Create group with GID 999
+RUN addgroup -g 999 api
+
 # Create api user
-RUN adduser -D -s /bin/sh api
+RUN adduser -D -u 999 -G api -s /bin/sh api
 USER api
 
 # Set working directory

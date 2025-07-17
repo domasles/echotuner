@@ -4,10 +4,11 @@ FROM alpine:3.19 AS flutter-builder
 # Install dependencies
 RUN apk add --no-cache curl git unzip xz zip bash gcompat
 
-# Create flutter user
-RUN adduser -D -s /bin/sh flutter
+# Create group with GID 999
+RUN addgroup -g 999 flutter
 
-# Install Flutter as flutter user
+# Create flutter user
+RUN adduser -D -u 999 -G flutter -s /bin/sh flutter
 USER flutter
 
 ENV FLUTTER_HOME="/home/flutter"
