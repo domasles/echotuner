@@ -7,21 +7,12 @@ import 'app_constants.dart';
 import 'environment/env_loader.dart';
 
 class AppConfig {
-    static String get apiHost {
-        final runtimeHost = kIsWeb ? getEnvVar('API_HOST') : null;
+    static String get apiBaseUrl {
+        final runtimeHost = kIsWeb ? getEnvVar('API_URL') : null;
         if (runtimeHost != null && runtimeHost.isNotEmpty) return runtimeHost;
 
-        return dotenv.env['API_HOST'] ?? AppConstants.defaultApiHost;
+        return dotenv.env['API_URL'] ?? AppConstants.defaultApiUrl;
     }
-
-    static int get apiPort {
-        final runtimePort = kIsWeb ? getEnvVar('API_PORT') : null;
-        if (runtimePort != null && runtimePort.isNotEmpty) return int.tryParse(runtimePort) ?? AppConstants.defaultApiPort;
-
-        return int.tryParse(dotenv.env['API_PORT'] ?? '') ?? AppConstants.defaultApiPort;
-    }
-
-    static String get apiBaseUrl => "http://$apiHost:$apiPort";
 
     static bool get isDebugMode {
         final runtimeDebug = kIsWeb ? getEnvVar('DEBUG_MODE') : null;
@@ -47,8 +38,6 @@ class AppConfig {
     static void printConfig() {
         if (isDebugMode) {
             AppLogger.debug('API Base URL: $apiBaseUrl');
-            AppLogger.debug('API Host: $apiHost');
-            AppLogger.debug('API Port: $apiPort');
             AppLogger.debug('Debug Mode: $isDebugMode');
             AppLogger.debug('Logging: $isLoggingEnabled');
         }

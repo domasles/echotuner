@@ -4,8 +4,7 @@ class AppConstants {
     static const String appDescription = 'AI-powered Spotify playlist generator';
 	static const String githubRepositoryUrl = 'https://github.com/domasles/echotuner';
 
-    static const String defaultApiHost = 'localhost';
-    static const int defaultApiPort = 8000;
+    static const String defaultApiUrl = 'http://localhost:8000';
 
     static const int authPollingMaxAttempts = 150;
 
