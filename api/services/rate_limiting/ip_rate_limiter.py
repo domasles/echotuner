@@ -64,11 +64,13 @@ class IPRateLimiterService(SingletonServiceBase):
             validated_ip = UniversalValidator.validate_ip_address(ip_address)
             ip_hash = self._get_ip_hash(validated_ip)
 
+            current_time = datetime.now()
             attempt_data = {
                 'ip_hash': ip_hash,
                 'attempt_type': attempt_type,
-                'attempted_at': int(datetime.now().timestamp()),
-                'blocked_until': None
+                'attempted_at': int(current_time.timestamp()),
+                'blocked_until': None,
+                'created_at': current_time.isoformat()
             }
 
             return await db_service.record_ip_attempt(attempt_data)
