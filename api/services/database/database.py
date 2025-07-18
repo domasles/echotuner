@@ -1,6 +1,9 @@
 """
-Database service.
-Modern database operations using SQLAlchemy ORM with standardized patterns and error handling.
+Database servicfrom database.models import (
+    AuthSession, DeviceRegistry, AuthState, AuthAttempt, DemoOwnerToken,
+    PlaylistDraft, SpotifyPlaylist, DemoPlaylist,
+    UserPersonality, RateLimit, IPAttempt, EmbeddingCache
+)odern database operations using SQLAlchemy ORM with standardized patterns and error handling.
 """
 
 import hashlib
@@ -21,7 +24,7 @@ from database.core import db_core, get_session
 from database.models import (
     AuthSession, DeviceRegistry, AuthState, AuthAttempt,
     PlaylistDraft, SpotifyPlaylist, DemoPlaylist,
-    UserPersonality, RateLimit, IPAttempt, EmbeddingCache
+    UserPersonality, RateLimit, IPAttempt, EmbeddingCache, DemoOwnerToken
 )
 from core.database.decorators import (
     db_write_operation, db_read_operation, db_count_operation, 
@@ -756,26 +759,87 @@ class DatabaseService(SingletonServiceBase):
         
         return True
 
-    @db_write_operation()
-    async def remove_spotify_playlist_from_drafts(self, session, spotify_playlist_id: str) -> bool:
-        """Remove Spotify playlist tracking from drafts."""
+    @db_bool_operation()
+    async def remove_spotify_playlist_from_drafts(self, spotify_playlist_id: str) -> bool:
+        """Remove Spotify playlist ID from all drafts that reference it"""
+        
         try:
-            # Remove from SpotifyPlaylist table
+            async with get_session() as session:
+                await session.execute(
+                    update(PlaylistDraft)
+                    .where(PlaylistDraft.spotify_playlist_id == spotify_playlist_id)
+                    .values(spotify_playlist_id=None, spotify_playlist_url=None)
+                )
+                
+                return True
+                
+        except Exception as e:
+            logger.error(f"Failed to remove Spotify playlist from drafts: {e}")
+            return False
+
+    @db_bool_operation()
+    async def store_demo_owner_token(self, session, token_info: Dict[str, Any]) -> bool:
+        """Store demo owner token information"""
+        
+        try:
+            # First delete any existing demo owner token
             await session.execute(
-                delete(SpotifyPlaylist).where(SpotifyPlaylist.spotify_playlist_id == spotify_playlist_id)
+                delete(DemoOwnerToken)
             )
             
-            # Update any drafts that referenced this Spotify playlist
-            await session.execute(
-                update(PlaylistDraft)
-                .where(PlaylistDraft.spotify_playlist_id == spotify_playlist_id)
-                .values(spotify_playlist_id=None, spotify_playlist_url=None)
+            # Create new token record
+            demo_token = DemoOwnerToken(
+                access_token=token_info['access_token'],
+                refresh_token=token_info.get('refresh_token'),
+                expires_at=token_info['expires_at'],
+                spotify_user_id=token_info['spotify_user_id'],
+                created_at=int(datetime.now().timestamp())
             )
+            
+            session.add(demo_token)
             
             return True
             
         except Exception as e:
-            logger.error(f"Failed to remove Spotify playlist from drafts: {e}")
+            logger.error(f"Failed to store demo owner token: {e}")
+            return False
+
+    @db_read_operation()
+    async def get_demo_owner_token(self, session) -> Optional[Dict[str, Any]]:
+        """Get demo owner token information"""
+        
+        try:
+            result = await session.execute(
+                select(DemoOwnerToken).order_by(desc(DemoOwnerToken.created_at)).limit(1)
+            )
+            
+            token_record = result.scalars().first()
+            
+            if token_record:
+                return {
+                    'access_token': token_record.access_token,
+                    'refresh_token': token_record.refresh_token,
+                    'expires_at': token_record.expires_at,
+                    'spotify_user_id': token_record.spotify_user_id
+                }
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get demo owner token: {e}")
+            return None
+
+    @db_bool_operation()
+    async def clear_demo_owner_token(self, session) -> bool:
+        """Clear demo owner token"""
+        
+        try:
+            await session.execute(delete(DemoOwnerToken))
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to clear demo owner token: {e}")
             return False
 # Create singleton instance
 db_service = DatabaseService()

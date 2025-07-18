@@ -9,11 +9,14 @@ import spotipy
 
 from typing import List, Optional
 
+from spotipy.cache_handler import CacheFileHandler
 from spotipy.oauth2 import SpotifyClientCredentials
 
 from core.singleton import SingletonServiceBase
 from models import Song, UserContext
 from config.settings import settings
+
+from config.app_constants import app_constants
 
 from core.validation.validators import UniversalValidator
 
@@ -42,9 +45,12 @@ class SpotifySearchService(SingletonServiceBase):
                 logger.error("Spotify credentials not found")
                 raise RuntimeError("Spotify credentials are required. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables.")
 
+            cache_handler = CacheFileHandler(cache_path=app_constants.SPOTIFY_TOKEN_CACHE_FILEPATH)
+
             client_credentials_manager = SpotifyClientCredentials(
                 client_id=self.client_id,
-                client_secret=self.client_secret
+                client_secret=self.client_secret,
+                cache_handler=cache_handler
             )
 
             self.spotify = spotipy.Spotify(client_credentials_manager=client_credentials_manager)

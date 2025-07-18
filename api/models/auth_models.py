@@ -45,3 +45,7 @@ class SessionValidationResponse(BaseModel):
     valid: bool
     user_id: Optional[str] = None
     spotify_user_id: Optional[str] = None
+
+
+class AccountTypeResponse(BaseModel):
+    account_type: str

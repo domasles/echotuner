@@ -9,6 +9,7 @@ import secrets
 import spotipy
 import uuid
 
+from spotipy.cache_handler import CacheFileHandler
 from datetime import datetime, timedelta
 from spotipy.oauth2 import SpotifyOAuth
 from typing import Optional, Dict
@@ -30,7 +31,10 @@ class AuthService(SingletonServiceBase):
 
     def __init__(self):
         super().__init__()
-    
+        # Demo mode owner token storage
+        self._demo_owner_token_info = None
+        self._demo_owner_lock = asyncio.Lock()
+
     def _setup_service(self):
         """Initialize the AuthService."""
 
@@ -48,6 +52,10 @@ class AuthService(SingletonServiceBase):
             if not settings.DEMO and hasattr(self, '_setup_service'):
                 await self._async_cleanup_demo_accounts()
             
+            # In demo mode, try to load existing owner token
+            if settings.DEMO:
+                await self._load_demo_owner_token()
+            
             logger.info("Auth service async initialization completed")
             
         except Exception as e:
@@ -61,13 +69,15 @@ class AuthService(SingletonServiceBase):
             if not all([settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET, settings.SPOTIFY_REDIRECT_URI]):
                 logger.warning("Spotify OAuth credentials not configured")
                 return
+            
+            cache_handler = CacheFileHandler(cache_path=app_constants.SPOTIFY_TOKEN_CACHE_FILEPATH)
 
             self.spotify_oauth = SpotifyOAuth(
                 client_id=settings.SPOTIFY_CLIENT_ID,
                 client_secret=settings.SPOTIFY_CLIENT_SECRET,
                 redirect_uri=settings.SPOTIFY_REDIRECT_URI,
                 scope="user-read-private user-read-email user-follow-read user-top-read playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private",
-                cache_path=app_constants.SPOTIFY_TOKEN_CACHE_FILEPATH,
+                cache_handler=cache_handler,
                 show_dialog=True
             )
 
@@ -129,6 +139,19 @@ class AuthService(SingletonServiceBase):
             device_id = device_info['device_id']
 
             if settings.DEMO:
+                # In demo mode, store the owner's token on first successful login
+                async with self._demo_owner_lock:
+                    if self._demo_owner_token_info is None:
+                        logger.info("Storing owner's Spotify credentials for demo mode")
+                        self._demo_owner_token_info = {
+                            'access_token': token_info['access_token'],
+                            'refresh_token': token_info.get('refresh_token'),
+                            'expires_at': int((datetime.now() + timedelta(seconds=token_info['expires_in'])).timestamp()),
+                            'spotify_user_id': user_info['id']
+                        }
+                        # Store to database for persistence
+                        await self._store_demo_owner_token()
+                
                 demo_user_id = f"demo_user_{device_id}"
                 account_type = "demo"
 
@@ -335,6 +358,35 @@ class AuthService(SingletonServiceBase):
         """Get access token for a session."""
 
         try:
+            # In demo mode, always use owner's token regardless of session
+            if settings.DEMO:
+                async with self._demo_owner_lock:
+                    if self._demo_owner_token_info:
+                        # Check if owner token is expired and refresh if needed
+                        if datetime.now().timestamp() > self._demo_owner_token_info['expires_at']:
+                            if self._demo_owner_token_info.get('refresh_token') and self.spotify_oauth:
+                                try:
+                                    token_info = self.spotify_oauth.refresh_access_token(self._demo_owner_token_info['refresh_token'])
+                                    self._demo_owner_token_info.update({
+                                        'access_token': token_info['access_token'],
+                                        'expires_at': int((datetime.now() + timedelta(seconds=token_info['expires_in'])).timestamp())
+                                    })
+                                    await self._store_demo_owner_token()
+                                    logger.debug("Refreshed demo owner token")
+                                    return token_info['access_token']
+                                except Exception as e:
+                                    logger.error(f"Failed to refresh demo owner token: {e}")
+                                    return None
+                            else:
+                                logger.warning("Demo owner token expired and no refresh token available")
+                                return None
+                        
+                        return self._demo_owner_token_info['access_token']
+                    else:
+                        logger.warning("No demo owner token available")
+                        return None
+
+            # Normal mode - use session-specific token
             session_info = await db_service.get_session_info(session_id)
 
             if not session_info:
@@ -504,6 +556,9 @@ class AuthService(SingletonServiceBase):
 
             await db_service.delete_auth_sessions_by_account_type('demo')
             await db_service.delete_demo_user_personalities()
+            
+            # Clear demo owner token when switching to normal mode
+            await db_service.clear_demo_owner_token()
 
             logger.debug("Cleaned up demo accounts for normal mode")
 
@@ -529,4 +584,46 @@ class AuthService(SingletonServiceBase):
 
         return session_id
 
+    async def _store_demo_owner_token(self):
+        """Store demo owner token to database for persistence"""
+        try:
+            if self._demo_owner_token_info:
+                await db_service.store_demo_owner_token(self._demo_owner_token_info)
+        except Exception as e:
+            logger.error(f"Failed to store demo owner token: {e}")
+
+    async def _load_demo_owner_token(self):
+        """Load demo owner token from database"""
+        try:
+            token_info = await db_service.get_demo_owner_token()
+            if token_info:
+                async with self._demo_owner_lock:
+                    self._demo_owner_token_info = token_info
+                    logger.info("Loaded existing demo owner token")
+        except Exception as e:
+            logger.warning(f"Failed to load demo owner token: {e}")
+
+    def has_demo_owner_token(self) -> bool:
+        """Check if demo mode has an owner token stored"""
+        return settings.DEMO and self._demo_owner_token_info is not None
+
+    async def create_demo_bypass_session(self, device_id: str, platform: str) -> str:
+        """Create a demo session that bypasses OAuth (for subsequent users after owner)"""
+        session_id = str(uuid.uuid4())
+        demo_user_id = f"demo_user_{device_id}"
+
+        # Use a dummy token since we'll use owner's token for actual API calls
+        await self.create_session(
+            session_id=session_id,
+            device_id=device_id,
+            platform=platform,
+            spotify_user_id=demo_user_id,
+            access_token="demo_bypass_token",
+            refresh_token=None,
+            expires_at=int((datetime.now() + timedelta(days=30)).timestamp()),
+            account_type="demo"
+        )
+
+        return session_id
+            
 auth_service = AuthService()

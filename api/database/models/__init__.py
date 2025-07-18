@@ -3,7 +3,7 @@ Database models package.
 SQLAlchemy ORM models for all database entities.
 """
 
-from .auth import AuthSession, DeviceRegistry, AuthState, AuthAttempt
+from .auth import AuthSession, DeviceRegistry, AuthState, AuthAttempt, DemoOwnerToken
 from .playlists import PlaylistDraft, SpotifyPlaylist, DemoPlaylist  
 from .users import UserPersonality
 from .rate_limits import RateLimit, IPAttempt
@@ -14,6 +14,7 @@ __all__ = [
     'DeviceRegistry', 
     'AuthState',
     'AuthAttempt',
+    'DemoOwnerToken',
     'PlaylistDraft',
     'SpotifyPlaylist',
     'DemoPlaylist',

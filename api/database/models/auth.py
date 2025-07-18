@@ -68,3 +68,15 @@ class AuthAttempt(Base):
     attempted_at = Column(Integer, nullable=False)
     expires_at = Column(Integer, nullable=False)
     success = Column(Boolean, default=False)
+
+class DemoOwnerToken(Base):
+    """Demo owner token storage for demo mode bypass."""
+    
+    __tablename__ = "demo_owner_tokens"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    access_token = Column(Text, nullable=False)
+    refresh_token = Column(Text)
+    expires_at = Column(Integer, nullable=False)
+    spotify_user_id = Column(String, nullable=False)
+    created_at = Column(Integer, nullable=False)

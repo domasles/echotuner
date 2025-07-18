@@ -11,7 +11,8 @@ from .auth_models import (
     DeviceRegistrationRequest, DeviceRegistrationResponse,
     AuthInitRequest, AuthInitResponse,
     AuthCallbackRequest, AuthCallbackResponse,
-    SessionValidationRequest, SessionValidationResponse
+    SessionValidationRequest, SessionValidationResponse,
+    AccountTypeResponse
 )
 
 # Playlist models

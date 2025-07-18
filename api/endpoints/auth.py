@@ -8,7 +8,7 @@ from fastapi import HTTPException, Request, APIRouter
 from datetime import datetime
 from sqlalchemy import delete
 
-from models import AuthInitRequest, AuthInitResponse, SessionValidationRequest, SessionValidationResponse, DeviceRegistrationRequest, DeviceRegistrationResponse, RateLimitStatus
+from models import AuthInitRequest, AuthInitResponse, SessionValidationRequest, SessionValidationResponse, DeviceRegistrationRequest, DeviceRegistrationResponse, RateLimitStatus, AccountTypeResponse
 
 from config.settings import settings
 from database.core import get_session
@@ -67,7 +67,30 @@ async def auth_init(request: AuthInitRequest, http_request: Request):
             raise HTTPException(status_code=503, detail="Authentication service not available")
 
         if settings.DEMO:
-            device_id = f"demo_user_{int(datetime.now().timestamp() * 1000)}"
+            # In demo mode, check if we already have owner's token
+            if auth_service.has_demo_owner_token():
+                # Owner token exists, create bypass session and redirect directly to success
+                device_id = f"demo_user_{int(datetime.now().timestamp() * 1000)}"
+                
+                if not await auth_service.validate_device(device_id, update_last_seen=False):
+                    try:
+                        await auth_service.register_device_with_id(
+                            device_id=device_id,
+                            platform=request.platform
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to auto-register device: {e}")
+                        raise HTTPException(status_code=500, detail="Failed to register device")
+                
+                # Create bypass session
+                session_id = await auth_service.create_demo_bypass_session(device_id, request.platform)
+                
+                # Return direct callback URL that will show success page
+                callback_url = f"{settings.SPOTIFY_REDIRECT_URI}?demo_bypass=true&session_id={session_id}&device_id={device_id}"
+                return AuthInitResponse(auth_url=callback_url, state="demo_bypass", device_id=device_id)
+            else:
+                # First time - need real OAuth to get owner's token
+                device_id = f"demo_user_{int(datetime.now().timestamp() * 1000)}"
 
         else:
             device_id = str(uuid.uuid4())
@@ -93,11 +116,18 @@ async def auth_init(request: AuthInitRequest, http_request: Request):
         raise HTTPException(status_code=500, detail="Failed to initialize authentication")
 
 @router.get("/callback")
-async def auth_callback(code: str = None, state: str = None, error: str = None, http_request: Request = None):
+async def auth_callback(code: str = None, state: str = None, error: str = None, http_request: Request = None, demo_bypass: str = None, session_id: str = None, device_id: str = None):
     """Handle Spotify OAuth callback"""
 
     try:
         client_ip = get_client_ip(http_request) if http_request else "unknown"
+        
+        # Handle demo bypass mode
+        if demo_bypass == "true" and session_id and device_id:
+            logger.info(f"Demo bypass authentication for device {device_id[:8]}...")
+            
+            html_content = template_service.render_template("html/auth_success.html", session_id=session_id, device_id=device_id)
+            return HTMLResponse(content=html_content)
         
         if error:
             logger.warning(f"OAuth error from IP {client_ip}: {error}")
@@ -288,30 +318,40 @@ async def cleanup_sessions():
         logger.error(f"Cleanup failed: {e}")
         raise HTTPException(status_code=500, detail="Cleanup failed")
 
-@router.post("/account-type")
-@validate_request('session_id', 'device_id')
+@router.post("/account-type", response_model=AccountTypeResponse)
 async def get_account_type(request: SessionValidationRequest):
-    """Get account type for a session"""
+    """Get account type for a session."""
 
     try:
-        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
+        account_type = await auth_service.get_account_type(request.session_id)
 
-        if not user_info:
+        if account_type:
+            return AccountTypeResponse(account_type=account_type)
+
+        else:
             raise HTTPException(status_code=404, detail="Session not found")
-
-        account_type = user_info.get('account_type', 'normal')
-        return {"account_type": account_type}
-
-    except ValueError as e:
-        logger.warning(f"Account type validation input error: {e}")
-        raise HTTPException(status_code=400, detail="Invalid input parameters")
 
     except HTTPException:
         raise
 
     except Exception as e:
-        logger.error(f"Failed to get account type: {e}")
+        logger.error(f"Account type check failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to get account type")
+
+@router.get("/demo-status")
+async def get_demo_status():
+    """Get demo mode status and owner token availability (debug endpoint)."""
+    
+    try:
+        return {
+            "demo_mode": settings.DEMO,
+            "has_owner_token": auth_service.has_demo_owner_token() if settings.DEMO else False,
+            "auth_required": settings.AUTH_REQUIRED
+        }
+    
+    except Exception as e:
+        logger.error(f"Demo status check failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get demo status")
 
 @router.get("/mode")
 async def get_auth_mode():
