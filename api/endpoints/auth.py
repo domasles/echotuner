@@ -3,8 +3,8 @@
 import logging
 import uuid
 
-from fastapi.responses import HTMLResponse
 from fastapi import HTTPException, Request, APIRouter
+from fastapi.responses import HTMLResponse
 from datetime import datetime
 from sqlalchemy import delete
 
@@ -14,19 +14,16 @@ from config.settings import settings
 from database.core import get_session
 from database.models import AuthAttempt
 
-from services.rate_limiting.rate_limiter import rate_limiter_service
 from services.rate_limiting.ip_rate_limiter import ip_rate_limiter_service
+from services.rate_limiting.rate_limiter import rate_limiter_service
 from services.template.template import template_service
 from core.auth.middleware import auth_middleware
-from services.database.database import db_service
 from services.auth.auth import auth_service
 from core.auth.decorators import debug_only
 
 from core.validation.validators import UniversalValidator, validate_request
 
 logger = logging.getLogger(__name__)
-
-# Create FastAPI router
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
 def get_client_ip(request: Request) -> str:
@@ -209,14 +206,16 @@ async def validate_session(request: SessionValidationRequest):
         raise HTTPException(status_code=500, detail="Session validation failed")
 
 @router.get("/check-session")
-async def check_session(request: Request):
+async def check_session(request: Request, device_id: str = None):
     """Check if a session exists for the given device ID (for desktop polling)"""
 
     try:
-        device_id = request.headers.get('device_id')
+        # Try to get device_id from query parameter first, then headers
+        if not device_id:
+            device_id = request.headers.get('device_id')
 
         if not device_id:
-            return {"message": "Device ID required in headers", "success": False}
+            return {"message": "Device ID required in headers or query parameter", "success": False}
 
         session_id = await auth_service.get_session_by_device(device_id)
 

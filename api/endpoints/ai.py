@@ -4,16 +4,14 @@ import logging
 
 from fastapi import HTTPException, APIRouter
 
+from core.validation.validators import UniversalValidator
+from core.auth.decorators import debug_only
+
 from config.security import security
 
-from services.ai.ai import ai_service
-
-from core.auth.decorators import debug_only
-from core.validation.validators import UniversalValidator, validate_request
+from services.ai import ai_service
 
 logger = logging.getLogger(__name__)
-
-# Create FastAPI router
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 @router.get("/models")

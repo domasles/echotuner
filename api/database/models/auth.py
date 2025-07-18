@@ -9,9 +9,9 @@ from ..core import Base
 
 class DeviceRegistry(Base):
     """Device registry table for managing registered devices."""
-    
+
     __tablename__ = "device_registry"
-    
+
     device_id = Column(String, primary_key=True)
     platform = Column(String, nullable=False)
     app_version = Column(String)
@@ -19,16 +19,15 @@ class DeviceRegistry(Base):
     registration_timestamp = Column(Integer, nullable=False)
     last_seen_timestamp = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=True)
-    
-    # Relationships
+
     sessions = relationship("AuthSession", back_populates="device", cascade="all, delete-orphan")
     auth_states = relationship("AuthState", back_populates="device", cascade="all, delete-orphan")
 
 class AuthSession(Base):
     """Authentication session table."""
-    
+
     __tablename__ = "auth_sessions"
-    
+
     session_id = Column(String, primary_key=True)
     device_id = Column(String, ForeignKey("device_registry.device_id"), nullable=False)
     platform = Column(String, nullable=False)
@@ -39,29 +38,27 @@ class AuthSession(Base):
     created_at = Column(Integer, nullable=False)
     last_used_at = Column(Integer, nullable=False)
     account_type = Column(String, default='normal')
-    
-    # Relationships
+
     device = relationship("DeviceRegistry", back_populates="sessions")
 
 class AuthState(Base):
     """Authentication state table for OAuth flow."""
-    
+
     __tablename__ = "auth_states"
-    
+
     state = Column(String, primary_key=True)
     device_id = Column(String, ForeignKey("device_registry.device_id"), nullable=False)
     platform = Column(String, nullable=False)
     created_at = Column(Integer, nullable=False)
     expires_at = Column(Integer, nullable=False)
-    
-    # Relationships
+
     device = relationship("DeviceRegistry", back_populates="auth_states")
 
 class AuthAttempt(Base):
     """Authentication attempts table for rate limiting."""
-    
+
     __tablename__ = "auth_attempts"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     device_id = Column(String, nullable=False)
     platform = Column(String, nullable=False) 
@@ -71,9 +68,9 @@ class AuthAttempt(Base):
 
 class DemoOwnerToken(Base):
     """Demo owner token storage for demo mode bypass."""
-    
+
     __tablename__ = "demo_owner_tokens"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     access_token = Column(Text, nullable=False)
     refresh_token = Column(Text)

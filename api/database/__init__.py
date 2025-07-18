@@ -7,17 +7,18 @@ from .core import DatabaseCore, get_session
 from .models import *
 
 __all__ = [
-    'DatabaseCore',
-    'get_session',
-    'AuthSession',
-    'DeviceRegistry', 
-    'AuthState',
-    'AuthAttempt',
-    'PlaylistDraft',
-    'SpotifyPlaylist',
-    'DemoPlaylist',
     'UserPersonality',
+    'SpotifyPlaylist',
+    'DeviceRegistry',
+    'EmbeddingCache',
+    'PlaylistDraft', 
+    'DatabaseCore',
+    'DemoPlaylist',
+    'AuthSession',
+    'AuthAttempt',
+    'AuthState',
     'RateLimit',
     'IPAttempt',
-    'EmbeddingCache'
+
+    'get_session',
 ]

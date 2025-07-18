@@ -32,3 +32,51 @@ from .config import (
 from .server import (
     get_server_mode
 )
+
+__all__ = [
+    'auth_callback',
+    'auth_init',
+
+    'validate_session',
+    'check_session',
+
+    'get_authenticated_rate_limit_status',
+    'register_device',
+    'logout',
+
+    'cleanup_sessions',
+    'get_account_type',
+    'get_auth_mode',
+
+    'update_playlist_draft',
+    'generate_playlist',
+
+    'get_library_playlists',
+    'delete_draft_playlist',
+    'get_draft_playlist',
+
+    'remove_track_from_spotify_playlist',
+    'get_spotify_playlist_tracks',
+    'create_spotify_playlist',
+    'delete_spotify_playlist',
+
+    'clear_user_personality',
+
+    'save_user_personality',
+    'load_user_personality',
+
+    'get_followed_artists',
+    'search_artists',
+
+    'get_ai_models',
+    'test_ai_model',
+
+    'production_readiness_check',
+    'health_check',
+    'get_config',
+
+    'reload_config',
+    'root',
+
+    'get_server_mode'
+]
