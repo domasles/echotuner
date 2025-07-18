@@ -1,6 +1,5 @@
 """Singleton pattern implementation for EchoTuner services."""
 
-import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
@@ -11,7 +10,7 @@ class SingletonServiceBase:
     def __init__(self):
         self._logger_name = self.__class__.__name__
         self._setup_service()
-    
+
     def _setup_service(self):
         """Override this method to set up the service."""
 

@@ -3,9 +3,8 @@ Service Manager.
 Centralized service initialization and dependency management.
 """
 
-import asyncio
 import logging
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 from core.singleton import SingletonServiceBase
 
@@ -94,6 +93,7 @@ class ServiceManager(SingletonServiceBase):
 
     async def get_service_status(self) -> Dict[str, Dict[str, Any]]:
         """Get status of all registered services"""
+
         status = {}
         
         for name, service in self.services.items():
@@ -117,6 +117,7 @@ class ServiceManager(SingletonServiceBase):
 
     async def shutdown_all(self) -> Dict[str, bool]:
         """Shutdown all registered services in reverse order"""
+
         logger.info("Starting managed service shutdown...")
         results = {}
         shutdown_order = list(reversed(self.initialization_order))
@@ -143,4 +144,5 @@ class ServiceManager(SingletonServiceBase):
                 
         logger.info("Service shutdown complete")
         return results
+
 service_manager = ServiceManager()

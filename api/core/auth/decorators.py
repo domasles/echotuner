@@ -6,6 +6,7 @@ demo mode, debug mode, and production mode settings.
 """
 
 import logging
+
 from fastapi import HTTPException
 from functools import wraps
 
@@ -13,9 +14,8 @@ from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-
-def demo_mode_restricted(func):
-    """Decorator to restrict endpoints when in demo mode"""
+def normal_only(func):
+    """Decorator to restrict endpoints to normal mode only"""
 
     @wraps(func)
     async def wrapper(*args, **kwargs):
@@ -30,8 +30,8 @@ def demo_mode_restricted(func):
     return wrapper
 
 
-def normal_mode_restricted(func):
-    """Decorator to restrict endpoints when in normal mode"""
+def demo_only(func):
+    """Decorator to restrict endpoints to demo mode only"""
 
     @wraps(func)
     async def wrapper(*args, **kwargs):
@@ -52,23 +52,11 @@ def debug_only(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
         if not settings.DEBUG:
-            logger.warning(f"Debug-only endpoint '{func.__name__}' accessed in production mode")
-
             raise HTTPException(
                 status_code=403, 
                 detail="This endpoint is only available in debug mode"
             )
 
-        return await func(*args, **kwargs)
-
-    return wrapper
-
-
-def production_safe(func):
-    """Decorator to mark endpoints as production-safe"""
-
-    @wraps(func)
-    async def wrapper(*args, **kwargs):
         return await func(*args, **kwargs)
 
     return wrapper

@@ -9,7 +9,7 @@ from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-class SecurityConfig:
+class Security:
     def get_security_headers(self, nonce: str = None):
         """Get security headers for production deployment."""
 
@@ -52,4 +52,4 @@ class SecurityConfig:
 
         return issues
 
-security_config = SecurityConfig()
+security = Security()

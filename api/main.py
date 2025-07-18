@@ -16,7 +16,7 @@ from pathlib import Path
 from models import *
 
 from config.app_constants import app_constants
-from config.security import security_config
+from config.security import security
 from config.settings import settings
 from core.validation.validators import UniversalValidator
 
@@ -148,7 +148,7 @@ async def add_security_headers(request: Request, call_next):
         if nonce_match:
             nonce = nonce_match.group(1)
     
-    headers = security_config.get_security_headers(nonce)
+    headers = security.get_security_headers(nonce)
     
     for header, value in headers.items():
         response.headers[header] = value
@@ -157,7 +157,7 @@ async def add_security_headers(request: Request, call_next):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.get_cors_origins(),
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],

@@ -7,7 +7,6 @@ This module contains decorators for managing aiohttp sessions across AI provider
 from functools import wraps
 from typing import Callable, Any
 
-
 def ensure_session_initialized(func: Callable) -> Callable:
     """
     Decorator to ensure aiohttp session is initialized before method execution.
@@ -21,6 +20,7 @@ def ensure_session_initialized(func: Callable) -> Callable:
     Returns:
         Wrapped method with session initialization check
     """
+
     @wraps(func)
     async def wrapper(self, *args, **kwargs) -> Any:
         if self._session is None:

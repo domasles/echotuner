@@ -3,20 +3,17 @@ Comprehensive validation system for EchoTuner API.
 Provides unified validation with decorators and validators.
 """
 
-import re
 import logging
-from functools import wraps
-from typing import Callable, Any, Optional, Union, List, Dict
+import re
+
+from typing import Callable, Any, Optional
 from fastapi import HTTPException
 from pydantic import BaseModel
+from functools import wraps
 
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
-
-class ValidationError(Exception):
-    """Custom validation error for internal use"""
-    pass
 
 class UniversalValidator:
     """Enhanced universal validator with comprehensive validation methods."""
@@ -67,17 +64,17 @@ class UniversalValidator:
         
         if value is None or value == "":
             if required:
-                raise ValidationError(f"{field_name} must be provided")
+                raise Exception(f"{field_name} must be provided")
             return ""
 
         if not isinstance(value, str):
-            raise ValidationError(f"{field_name} must be a string")
+            raise Exception(f"{field_name} must be a string")
 
         if len(value) > max_length:
-            raise ValidationError(f"{field_name} exceeds maximum length of {max_length} characters")
+            raise Exception(f"{field_name} exceeds maximum length of {max_length} characters")
 
         if pattern and not pattern.match(value):
-            raise ValidationError(f"{field_name} contains invalid characters")
+            raise Exception(f"{field_name} contains invalid characters")
 
         return value.strip()
 
@@ -85,12 +82,12 @@ class UniversalValidator:
     def validate_prompt(cls, prompt: str) -> str:
         """Validate and sanitize AI prompt input."""
         if not prompt or not isinstance(prompt, str):
-            raise ValidationError("Prompt must be a non-empty string")
+            raise Exception("Prompt must be a non-empty string")
 
         # Check for dangerous patterns
         for pattern in cls.DANGEROUS_PROMPT_PATTERNS:
             if re.search(pattern, prompt, re.IGNORECASE):
-                raise ValidationError("Prompt contains potentially dangerous content")
+                raise Exception("Prompt contains potentially dangerous content")
 
         return cls.validate_string(prompt, "prompt", cls.MAX_PROMPT_LENGTH)
 
@@ -108,13 +105,13 @@ class UniversalValidator:
     def validate_count(cls, count: int, min_count: int = 1, max_count: int = 100) -> int:
         """Validate count parameter."""
         if not isinstance(count, int):
-            raise ValidationError("Count must be an integer")
+            raise Exception("Count must be an integer")
         
         if count < min_count:
-            raise ValidationError(f"Count must be at least {min_count}")
+            raise Exception(f"Count must be at least {min_count}")
         
         if count > max_count:
-            raise ValidationError(f"Count cannot exceed {max_count}")
+            raise Exception(f"Count cannot exceed {max_count}")
         
         return count
 
@@ -127,7 +124,7 @@ class UniversalValidator:
     def validate_ip_address(cls, ip_address: str) -> str:
         """Validate IP address format."""
         if not ip_address:
-            raise ValidationError("IP address is required")
+            raise Exception("IP address is required")
 
         ip_pattern = re.compile(
             r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|'
@@ -135,10 +132,9 @@ class UniversalValidator:
         )
         
         if not ip_pattern.match(ip_address):
-            raise ValidationError("Invalid IP address format")
+            raise Exception("Invalid IP address format")
             
         return ip_address
-
 
 def validate_request(*field_names: str):
     """
@@ -147,6 +143,7 @@ def validate_request(*field_names: str):
     Args:
         *field_names: Fields to validate (e.g., 'prompt', 'device_id', 'session_id', 'count')
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -183,7 +180,7 @@ def validate_request(*field_names: str):
                 for field_name, validated_value in validated_data.items():
                     setattr(request, field_name, validated_value)
                 
-            except ValidationError as e:
+            except Exception as e:
                 raise HTTPException(status_code=400, detail=str(e))
             
             return await func(*args, **kwargs)
@@ -197,6 +194,7 @@ def validate_input(input_type: str = "general"):
     Args:
         input_type: Type of input to validate
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args, **kwargs):

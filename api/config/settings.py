@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from typing import Optional
 from pathlib import Path
+from json import loads
 
 api_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(api_dir))
@@ -63,18 +64,10 @@ class Settings:
     AUTH_ATTEMPT_WINDOW_MINUTES: int = int(os.getenv("AUTH_ATTEMPT_WINDOW_MINUTES", 60))
     SECURE_HEADERS: bool = os.getenv("SECURE_HEADERS", "true").lower() == "true"
 
-    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "*")
+    CORS_ORIGINS: list[str] = loads(os.getenv("CORS_ORIGINS", '["*"]'))
 
     MAX_PROMPT_LENGTH: int = int(os.getenv("MAX_PROMPT_LENGTH", 128))
     MAX_PLAYLIST_NAME_LENGTH: int = int(os.getenv("MAX_PLAYLIST_NAME_LENGTH", 100))
-    
-    def get_cors_origins(self) -> list[str]:
-        """Get CORS origins list, allow all if debug mode is enabled"""
-
-        if self.DEBUG:
-            return ["*"]
-            
-        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
     
     def validate_required_settings(self) -> list[str]:
         """Validate that required settings are configured for production"""

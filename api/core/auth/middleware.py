@@ -26,20 +26,6 @@ class AuthMiddleware(SingletonServiceBase):
         self.auth_service = auth_service
         self._log_initialization("Auth middleware initialized successfully", logger)
 
-    async def validate_session_from_headers(self, request: Request) -> Dict[str, str]:
-        session_id = request.headers.get('session_id')
-        device_id = request.headers.get('device_id')
-
-        if not session_id or not device_id:
-            raise HTTPException(status_code=422, detail="Missing session_id or device_id headers")
-
-        user_info = await self.auth_service.validate_session_and_get_user(session_id, device_id)
-
-        if not user_info:
-            raise HTTPException(status_code=401, detail="Invalid or expired session")
-
-        return user_info
-
     async def validate_session_from_request(self, session_id: str, device_id: str) -> Dict[str, str]:
         if not session_id or not device_id:
             raise HTTPException(status_code=422, detail="Missing session_id or device_id")

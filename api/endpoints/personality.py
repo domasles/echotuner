@@ -49,13 +49,13 @@ async def save_user_personality(request: UserPersonalityRequest):
         raise HTTPException(status_code=500, detail="Failed to save personality")
 
 @router.get("/load", response_model=Dict[str, Any])
-async def load_user_personality(request: Request):
+async def load_user_personality(request: UserPersonalityRequest):
     try:
-        user_info = await auth_middleware.validate_session_from_headers(request)
+        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
 
         user_context = await personality_service.get_user_personality(
-            session_id=request.headers.get('session_id'),
-            device_id=request.headers.get('device_id')
+            session_id=request.session_id,
+            device_id=request.device_id
         )
 
         if user_context:
@@ -74,7 +74,7 @@ async def load_user_personality(request: Request):
 @router.post("/clear")
 @debug_only
 @validate_request('session_id', 'device_id')
-async def clear_user_personality(request: UserPersonalityClearRequest):
+async def clear_user_personality(request: UserPersonalityRequest):
     """Clear user personality preferences"""
 
     try:
@@ -93,15 +93,15 @@ async def clear_user_personality(request: UserPersonalityClearRequest):
         raise HTTPException(status_code=500, detail="Failed to clear personality")
 
 @router.get("/followed-artists", response_model=FollowedArtistsResponse)
-async def get_followed_artists(request: Request, limit: int = 50):
+async def get_followed_artists(request: UserPersonalityRequest, limit: int = 50):
     """Get user's followed artists from Spotify"""
 
     try:
-        user_info = await auth_middleware.validate_session_from_headers(request)
+        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
 
         artists = await personality_service.get_followed_artists(
-            session_id=request.headers.get('session_id'),
-            device_id=request.headers.get('device_id'),
+            session_id=request.session_id,
+            device_id=request.device_id,
             limit=limit
         )
 

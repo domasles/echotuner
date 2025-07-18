@@ -6,21 +6,23 @@ session management, error handling, and transaction control.
 """
 
 import logging
+
 from functools import wraps
 from typing import Callable
 
 logger = logging.getLogger(__name__)
 
-
 def db_write_operation(operation_name: str = None, log_success: bool = True, raise_on_error: bool = True, return_on_error=None):
     """
     Decorator for database write operations.
+
     Provides:
     - Session management
     - Error handling and logging
     - Transaction management
     - Consistent return patterns
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
@@ -41,7 +43,6 @@ def db_write_operation(operation_name: str = None, log_success: bool = True, rai
                 logger.error(error_msg)
                 
                 if raise_on_error:
-                    # Import UniversalValidator here to avoid circular imports
                     from utils.exceptions import OperationFailedError
                     raise OperationFailedError(str(e))
                 
@@ -56,6 +57,7 @@ def db_read_operation(operation_name: str = None):
     Decorator for read-only database operations.
     No transaction commit needed.
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
@@ -80,6 +82,7 @@ def db_count_operation(operation_name: str = None):
     Decorator for database count operations.
     Returns 0 on error.
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
@@ -104,6 +107,7 @@ def db_list_operation(operation_name: str = None):
     Decorator for database operations that return lists.
     Returns empty list on error.
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
@@ -128,6 +132,7 @@ def db_bool_operation(operation_name: str = None):
     Decorator for database operations that return boolean.
     Returns False on error.
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(self, *args, **kwargs):

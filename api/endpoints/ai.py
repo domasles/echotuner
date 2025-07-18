@@ -4,7 +4,7 @@ import logging
 
 from fastapi import HTTPException, APIRouter
 
-from config.security import security_config
+from config.security import security
 
 from services.ai.ai import ai_service
 
@@ -59,7 +59,7 @@ async def test_ai_model(request):
 async def production_readiness_check():
     """Check if the API is ready for production deployment"""
 
-    issues = security_config.validate_production_readiness()
+    issues = security.validate_production_readiness()
 
     return {
         "production_ready": len(issues) == 0,
