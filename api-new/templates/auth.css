@@ -1,0 +1,58 @@
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 50px;
+    background: #0F0A1A;
+    color: white;
+    margin: 0;
+}
+
+.auth-container {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.auth-icon {
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.auth-icon.success {
+    background: #8B5CF6;
+}
+
+.auth-icon.error {
+    background: #ff6b6b;
+}
+
+.auth-title {
+    margin: 0 0 10px;
+}
+
+.auth-title.success {
+    color: #8B5CF6;
+}
+
+.auth-title.error {
+    color: #ff6b6b;
+}
+
+.auth-message {
+    color: #cccccc;
+    margin: 0 0 30px;
+}
+
+.auth-error-detail {
+    color: white;
+    margin: 0 0 20px;
+}
+
+.auth-footer {
+    color: #999999;
+    font-size: 14px;
+}

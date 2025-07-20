@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Successful - EchoTuner</title>
+    <link rel="stylesheet" href="/static/css/auth.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-icon success">
+            <svg width="40" height="40" fill="white" viewBox="0 0 24 24">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+            </svg>
+        </div>
+        <h1 class="auth-title success">Success!</h1>
+        <p class="auth-message">You've successfully connected your Spotify account.</p>
+        <p class="auth-footer">You can now close this window and return to the app.</p>
+    </div>
+    <script nonce="{{nonce}}">
+        if (window.opener) {
+            window.opener.postMessage({
+                type: 'SPOTIFY_AUTH_SUCCESS',
+                sessionId: '{{session_id}}',
+                deviceId: '{{device_id}}'
+            }, '*');
+        }
+
+        setTimeout(() => {window.close();}, 3000);
+    </script>
+</body>
+</html>
