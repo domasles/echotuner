@@ -25,7 +25,7 @@ from .playlist_models import (
 from .spotify_models import (
     SpotifyArtist, SpotifyPlaylistRequest, SpotifyPlaylistResponse,
     SpotifyPlaylistInfo, SpotifyPlaylistTracksRequest,
-    SpotifyPlaylistDeleteRequest, SpotifyPlaylistTrackRemoveRequest,
+    SpotifyPlaylistTrackRemoveRequest,
     FollowedArtistsRequest, FollowedArtistsResponse,
     ArtistSearchRequest, ArtistSearchResponse
 )

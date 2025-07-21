@@ -4,7 +4,7 @@ Playlist related ORM models.
 
 from sqlalchemy import Column, String, Boolean, Text, ForeignKey
 
-from ..service import Base
+from ..core import Base
 
 class PlaylistDraft(Base):
     """Playlist drafts table."""

@@ -28,7 +28,7 @@ def db_write_operation(operation_name: str = None, log_success: bool = True, rai
         async def wrapper(self, *args, **kwargs):
             name = operation_name or func.__name__
             try:
-                from infrastructure.database.service import get_session
+                from infrastructure.database import get_session
                 async with get_session() as session:
                     result = await func(self, session, *args, **kwargs)
                     await session.commit()
@@ -63,7 +63,7 @@ def db_read_operation(operation_name: str = None):
         async def wrapper(self, *args, **kwargs):
             name = operation_name or func.__name__
             try:
-                from infrastructure.database.service import get_session
+                from infrastructure.database import get_session
                 async with get_session() as session:
                     result = await func(self, session, *args, **kwargs)
                     logger.debug(f"{name} completed successfully")
@@ -88,7 +88,7 @@ def db_count_operation(operation_name: str = None):
         async def wrapper(self, *args, **kwargs):
             name = operation_name or func.__name__
             try:
-                from infrastructure.database.service import get_session
+                from infrastructure.database import get_session
                 async with get_session() as session:
                     result = await func(self, session, *args, **kwargs)
                     logger.debug(f"{name} completed successfully")
@@ -113,7 +113,7 @@ def db_list_operation(operation_name: str = None):
         async def wrapper(self, *args, **kwargs):
             name = operation_name or func.__name__
             try:
-                from infrastructure.database.service import get_session
+                from infrastructure.database import get_session
                 async with get_session() as session:
                     result = await func(self, session, *args, **kwargs)
                     logger.debug(f"{name} completed successfully")
@@ -138,7 +138,7 @@ def db_bool_operation(operation_name: str = None):
         async def wrapper(self, *args, **kwargs):
             name = operation_name or func.__name__
             try:
-                from infrastructure.database.service import get_session
+                from infrastructure.database import get_session
                 async with get_session() as session:
                     result = await func(self, session, *args, **kwargs)
                     await session.commit()

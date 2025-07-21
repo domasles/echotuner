@@ -14,7 +14,7 @@ from infrastructure.config.app_constants import AppConstants
 from domain.shared.validation.validators import UniversalValidator
 from domain.shared.exceptions import handle_service_errors, raise_ai_error, ErrorCode
 
-from infrastructure.database.service import get_session
+from infrastructure.database import get_session
 from infrastructure.database.models import EmbeddingCache
 from sqlalchemy.future import select
 from sqlalchemy import and_, delete, update, func

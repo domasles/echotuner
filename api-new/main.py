@@ -26,7 +26,6 @@ from infrastructure.logging.config import configure_logging
 
 # Service imports for registration
 from infrastructure.filesystem.service import filesystem_service
-from infrastructure.database.service import db_service
 from infrastructure.ai.cache_service import embedding_cache_service
 from infrastructure.data.service import data_loader
 from infrastructure.rate_limiting.limit_service import rate_limiter_service
@@ -68,7 +67,6 @@ async def lifespan(app: FastAPI):
     try:
         # Register services with service manager
         service_manager.register_service("filesystem_service", filesystem_service)
-        service_manager.register_service("database_service", db_service)
         service_manager.register_service("embedding_cache_service", embedding_cache_service)
         service_manager.register_service("data_service", data_loader)
         service_manager.register_service("rate_limiter_service", rate_limiter_service)

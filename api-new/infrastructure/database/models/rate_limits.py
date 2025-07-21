@@ -4,7 +4,7 @@ Rate limiting ORM models.
 
 from sqlalchemy import Column, String, Integer
 
-from ..service import Base
+from ..core import Base
 
 class RateLimit(Base):
     """Rate limits table for request tracking."""

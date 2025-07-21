@@ -6,6 +6,7 @@ Manages user personality and preferences, including saving and retrieving user c
 import logging
 import json
 
+from datetime import datetime
 from typing import Optional, List
 
 from application import UserContext, SpotifyArtist
@@ -14,7 +15,8 @@ from application.core.singleton import SingletonServiceBase
 from infrastructure.config.settings import settings
 
 from infrastructure.spotify.service import spotify_search_service
-from infrastructure.database.service import db_service
+from infrastructure.database.repository import repository
+from infrastructure.database.models.users import UserPersonality
 from domain.auth.service import auth_service
 
 logger = logging.getLogger(__name__)
@@ -30,6 +32,7 @@ class PersonalityService(SingletonServiceBase):
 
         self.auth_service = auth_service
         self.spotify_search = spotify_search_service
+        self.repository = repository
 
         self._log_initialization("Personality service initialized successfully", logger)
 
@@ -57,7 +60,23 @@ class PersonalityService(SingletonServiceBase):
 
             user_id = spotify_user_id
             logger.debug(f"Saving personality for user {user_id}")
-            success = await db_service.save_user_personality(user_id, spotify_user_id, user_context)
+            
+            # Check if user personality already exists
+            existing_personality = await self.repository.get_by_field(UserPersonality, 'user_id', user_id)
+            
+            personality_data = {
+                'user_id': user_id,
+                'spotify_user_id': spotify_user_id,
+                'user_context': user_context,
+                'updated_at': datetime.now().isoformat()
+            }
+            
+            if existing_personality:
+                success = await self.repository.update(UserPersonality, existing_personality.id, personality_data)
+            else:
+                personality_data['created_at'] = datetime.now().isoformat()
+                result = await self.repository.create(UserPersonality, personality_data)
+                success = result is not None
 
             if success:
                 logger.debug(f"Successfully saved personality for user {user_id}")
@@ -88,10 +107,10 @@ class PersonalityService(SingletonServiceBase):
                 return None
 
             user_id = spotify_user_id
-            user_context_json = await db_service.get_user_personality(user_id)
+            user_personality = await self.repository.get_by_field(UserPersonality, 'user_id', user_id)
 
-            if user_context_json:
-                user_context_data = json.loads(user_context_json)
+            if user_personality:
+                user_context_data = json.loads(user_personality.user_context)
                 return UserContext(**user_context_data)
 
         except Exception as e:

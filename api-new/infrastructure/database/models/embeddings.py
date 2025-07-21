@@ -4,7 +4,7 @@ Embedding cache ORM model.
 
 from sqlalchemy import Column, String, Text, Integer, JSON
 
-from ..service import Base
+from ..core import Base
 
 class EmbeddingCache(Base):
     """Embedding cache table for storing AI response vectors."""

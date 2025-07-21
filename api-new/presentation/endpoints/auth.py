@@ -11,7 +11,7 @@ from sqlalchemy import delete
 from application import AuthInitRequest, AuthInitResponse, SessionValidationRequest, SessionValidationResponse, DeviceRegistrationRequest, DeviceRegistrationResponse, RateLimitStatus, AccountTypeResponse
 
 from infrastructure.config.settings import settings
-from infrastructure.database.service import get_session
+from infrastructure.database import get_session
 from infrastructure.database.models import AuthAttempt
 
 from infrastructure.rate_limiting.ip_limit_service import ip_rate_limiter_service
@@ -71,10 +71,16 @@ async def auth_init(request: AuthInitRequest, http_request: Request):
                 
                 if not await auth_service.validate_device(device_id, update_last_seen=False):
                     try:
-                        await auth_service.register_device_with_id(
-                            device_id=device_id,
-                            platform=request.platform
-                        )
+                        device_data = {
+                            'device_id': device_id,
+                            'platform': request.platform,
+                            'app_version': getattr(request, 'app_version', None),
+                            'device_fingerprint': getattr(request, 'device_fingerprint', None),
+                            'registration_timestamp': int(datetime.now().timestamp()),
+                            'last_seen_timestamp': int(datetime.now().timestamp()),
+                            'is_active': True
+                        }
+                        await auth_service.register_device(device_data)
                     except Exception as e:
                         logger.error(f"Failed to auto-register device: {e}")
                         raise HTTPException(status_code=500, detail="Failed to register device")
@@ -94,16 +100,22 @@ async def auth_init(request: AuthInitRequest, http_request: Request):
 
         if not await auth_service.validate_device(device_id, update_last_seen=False):
             try:
-                await auth_service.register_device_with_id(
-                    device_id=device_id,
-                    platform=request.platform
-                )
+                device_data = {
+                    'device_id': device_id,
+                    'platform': request.platform,
+                    'app_version': getattr(request, 'app_version', None),
+                    'device_fingerprint': getattr(request, 'device_fingerprint', None),
+                    'registration_timestamp': int(datetime.now().timestamp()),
+                    'last_seen_timestamp': int(datetime.now().timestamp()),
+                    'is_active': True
+                }
+                await auth_service.register_device(device_data)
 
             except Exception as e:
                 logger.error(f"Failed to auto-register device: {e}")
                 raise HTTPException(status_code=500, detail="Failed to register device")
 
-        auth_url, state = auth_service.generate_auth_url()
+        auth_url, state = await auth_service.generate_auth_url(device_id, request.platform)
 
         await auth_service.store_auth_state(state, device_id, request.platform)
         return AuthInitResponse(auth_url=auth_url, state=state, device_id=device_id)
@@ -217,12 +229,16 @@ async def check_session(request: Request, device_id: str = None):
         if not device_id:
             return {"message": "Device ID required in headers or query parameter", "success": False}
 
-        session_id = await auth_service.get_session_by_device(device_id)
+        logger.info(f"Check session for device_id: {device_id}")
+        session_info = await auth_service.get_session_by_device(device_id)
+        logger.info(f"Session info result: {session_info}")
 
-        if session_id:
-            return {"session_id": session_id, "device_id": device_id}
+        if session_info:
+            logger.info(f"Returning session_id: {session_info['session_id']}")
+            return {"session_id": session_info['session_id'], "device_id": device_id}
 
         else:
+            logger.info("No session found, returning None")
             return {"session_id": None}
 
     except Exception as e:

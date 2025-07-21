@@ -10,7 +10,8 @@ from domain.shared.validation.validators import validate_request
 from application import UserPersonalityRequest, UserPersonalityResponse, UserPersonalityClearRequest, FollowedArtistsResponse, ArtistSearchRequest, ArtistSearchResponse
 from domain.personality.service import personality_service
 from domain.auth.middleware import auth_middleware
-from infrastructure.database.service import db_service
+from infrastructure.database.repository import repository
+from infrastructure.database.models.users import UserPersonality
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,12 @@ async def clear_user_personality(request: UserPersonalityRequest):
         user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
         spotify_user_id = user_info.get('spotify_user_id')
 
-        success = await db_service.delete_user_personality(spotify_user_id)
+        user_personality = await repository.get_by_field(UserPersonality, 'user_id', spotify_user_id)
+        
+        if user_personality:
+            success = await repository.delete(UserPersonality, user_personality.id)
+        else:
+            success = True  # Already doesn't exist
 
         return {"success": True, "message": "Personality cleared successfully"}
 

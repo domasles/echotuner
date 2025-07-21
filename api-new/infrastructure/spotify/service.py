@@ -45,7 +45,7 @@ class SpotifySearchService(SingletonServiceBase):
                 logger.error("Spotify credentials not found")
                 raise RuntimeError("Spotify credentials are required. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables.")
 
-            cache_handler = CacheFileHandler(cache_path=app_constants.SPOTIFY_TOKEN_CACHE_FILEPATH)
+            cache_handler = CacheFileHandler(cache_path=app_constants.SPOTIFY_CACHE_PATH)
 
             client_credentials_manager = SpotifyClientCredentials(
                 client_id=self.client_id,

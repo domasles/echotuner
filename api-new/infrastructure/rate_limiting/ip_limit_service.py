@@ -10,7 +10,8 @@ from datetime import datetime, timedelta
 
 from application.core.singleton import SingletonServiceBase
 
-from infrastructure.database.service import db_service
+from infrastructure.database.repository import repository
+from infrastructure.database.models.rate_limits import IPAttempt
 from infrastructure.config.settings import settings
 
 from domain.shared.validation.validators import UniversalValidator
@@ -46,7 +47,14 @@ class IPRateLimiterService(SingletonServiceBase):
             current_time = datetime.now()
             window_start = current_time - timedelta(minutes=self.window_minutes)
 
-            attempts_count = await db_service.get_ip_attempts_count(ip_hash, window_start.timestamp())
+            # Count attempts within time window using repository
+            attempts = await repository.list_with_conditions(IPAttempt, {
+                'ip_hash': ip_hash
+            })
+            
+            # Filter by time window (since repository doesn't support complex queries)
+            attempts_count = sum(1 for attempt in attempts 
+                               if attempt.attempted_at >= window_start.timestamp())
 
             return attempts_count >= self.max_attempts
             
@@ -73,7 +81,9 @@ class IPRateLimiterService(SingletonServiceBase):
                 'created_at': current_time.isoformat()
             }
 
-            return await db_service.record_ip_attempt(attempt_data)
+            # Record attempt using repository
+            attempt = await repository.create(IPAttempt, attempt_data)
+            return attempt is not None
             
         except ValueError as e:
             logger.warning(f"Invalid IP address for failed attempt: {e}")
@@ -90,7 +100,11 @@ class IPRateLimiterService(SingletonServiceBase):
             validated_ip = UniversalValidator.validate_ip_address(ip_address)
             ip_hash = self._get_ip_hash(validated_ip)
             
-            return await db_service.clear_ip_attempts(ip_hash)
+            # Clear attempts using repository - delete by conditions
+            deleted_count = await repository.delete_by_conditions(IPAttempt, {
+                'ip_hash': ip_hash
+            })
+            return deleted_count > 0
             
         except ValueError as e:
             logger.warning(f"Invalid IP address for clearing attempts: {e}")
@@ -110,7 +124,14 @@ class IPRateLimiterService(SingletonServiceBase):
             current_time = datetime.now()
             window_start = current_time - timedelta(minutes=self.window_minutes)
             
-            attempts_count = await db_service.get_ip_attempts_count(ip_hash, window_start.timestamp())
+            # Get attempts within time window using repository
+            attempts = await repository.list_with_conditions(IPAttempt, {
+                'ip_hash': ip_hash
+            })
+            
+            # Filter by time window
+            attempts_count = sum(1 for attempt in attempts 
+                               if attempt.attempted_at >= window_start.timestamp())
             
             return max(0, self.max_attempts - attempts_count)
             
@@ -127,7 +148,19 @@ class IPRateLimiterService(SingletonServiceBase):
 
         try:
             cleanup_before = datetime.now() - timedelta(minutes=self.window_minutes * 2)
-            return await db_service.cleanup_expired_ip_attempts(cleanup_before.timestamp())
+            
+            # Get all attempts and filter by timestamp, then delete
+            all_attempts = await repository.list_all(IPAttempt)
+            expired_attempts = [attempt for attempt in all_attempts 
+                              if attempt.attempted_at < cleanup_before.timestamp()]
+            
+            deleted_count = 0
+            for attempt in expired_attempts:
+                success = await repository.delete(IPAttempt, attempt.id)
+                if success:
+                    deleted_count += 1
+            
+            return deleted_count
             
         except Exception as e:
             logger.error(f"Error cleaning up expired IP attempts: {e}")

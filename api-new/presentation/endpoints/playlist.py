@@ -4,6 +4,7 @@ import logging
 import uuid
 import re
 
+from datetime import datetime
 from fastapi import HTTPException, APIRouter
 
 from domain.auth.decorators import debug_only
@@ -20,7 +21,8 @@ from domain.playlist.draft import playlist_draft_service
 from infrastructure.rate_limiting.limit_service import rate_limiter_service
 from domain.personality.service import personality_service
 from domain.auth.middleware import auth_middleware
-from infrastructure.database.service import db_service
+from infrastructure.database.repository import repository
+from infrastructure.database.models.playlists import DemoPlaylist
 from domain.auth.service import auth_service
 
 logger = logging.getLogger(__name__)
@@ -114,12 +116,14 @@ async def generate_playlist(request: PlaylistRequest):
         if user_info and user_info.get('account_type') == 'demo':
             playlist_id = str(uuid.uuid4())
 
-            await db_service.add_demo_playlist(
-                playlist_id=playlist_id,
-                device_id=request.device_id,
-                session_id=request.session_id,
-                prompt=request.prompt
-            )
+            await repository.create(DemoPlaylist, {
+                'playlist_id': playlist_id,
+                'device_id': request.device_id,
+                'session_id': request.session_id,
+                'prompt': request.prompt,
+                'created_at': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat()
+            })
 
         else:
             playlist_id = await playlist_draft_service.save_draft(

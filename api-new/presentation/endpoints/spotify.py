@@ -7,12 +7,11 @@ from fastapi import HTTPException, APIRouter
 from domain.auth.decorators import debug_only
 from domain.shared.validation.validators import validate_request
 
-from application import SpotifyPlaylistRequest, SpotifyPlaylistResponse, SpotifyPlaylistTracksRequest, SpotifyPlaylistDeleteRequest, SpotifyPlaylistTrackRemoveRequest
+from application import SpotifyPlaylistRequest, SpotifyPlaylistResponse, SpotifyPlaylistTracksRequest, SpotifyPlaylistTrackRemoveRequest
 
 from domain.playlist.spotify import spotify_playlist_service
 from domain.playlist.draft import playlist_draft_service
 from domain.auth.middleware import auth_middleware
-from infrastructure.database.service import db_service
 from domain.auth.service import auth_service
 
 logger = logging.getLogger(__name__)
@@ -132,40 +131,6 @@ async def get_spotify_playlist_tracks(request: SpotifyPlaylistTracksRequest):
     except Exception as e:
         logger.error(f"Failed to get Spotify playlist tracks: {e}")
         raise HTTPException(status_code=500, detail="Failed to get Spotify playlist tracks")
-
-@router.delete("/playlist")
-async def delete_spotify_playlist(request: SpotifyPlaylistDeleteRequest):
-    """Delete/unfollow a Spotify playlist."""
-
-    try:
-        user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
-
-        if not user_info:
-            raise HTTPException(status_code=401, detail="Invalid or expired session")
-
-        if not spotify_playlist_service.is_ready():
-            raise HTTPException(status_code=503, detail="Spotify playlist service not available")
-
-        access_token = await auth_service.get_access_token(request.session_id)
-
-        if not access_token:
-            raise HTTPException(status_code=401, detail="No valid access token")
-
-        success = await spotify_playlist_service.delete_playlist(access_token, request.playlist_id)
-        
-        if success:
-            await playlist_draft_service.remove_spotify_playlist_tracking(request.playlist_id)
-            return {"message": "Playlist deleted/unfollowed successfully"}
-
-        else:
-            raise HTTPException(status_code=500, detail="Failed to delete playlist from Spotify")
-
-    except HTTPException:
-        raise
-
-    except Exception as e:
-        logger.error(f"Failed to delete Spotify playlist {request.playlist_id}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to delete Spotify playlist")
 
 @router.delete("/playlist/track")
 async def remove_track_from_spotify_playlist(request: SpotifyPlaylistTrackRemoveRequest):

@@ -13,7 +13,8 @@ from application import RateLimitStatus
 
 from infrastructure.config.settings import settings
 
-from infrastructure.database.service import db_service
+from infrastructure.database.repository import repository
+from infrastructure.database.models.rate_limits import RateLimit
 
 from domain.shared.validation.validators import UniversalValidator
 
@@ -30,6 +31,7 @@ class RateLimiterService(SingletonServiceBase):
 
         self.is_rate_limiting_enabled = settings.PLAYLIST_LIMIT_ENABLED
         self.max_requests_per_day = settings.MAX_PLAYLISTS_PER_DAY
+        self.repository = repository
 
         self._log_initialization("Rate limiter service initialized successfully", logger)
 
@@ -75,13 +77,13 @@ class RateLimiterService(SingletonServiceBase):
             device_hash = self._get_device_hash(device_id)
             current_date = datetime.now().date().isoformat()
 
-            rate_data = await db_service.get_rate_limit_status(device_hash, current_date)
+            rate_limit = await self.repository.get_by_field(RateLimit, 'user_id', device_hash)
 
-            if not rate_data:
+            if not rate_limit:
                 return True
 
-            requests_count = rate_data.get('requests_count', 0)
-            last_request_date = rate_data.get('last_request_date', '')
+            requests_count = rate_limit.requests_count
+            last_request_date = rate_limit.last_request_date
 
             if not self._is_same_day(last_request_date):
                 return True
@@ -99,20 +101,30 @@ class RateLimiterService(SingletonServiceBase):
             device_hash = self._get_device_hash(device_id)
             current_date = datetime.now().date().isoformat()
 
-            rate_data = await db_service.get_rate_limit_status(device_hash, current_date)
+            rate_limit = await self.repository.get_by_field(RateLimit, 'user_id', device_hash)
 
-            if rate_data:
-                request_count = rate_data.get('requests_count', 0)
-                last_request_date = rate_data.get('last_request_date', '')
+            if rate_limit:
+                request_count = rate_limit.requests_count
+                last_request_date = rate_limit.last_request_date
 
                 if not self._is_same_day(last_request_date):
                     request_count = 0
 
                 new_count = request_count + 1
-                await db_service.update_rate_limit_requests(device_hash, current_date, new_count)
+                await self.repository.update(RateLimit, device_hash, {
+                    'requests_count': new_count,
+                    'last_request_date': current_date,
+                    'updated_at': datetime.now().isoformat()
+                }, id_field='user_id')
 
             else:
-                await db_service.update_rate_limit_requests(device_hash, current_date, 1)
+                await self.repository.create(RateLimit, {
+                    'user_id': device_hash,
+                    'requests_count': 1,
+                    'last_request_date': current_date,
+                    'created_at': datetime.now().isoformat(),
+                    'updated_at': datetime.now().isoformat()
+                })
 
         except Exception as e:
             logger.error(f"Error recording request: {e}")
@@ -124,9 +136,9 @@ class RateLimiterService(SingletonServiceBase):
 
         try:
             current_date = datetime.now().date().isoformat()
-            rate_data = await db_service.get_rate_limit_status(device_hash, current_date)
+            rate_limit = await self.repository.get_by_field(RateLimit, 'user_id', device_hash)
 
-            if not rate_data:
+            if not rate_limit:
                 return RateLimitStatus(
                     device_id=device_id,
                     requests_made_today=0,
@@ -135,8 +147,8 @@ class RateLimiterService(SingletonServiceBase):
                     playlist_limit_enabled=settings.PLAYLIST_LIMIT_ENABLED
                 )
 
-            request_count = rate_data.get('requests_count', 0)
-            last_request_date = rate_data.get('last_request_date', '')
+            request_count = rate_limit.requests_count
+            last_request_date = rate_limit.last_request_date
 
             if not self._is_same_day(last_request_date):
                 request_count = 0
@@ -168,7 +180,10 @@ class RateLimiterService(SingletonServiceBase):
         """Reset all daily limits (for testing purposes)"""
 
         try:
-            await db_service.delete_record('rate_limits', '1=1')
+            # Delete all rate limit records
+            rate_limits = await self.repository.list_with_conditions(RateLimit, [])
+            for rate_limit in rate_limits:
+                await self.repository.delete(RateLimit, rate_limit.user_id, id_field='user_id')
             logger.info("Daily limits reset successfully")
 
         except Exception as e:

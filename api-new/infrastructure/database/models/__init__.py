@@ -3,7 +3,7 @@ Database models package.
 SQLAlchemy ORM models for all database entities.
 """
 
-from ..service import Base
+from ..core import Base
 from .auth import AuthSession, DeviceRegistry, AuthState, AuthAttempt, DemoOwnerToken
 from .playlists import PlaylistDraft, SpotifyPlaylist, DemoPlaylist
 from .rate_limits import RateLimit, IPAttempt

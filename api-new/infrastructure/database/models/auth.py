@@ -5,7 +5,7 @@ Authentication related ORM models.
 from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, Text
 from sqlalchemy.orm import relationship
 
-from ..service import Base
+from ..core import Base
 
 class DeviceRegistry(Base):
     """Device registry table for managing registered devices."""

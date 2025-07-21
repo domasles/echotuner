@@ -45,12 +45,6 @@ class SpotifyPlaylistTracksRequest(BaseModel):
     device_id: str
 
 
-class SpotifyPlaylistDeleteRequest(BaseModel):
-    playlist_id: str
-    session_id: str
-    device_id: str
-
-
 class SpotifyPlaylistTrackRemoveRequest(BaseModel):
     playlist_id: str
     track_uri: str

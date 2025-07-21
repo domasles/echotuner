@@ -4,7 +4,7 @@ User related ORM models.
 
 from sqlalchemy import Column, String, Integer, Text
 
-from ..service import Base
+from ..core import Base
 
 class UserPersonality(Base):
     """User personality data table."""

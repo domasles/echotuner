@@ -18,7 +18,8 @@ from infrastructure.config.app_constants import AppConstants
 from infrastructure.config.settings import settings
 from domain.shared.exceptions import handle_service_errors, raise_playlist_error, ErrorCode
 
-from infrastructure.database.service import db_service
+from infrastructure.database.repository import repository
+from infrastructure.database.models.playlists import PlaylistDraft, SpotifyPlaylist
 
 from domain.shared.validation.validators import UniversalValidator
 
@@ -33,6 +34,7 @@ class PlaylistDraftService(SingletonServiceBase):
     def _setup_service(self):
         """Initialize the PlaylistDraftService."""
 
+        self.repository = repository
         self._log_initialization("Playlist draft service initialized with ORM", logger)
 
     @handle_service_errors("initialize_playlist_draft_service")
@@ -317,30 +319,34 @@ class PlaylistDraftService(SingletonServiceBase):
     async def mark_as_added_to_spotify(self, playlist_id: str, spotify_playlist_id: str, spotify_url: str, user_id: str, device_id: str, session_id: str, playlist_name: str) -> bool:
         """Mark a playlist draft as added to Spotify."""
         try:
-            return await db_service.mark_as_added_to_spotify(
-                playlist_id=playlist_id,
-                spotify_playlist_id=spotify_playlist_id,
-                spotify_url=spotify_url,
-                user_id=user_id,
-                device_id=device_id,
-                session_id=session_id,
-                playlist_name=playlist_name
-            )
+            # Update the playlist draft to mark it as added to Spotify
+            draft = await self.repository.get_by_field(PlaylistDraft, 'id', playlist_id)
+            if draft:
+                await self.repository.update(PlaylistDraft, playlist_id, {
+                    'spotify_playlist_id': spotify_playlist_id,
+                    'spotify_playlist_url': spotify_url,
+                    'status': 'added_to_spotify',
+                    'updated_at': datetime.now().isoformat()
+                })
+
+            # Create a tracking record in SpotifyPlaylist table
+            spotify_playlist_data = {
+                'spotify_playlist_id': spotify_playlist_id,
+                'user_id': user_id,
+                'device_id': device_id,
+                'session_id': session_id,
+                'original_draft_id': playlist_id,
+                'playlist_name': playlist_name,
+                'created_at': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat()
+            }
+
+            await self.repository.create(SpotifyPlaylist, spotify_playlist_data)
+            logger.info(f"Marked playlist {playlist_id} as added to Spotify with ID {spotify_playlist_id}")
+            return True
+            
         except Exception as e:
             logger.error(f"Failed to mark playlist as added to Spotify: {e}")
-            return False
-
-    @handle_service_errors("remove_spotify_playlist_tracking")
-    async def remove_spotify_playlist_tracking(self, spotify_playlist_id: str) -> bool:
-        """Remove tracking of a Spotify playlist when it's deleted."""
-        try:
-            # Remove the playlist from drafts if it exists
-            success = await db_service.remove_spotify_playlist_from_drafts(spotify_playlist_id)
-            if success:
-                logger.info(f"Removed Spotify playlist tracking for {spotify_playlist_id}")
-            return success
-        except Exception as e:
-            logger.error(f"Failed to remove Spotify playlist tracking for {spotify_playlist_id}: {e}")
             return False
 
 # Create singleton instance

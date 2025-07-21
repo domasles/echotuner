@@ -219,55 +219,6 @@ class SpotifyPlaylistService(SingletonServiceBase):
             else:
                 raise Exception(f"Failed to get playlist tracks: {response.status}")
 
-    async def delete_playlist(self, access_token: str, playlist_id: str) -> bool:
-        """
-        Delete/unfollow a Spotify playlist.
-        For owned playlists, this will unfollow them.
-        Returns True if successful, False otherwise.
-        """
-
-        try:
-            async with aiohttp.ClientSession() as session:
-                headers = {'Authorization': f'Bearer {access_token}'}
-                playlist_url = f'https://api.spotify.com/v1/playlists/{playlist_id}'
-
-                async with session.get(playlist_url, headers=headers) as response:
-                    if response.status == 200:
-                        playlist_data = await response.json()
-                        owner_id = playlist_data.get('owner', {}).get('id')
-                        user_url = 'https://api.spotify.com/v1/me'
-
-                        async with session.get(user_url, headers=headers) as user_response:
-                            if user_response.status == 200:
-                                user_data = await user_response.json()
-                                current_user_id = user_data.get('id')
-
-                                if owner_id == current_user_id:
-                                    logger.debug(f"User owns playlist {playlist_id}, unfollowing instead of deleting")
-
-                                unfollow_url = f'https://api.spotify.com/v1/playlists/{playlist_id}/followers'
-
-                                async with session.delete(unfollow_url, headers=headers) as unfollow_response:
-                                    if unfollow_response.status in [200, 204]:
-                                        logger.debug(f"Successfully unfollowed playlist {playlist_id}")
-                                        return True
-
-                                    else:
-                                        logger.error(f"Failed to unfollow playlist: {unfollow_response.status}")
-                                        return False
-
-                            else:
-                                logger.error(f"Failed to get user info: {user_response.status}")
-                                return False
-
-                    else:
-                        logger.error(f"Failed to get playlist info: {response.status}")
-                        return False
-
-        except Exception as e:
-            logger.error(f"Error deleting/unfollowing playlist {playlist_id}: {e}")
-            return False
-
     async def get_playlist_details(self, access_token: str, playlist_id: str) -> Dict[str, Any]:
         """Get detailed information about a specific Spotify playlist including current track count."""
 
