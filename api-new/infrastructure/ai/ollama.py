@@ -59,27 +59,3 @@ class OllamaProvider(BaseAIProvider):
 
             result = await response.json()
             return result.get("response", "")
-
-    @ensure_session_initialized
-    async def get_embedding(self, text: str, **kwargs) -> List[float]:
-        """Get embedding using Ollama."""
-
-        if not self.embedding_model:
-            raise Exception("No embedding model configured for Ollama")
-
-        payload = {
-            "model": self.embedding_model,
-            "prompt": text
-        }
-
-        async with self._session.post(
-            f"{self.endpoint}/api/embeddings",
-            json=payload,
-            timeout=self.timeout
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"Ollama embedding request failed: {error_text}")
-
-            result = await response.json()
-            return result.get("embedding", [])

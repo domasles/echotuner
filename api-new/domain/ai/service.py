@@ -80,29 +80,6 @@ class AIService(SingletonServiceBase):
 
             raise Exception(f"Text generation failed: {sanitized_error}")
 
-    async def get_embedding(self, text: str, provider_id: Optional[str] = None, **kwargs) -> List[float]:
-        """
-        Get text embedding using the specified provider.
-
-        Args:
-            text: Input text for embedding
-            provider_id: Optional provider ID (uses default if None)
-            **kwargs: Additional embedding parameters
-
-        Returns:
-            Embedding vector
-        """
-
-        try:
-            await self._current_provider.initialize()
-            return await self._current_provider.get_embedding(text, **kwargs)
-
-        except Exception as e:
-            logger.error(f"Embedding generation failed: {e}")
-            sanitized_error = UniversalValidator.sanitize_error_message(str(e))
-
-            raise Exception(f"Embedding generation failed: {sanitized_error}")
-
     def list_available_providers(self) -> List[str]:
         """List all available AI providers."""
 

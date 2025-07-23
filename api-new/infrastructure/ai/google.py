@@ -78,30 +78,3 @@ class GoogleProvider(BaseAIProvider):
 
             result = await response.json()
             return result["candidates"][0]["content"]["parts"][0]["text"]
-    
-    @ensure_session_initialized
-    async def get_embedding(self, text: str, **kwargs) -> List[float]:
-        """Get embedding using Google Gemini."""
-
-        if not self.embedding_model:
-            raise Exception("No embedding model configured for Google")
-
-        headers = self.headers.copy()
-        headers["Content-Type"] = "application/json"
-
-        payload = {
-            "content": {"parts": [{"text": text}]}
-        }
-
-        async with self._session.post(
-            f"{self.endpoint}/v1beta/models/{self.embedding_model}:embedContent",
-            headers=headers,
-            json=payload,
-            timeout=self.timeout
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"Google embedding request failed: {error_text}")
-
-            result = await response.json()
-            return result["embedding"]["values"]

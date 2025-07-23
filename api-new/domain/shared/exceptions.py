@@ -38,7 +38,6 @@ class ErrorCode(Enum):
     # AI service errors
     AI_PROVIDER_UNAVAILABLE = "AI001"
     AI_GENERATION_FAILED = "AI002"
-    AI_EMBEDDING_FAILED = "AI003"
     AI_RESPONSE_INVALID = "AI004"
     
     # Spotify errors

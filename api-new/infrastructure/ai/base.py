@@ -25,7 +25,6 @@ class BaseAIProvider(ABC):
         self.endpoint = settings.AI_ENDPOINT
         self.headers = {}
         self.generation_model = settings.AI_GENERATION_MODEL
-        self.embedding_model = settings.AI_EMBEDDING_MODEL
         self.max_tokens = settings.AI_MAX_TOKENS
         self.temperature = settings.AI_TEMPERATURE
         self.timeout = settings.AI_TIMEOUT
@@ -64,21 +63,6 @@ class BaseAIProvider(ABC):
         """
 
         pass
-    
-    @abstractmethod
-    async def get_embedding(self, text: str, **kwargs) -> List[float]:
-        """
-        Get text embedding using this provider.
-
-        Args:
-            text: The input text
-            **kwargs: Additional embedding parameters
-
-        Returns:
-            Embedding vector
-        """
-
-        pass
 
     def get_info(self) -> Dict[str, Any]:
         """Get provider information."""
@@ -87,7 +71,6 @@ class BaseAIProvider(ABC):
             "name": self.name,
             "endpoint": self.endpoint,
             "generation_model": self.generation_model,
-            "embedding_model": self.embedding_model,
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,
             "timeout": self.timeout

@@ -129,9 +129,7 @@ def configure_logging(
         'services.ai_service',
         'services.auth_service', 
         'services.database_service',
-        'services.embedding_cache_service',
         'services.playlist_generator_service',
-        'services.prompt_validator_service',
         'services.spotify_search_service',
         'core.service_manager'
     ]

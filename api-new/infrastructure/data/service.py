@@ -73,12 +73,6 @@ class DataLoader(SingletonServiceBase):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(self._executor, self._load_json_file, filename)
 
-    def get_prompt_references(self) -> List[str]:
-        """Get music reference texts for embedding validation"""
-
-        data = self._load_json_file('prompt_references.json')
-        return data.get('music_references', [])
-
     def get_mood_patterns(self) -> Dict[str, List[str]]:
         """Get mood keyword patterns for AI parsing"""
 

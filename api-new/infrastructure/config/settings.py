@@ -26,16 +26,12 @@ class Settings:
 
     AI_ENDPOINT: str = os.getenv("AI_ENDPOINT", "http://localhost:11434")
     AI_GENERATION_MODEL: str = os.getenv("AI_GENERATION_MODEL", "phi3:mini")
-    AI_EMBEDDING_MODEL: str = os.getenv("AI_EMBEDDING_MODEL", "nomic-embed-text:latest")
     AI_MAX_TOKENS: Optional[int] = int(os.getenv("AI_MAX_TOKENS", 2000))
     AI_TEMPERATURE: Optional[float] = float(os.getenv("AI_TEMPERATURE", 0.7))
     AI_TIMEOUT: int = int(os.getenv("AI_TIMEOUT", 30))
     AI_MODEL_PULL_TIMEOUT: int = int(os.getenv("AI_MODEL_PULL_TIMEOUT", 300))
 
     CLOUD_API_KEY: Optional[str] = os.getenv("CLOUD_API_KEY")
-
-    PROMPT_VALIDATION_THRESHOLD: float = float(os.getenv("PROMPT_VALIDATION_THRESHOLD", 0.6))
-    PROMPT_VALIDATION_TIMEOUT: int = int(os.getenv("PROMPT_VALIDATION_TIMEOUT", 30))
 
     SPOTIFY_CLIENT_ID: Optional[str] = os.getenv("SPOTIFY_CLIENT_ID")
     SPOTIFY_CLIENT_SECRET: Optional[str] = os.getenv("SPOTIFY_CLIENT_SECRET")

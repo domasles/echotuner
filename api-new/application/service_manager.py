@@ -25,7 +25,6 @@ class ServiceManager(SingletonServiceBase):
             
             # Core infrastructure services (no dependencies)
             'database_service',
-            'embedding_cache_service', 
             'data_service',
             
             # Core business services (minimal dependencies)
@@ -35,7 +34,6 @@ class ServiceManager(SingletonServiceBase):
             
             # AI/ML services (depend on core services)
             'ai_service',
-            'prompt_validator_service',
             
             # Business logic services (depend on AI services)
             'spotify_search_service',

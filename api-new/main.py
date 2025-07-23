@@ -26,13 +26,11 @@ from infrastructure.logging.config import configure_logging
 
 # Service imports for registration
 from infrastructure.filesystem.service import filesystem_service
-from infrastructure.ai.cache_service import embedding_cache_service
 from infrastructure.data.service import data_loader
 from infrastructure.rate_limiting.limit_service import rate_limiter_service
 from infrastructure.rate_limiting.ip_limit_service import ip_rate_limiter_service
 from infrastructure.template.service import template_service
 from domain.ai.service import ai_service
-from domain.ai.prompt import prompt_validator_service
 from infrastructure.spotify.service import spotify_search_service
 from domain.playlist.spotify import spotify_playlist_service
 from domain.playlist.generator import playlist_generator_service
@@ -67,13 +65,11 @@ async def lifespan(app: FastAPI):
     try:
         # Register services with service manager
         service_manager.register_service("filesystem_service", filesystem_service)
-        service_manager.register_service("embedding_cache_service", embedding_cache_service)
         service_manager.register_service("data_service", data_loader)
         service_manager.register_service("rate_limiter_service", rate_limiter_service)
         service_manager.register_service("ip_rate_limiter_service", ip_rate_limiter_service)
         service_manager.register_service("template_service", template_service)
         service_manager.register_service("ai_service", ai_service)
-        service_manager.register_service("prompt_validator_service", prompt_validator_service)
         service_manager.register_service("spotify_search_service", spotify_search_service)
         service_manager.register_service("spotify_playlist_service", spotify_playlist_service)
         service_manager.register_service("playlist_generator_service", playlist_generator_service)

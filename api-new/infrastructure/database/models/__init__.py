@@ -7,7 +7,6 @@ from ..core import Base
 from .auth import AuthSession, DeviceRegistry, AuthState, AuthAttempt, DemoOwnerToken
 from .playlists import PlaylistDraft, SpotifyPlaylist, DemoPlaylist
 from .rate_limits import RateLimit, IPAttempt
-from .embeddings import EmbeddingCache
 from .users import UserPersonality
 
 __all__ = [
@@ -22,6 +21,5 @@ __all__ = [
     'DemoPlaylist',
     'UserPersonality',
     'RateLimit',
-    'IPAttempt',
-    'EmbeddingCache'
+    'IPAttempt'
 ]

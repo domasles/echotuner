@@ -16,7 +16,6 @@ from infrastructure.config.settings import settings
 
 from domain.playlist.generator import playlist_generator_service
 from domain.playlist.spotify import spotify_playlist_service
-from domain.ai.prompt import prompt_validator_service
 from domain.playlist.draft import playlist_draft_service
 from infrastructure.rate_limiting.limit_service import rate_limiter_service
 from domain.personality.service import personality_service
@@ -69,14 +68,6 @@ async def generate_playlist(request: PlaylistRequest):
             raise HTTPException(
                 status_code=429,
                 detail=f"Daily limit of {settings.MAX_PLAYLISTS_PER_DAY} playlists reached. Try again tomorrow."
-            )
-
-        is_valid_prompt = await prompt_validator_service.validate_prompt(request.prompt)
-
-        if not is_valid_prompt:
-            raise HTTPException(
-                status_code=400,
-                detail="The prompt doesn't seem to be related to music or mood. Please try a different description."
             )
 
         user_context = request.user_context

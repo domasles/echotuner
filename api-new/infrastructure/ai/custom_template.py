@@ -88,41 +88,6 @@ class CustomProvider(BaseAIProvider):
 
             result = await response.json()
             return result.get("text", "")  # Adjust based on your API response format
-    
-    @ensure_session_initialized
-    async def get_embedding(self, text: str, **kwargs) -> List[float]:
-        """
-        Get embedding using your provider.
-
-        Args:
-            text: The input text
-            **kwargs: Additional parameters
-
-        Returns:
-            Embedding vector as list of floats
-        """
-
-        if not self.embedding_model:
-            raise Exception("No embedding model configured for Custom provider")
-
-        # Example implementation - replace with your provider's API
-        payload = {
-            "text": text,
-            "model": self.embedding_model
-        }
-
-        async with self._session.post(
-            f"{self.endpoint}/v1/embeddings",  # Replace with your API endpoint
-            headers=self.headers,
-            json=payload,
-            timeout=self.timeout
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"Custom provider embedding request failed: {error_text}")
-
-            result = await response.json()
-            return result.get("embedding", [])  # Adjust based on your API response format
 
 # Additional helper methods you might want to implement:
 

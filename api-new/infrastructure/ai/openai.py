@@ -78,31 +78,3 @@ class OpenAIProvider(BaseAIProvider):
 
             result = await response.json()
             return result["choices"][0]["message"]["content"]
-
-    @ensure_session_initialized
-    async def get_embedding(self, text: str, **kwargs) -> List[float]:
-        """Get embedding using OpenAI."""
-
-        if not self.embedding_model:
-            raise Exception("No embedding model configured for OpenAI")
-
-        headers = self.headers.copy()
-        headers["Content-Type"] = "application/json"
-
-        payload = {
-            "model": self.embedding_model,
-            "input": text
-        }
-
-        async with self._session.post(
-            f"{self.endpoint}/v1/embeddings",
-            headers=headers,
-            json=payload,
-            timeout=self.timeout
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"OpenAI embedding request failed: {error_text}")
-
-            result = await response.json()
-            return result["data"][0]["embedding"]
