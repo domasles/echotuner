@@ -151,47 +151,9 @@ class AuthService extends ChangeNotifier {
             return false;
         }
 
-        try {
-            final request = UserValidationRequest(
-                userId: _userId!,
-            );
-
-            final response = await http.post(
-                Uri.parse(AppConfig.apiUrl('/auth/validate')),
-                headers: {'Content-Type': 'application/json'},
-                body: jsonEncode(request.toJson()),
-            );
-
-            if (response.statusCode == 200) {
-                final validationResponse = UserValidationResponse.fromJson(
-                    jsonDecode(response.body)
-                );
-                return validationResponse.valid;
-            }
-
-            else if (response.statusCode == 401) {
-                AppLogger.debug('User validation failed with 401, logging out');
-                await logout();
-                return false;
-            }
-
-            else {
-                AppLogger.debug('User validation request failed with status ${response.statusCode}, logging out');
-                await logout();
-                return false;
-            }
-        }
-
-        catch (e, stackTrace) {
-            AppLogger.error(
-                'User validation error: $e',
-                error: e,
-                stackTrace: stackTrace,
-            );
-
-            await logout();
-            return false;
-        }
+        // In the new unified system, user validation is handled at the endpoint level
+        // via X-User-ID headers, so we don't need a separate validation call
+        return true;
     }
 
     Future<bool> validateUserOnStartup() async {

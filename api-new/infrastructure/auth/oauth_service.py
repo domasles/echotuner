@@ -115,6 +115,66 @@ class OAuthService(SingletonServiceBase):
         
         return await repository.get_by_id(OwnerSpotifyCredentials, "owner")
     
+    async def get_access_token(self, user_id: str) -> Optional[str]:
+        """Get access token for user. In shared mode, returns owner's token."""
+        
+        if settings.SHARED:
+            # In shared mode, use owner's credentials for all users
+            owner_creds = await self.get_owner_credentials()
+            if owner_creds:
+                # Check if token needs refresh
+                if self._is_token_expired(owner_creds):
+                    # Refresh owner token
+                    refreshed_creds = await self._refresh_owner_token(owner_creds)
+                    if refreshed_creds:
+                        return refreshed_creds.access_token
+                    return None
+                return owner_creds.access_token
+            return None
+        else:
+            # In normal mode, get user's personal token
+            user = await repository.get_by_field(UserAccount, 'user_id', user_id)
+            if user and user.access_token:
+                # Check if token needs refresh (if refresh logic is implemented)
+                return user.access_token
+            return None
+    
+    def _is_token_expired(self, creds: OwnerSpotifyCredentials) -> bool:
+        """Check if token is expired."""
+        if not creds.expires_at:
+            return False
+        return datetime.utcnow() >= creds.expires_at
+    
+    async def _refresh_owner_token(self, creds: OwnerSpotifyCredentials) -> Optional[OwnerSpotifyCredentials]:
+        """Refresh owner's access token."""
+        try:
+            if not creds.refresh_token:
+                logger.error("No refresh token available for owner")
+                return None
+            
+            # Use Spotify provider to refresh token
+            refreshed_data = await self.spotify_provider.refresh_token(creds.refresh_token)
+            
+            if refreshed_data:
+                # Update owner credentials
+                update_data = {
+                    "access_token": refreshed_data.get('access_token'),
+                }
+                if refreshed_data.get('expires_in'):
+                    update_data["expires_at"] = datetime.utcnow() + timedelta(seconds=refreshed_data['expires_in'])
+                if refreshed_data.get('refresh_token'):
+                    update_data["refresh_token"] = refreshed_data['refresh_token']
+                
+                await repository.update_by_conditions(OwnerSpotifyCredentials, {"id": "owner"}, update_data)
+                
+                # Return updated credentials
+                return await self.get_owner_credentials()
+            
+        except Exception as e:
+            logger.error(f"Failed to refresh owner token: {e}")
+        
+        return None
+    
     async def create_auth_session(self, appid: str) -> None:
         """Create new auth session for polling."""
         

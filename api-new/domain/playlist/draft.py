@@ -113,30 +113,30 @@ class PlaylistDraftService(SingletonServiceBase):
 
         try:
             logger.info(f"Getting draft for ID: {draft_id}")
-            # draft_data = await db_service.get_playlist_draft(draft_id)  # TODO: implement with repository
-            draft_data = None  # Placeholder
-            if not draft_data:
+            # Get draft from database using repository
+            draft_model = await self.repository.get_by_id(PlaylistDraftModel, draft_id)
+            
+            if not draft_model:
                 logger.warning(f"No draft data found for ID: {draft_id}")
                 return None
 
             # Parse songs from JSON
-            songs_data = json.loads(draft_data.get('songs_json', '[]'))
+            songs_data = json.loads(draft_model.songs_json or '[]')
             songs = [Song.model_validate(song_data) for song_data in songs_data]
 
             draft = PlaylistDraft(
-                id=draft_data['id'],
-                device_id=draft_data['device_id'],
-                session_id=draft_data['session_id'],
-                prompt=draft_data['prompt'],
+                id=draft_model.id,
+                user_id=draft_model.user_id,
+                prompt=draft_model.prompt,
                 songs=songs,
-                status=draft_data.get('status', 'draft'),
-                created_at=draft_data['created_at'],
-                updated_at=draft_data['updated_at']
+                status=draft_model.status or 'draft',
+                created_at=draft_model.created_at,
+                updated_at=draft_model.updated_at
             )
 
-            if draft_data.get('spotify_playlist_id'):
-                draft.spotify_playlist_id = draft_data['spotify_playlist_id']
-                draft.spotify_playlist_url = draft_data['spotify_playlist_url']
+            if draft_model.spotify_playlist_id:
+                draft.spotify_playlist_id = draft_model.spotify_playlist_id
+                draft.spotify_playlist_url = draft_model.spotify_playlist_url
 
             return draft
 
@@ -148,25 +148,27 @@ class PlaylistDraftService(SingletonServiceBase):
         """Get user's drafts using user_id in unified system."""
 
         try:
-            # TODO: implement with repository - get drafts by user_id
-            drafts_data = []  # Placeholder - should query by user_id not device_id
+            # Get drafts from database using repository
+            draft_models = await self.repository.list_with_conditions(
+                PlaylistDraftModel, 
+                {"user_id": user_id}
+            )
+            
             drafts = []
-
-            for draft_data in drafts_data:
+            for draft_model in draft_models[:limit]:  # Apply limit
                 try:
                     # Parse songs from JSON
-                    songs_data = json.loads(draft_data.get('songs_json', '[]'))
+                    songs_data = json.loads(draft_model.songs_json or '[]')
                     songs = [Song.model_validate(song_data) for song_data in songs_data]
 
                     draft = PlaylistDraft(
-                        id=draft_data['id'],
-                        device_id=draft_data['device_id'],
-                        session_id=draft_data['session_id'],
-                        prompt=draft_data['prompt'],
+                        id=draft_model.id,
+                        user_id=draft_model.user_id,
+                        prompt=draft_model.prompt,
                         songs=songs,
-                        status=draft_data.get('status', 'draft'),
-                        created_at=draft_data['created_at'],
-                        updated_at=draft_data['updated_at']
+                        status=draft_model.status or 'draft',
+                        created_at=draft_model.created_at,
+                        updated_at=draft_model.updated_at
                     )
                     drafts.append(draft)
 
@@ -184,8 +186,8 @@ class PlaylistDraftService(SingletonServiceBase):
         """Delete a draft using database service."""
 
         try:
-            # success = await db_service.delete_playlist_draft(draft_id)  # TODO: implement with repository
-            success = True  # Placeholder
+            # Delete from database using repository
+            success = await self.repository.delete(PlaylistDraftModel, draft_id)
             if success:
                 logger.info(f"Deleted playlist draft {draft_id}")
             return success
@@ -193,67 +195,6 @@ class PlaylistDraftService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Failed to delete draft {draft_id}: {e}")
             return False
-
-    async def save_spotify_playlist(self, spotify_playlist_id: str, user_id: str, device_id: str, session_id: str, draft_id: str, playlist_name: str) -> bool:
-        """Save Spotify playlist info using database service."""
-
-        try:
-            # This would need to be implemented in database service
-            # For now, just log the operation
-            logger.info(f"Saved Spotify playlist {spotify_playlist_id} for draft {draft_id}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to save Spotify playlist: {e}")
-            return False
-
-    async def get_user_playlists(self, user_id: str, limit: int = 50) -> List[dict]:
-        """Get user's Spotify playlists using database service."""
-
-        try:
-            # This would need to be implemented in database service
-            # For now, return empty list
-            return []
-
-        except Exception as e:
-            logger.error(f"Failed to get user playlists for {user_id}: {e}")
-            return []
-
-    async def get_playlist_by_spotify_id(self, spotify_playlist_id: str) -> Optional[dict]:
-        """Get playlist by Spotify ID using database service."""
-
-        try:
-            # This would need to be implemented in database service
-            # For now, return None
-            return None
-
-        except Exception as e:
-            logger.error(f"Failed to get playlist by Spotify ID {spotify_playlist_id}: {e}")
-            return None
-
-    async def get_user_playlists_by_device(self, device_id: str, limit: int = 50) -> List[dict]:
-        """Get user's playlists by device using database service."""
-
-        try:
-            # This would need to be implemented in database service
-            # For now, return empty list
-            return []
-
-        except Exception as e:
-            logger.error(f"Failed to get user playlists by device {device_id}: {e}")
-            return []
-
-    async def get_user_identifiers_for_cleanup(self, account_type: str = None) -> List[tuple]:
-        """Get user identifiers for cleanup using database service."""
-
-        try:
-            # This would need to be implemented in database service
-            # For now, return empty list
-            return []
-
-        except Exception as e:
-            logger.error(f"Failed to get user identifiers for cleanup: {e}")
-            return []
 
     async def cleanup_user_data(self, user_id: str = None, account_type: str = None):
         """Clean up user data using user_id in unified system."""
@@ -270,27 +211,23 @@ class PlaylistDraftService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Failed to cleanup user data: {e}")
 
-    async def get_all_playlists_for_user(self, user_id: str) -> List[dict]:
-        """Get all playlists for a user using user_id in unified system."""
-
-        try:
-            # This would use database service to get all playlists for user
-            return []
-
-        except Exception as e:
-            logger.error(f"Failed to get all playlists for user {user_id}: {e}")
-            return []
-
-    async def get_device_drafts(self, device_id: str, include_spotify: bool = True, limit: int = 10) -> List[PlaylistDraft]:
-        """Get device drafts - deprecated, use get_user_drafts with user_id instead."""
-        logger.warning("get_device_drafts is deprecated - use get_user_drafts with user_id")
-        return await self.get_user_drafts(device_id, limit)
-
     async def get_user_echotuner_spotify_playlist_ids(self, user_id: str) -> List[str]:
         """Get EchoTuner Spotify playlist IDs for a user."""
         try:
-            # return await db_service.get_user_echotuner_spotify_playlist_ids(user_id)  # TODO: implement with repository
-            return []  # Placeholder
+            # Get all drafts that have been added to Spotify
+            drafts = await self.repository.list_with_conditions(
+                PlaylistDraftModel, 
+                {"user_id": user_id, "status": "added_to_spotify"}
+            )
+            
+            playlist_ids = []
+            for draft in drafts:
+                if draft.spotify_playlist_id:
+                    playlist_ids.append(draft.spotify_playlist_id)
+            
+            logger.info(f"Found {len(playlist_ids)} EchoTuner Spotify playlists for user {user_id}")
+            return playlist_ids
+            
         except Exception as e:
             logger.error(f"Failed to get user EchoTuner Spotify playlist IDs: {e}")
             return []
@@ -299,13 +236,13 @@ class PlaylistDraftService(SingletonServiceBase):
         """Mark a playlist draft as added to Spotify."""
         try:
             # Update the playlist draft to mark it as added to Spotify
-            draft = await self.repository.get_by_field(PlaylistDraft, 'id', playlist_id)
+            draft = await self.repository.get_by_field(PlaylistDraftModel, 'id', playlist_id)
             if draft:
-                await self.repository.update(PlaylistDraft, playlist_id, {
+                await self.repository.update(PlaylistDraftModel, playlist_id, {
                     'spotify_playlist_id': spotify_playlist_id,
                     'spotify_playlist_url': spotify_url,
                     'status': 'added_to_spotify',
-                    'updated_at': datetime.now().isoformat()
+                    'updated_at': datetime.now()
                 })
 
             # Create a tracking record in SpotifyPlaylist table
@@ -316,8 +253,8 @@ class PlaylistDraftService(SingletonServiceBase):
                 'session_id': session_id,
                 'original_draft_id': playlist_id,
                 'playlist_name': playlist_name,
-                'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat()
+                'created_at': datetime.now(),
+                'updated_at': datetime.now()
             }
 
             await self.repository.create(SpotifyPlaylist, spotify_playlist_data)

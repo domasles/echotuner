@@ -208,11 +208,17 @@ class ApiService {
     }
 
     Future<SpotifyPlaylistResponse> createSpotifyPlaylist(SpotifyPlaylistRequest request) async {
+        final userId = _authService?.userId;
+        if (userId == null) {
+            throw ApiException('User not authenticated');
+        }
+
         final response = await _client.post(
             Uri.parse(AppConfig.apiUrl('/spotify/create-playlist')),
 
             headers: {
                 'Content-Type': 'application/json',
+                'X-User-ID': userId,
             },
 
             body: jsonEncode(request.toJson()),
@@ -272,6 +278,7 @@ class ApiService {
             Uri.parse(AppConfig.apiUrl('/playlist/drafts')),
             headers: {
                 'Content-Type': 'application/json',
+                'X-User-ID': userId,
             },
             body: jsonEncode({
                 'playlist_id': playlistId,
@@ -306,6 +313,7 @@ class ApiService {
             Uri.parse(AppConfig.apiUrl('/playlist/drafts')),
             headers: {
                 'Content-Type': 'application/json',
+                'X-User-ID': userId,
             },
             body: jsonEncode({
                 'playlist_id': playlistId,
@@ -326,6 +334,7 @@ class ApiService {
             Uri.parse(AppConfig.apiUrl('/spotify/playlist')),
             headers: {
                 'Content-Type': 'application/json',
+                'X-User-ID': userId,
             },
             body: jsonEncode({
                 'playlist_id': playlistId,
@@ -346,6 +355,7 @@ class ApiService {
             Uri.parse(AppConfig.apiUrl('/spotify/playlist/track')),
             headers: {
                 'Content-Type': 'application/json',
+                'X-User-ID': userId,
             },
             body: jsonEncode({
                 'playlist_id': playlistId,
@@ -367,6 +377,7 @@ class ApiService {
             Uri.parse(AppConfig.apiUrl('/spotify/playlist/tracks')),
             headers: {
                 'Content-Type': 'application/json',
+                'X-User-ID': userId,
             },
             body: jsonEncode({
                 'playlist_id': playlistId,

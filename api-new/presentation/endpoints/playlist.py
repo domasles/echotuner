@@ -18,9 +18,9 @@ from infrastructure.database.models import UserAccount
 from domain.playlist.generator import playlist_generator_service
 from domain.playlist.spotify import spotify_playlist_service
 from domain.playlist.draft import playlist_draft_service
+from domain.auth.service import auth_service
 from infrastructure.rate_limiting.limit_service import rate_limiter_service
 from domain.personality.service import personality_service
-from infrastructure.auth.oauth_service import oauth_service
 
 logger = logging.getLogger(__name__)
 
@@ -175,24 +175,26 @@ async def get_library_playlists(request: Request, library_request: LibraryPlayli
         drafts = []
 
         try:
-            drafts = await playlist_draft_service.get_user_drafts(
+            all_drafts = await playlist_draft_service.get_user_drafts(
                 user_id=user_id,
                 include_spotify=False
             )
+            # Filter out drafts that have been added to Spotify
+            drafts = [draft for draft in all_drafts if draft.status != 'added_to_spotify']
         except Exception as e:
             logger.warning(f"Failed to get user drafts for {user_id}: {e}")
 
         spotify_playlists = []
 
-        # Only get Spotify playlists for normal mode (Spotify OAuth users)
-        if spotify_playlist_service.is_ready() and not settings.SHARED:
+        # Get Spotify playlists for both modes
+        if spotify_playlist_service.is_ready():
             try:
-                # For normal mode, get Spotify access token from our OAuth service
-                access_token = await oauth_service.get_access_token(request.user_id)
+                # Get access token (works for both shared and normal mode)
+                access_token = await auth_service.get_access_token_by_user_id(user_id)
 
                 if access_token:
                     echotuner_playlist_ids = await playlist_draft_service.get_user_echotuner_spotify_playlist_ids(
-                        request.user_id
+                        user_id
                     )
 
                     if echotuner_playlist_ids:
@@ -236,17 +238,18 @@ async def get_library_playlists(request: Request, library_request: LibraryPlayli
         raise HTTPException(status_code=500, detail="Failed to get library playlists")
 
 @router.post("/drafts")
-@validate_request('user_id')
-async def get_draft_playlist(request: PlaylistDraftRequest):
+@validate_user_request()
+async def get_draft_playlist(request: Request, playlist_draft_request: PlaylistDraftRequest, validated_user_id: str = None):
     """Get a specific draft playlist."""
 
     try:
-        draft = await playlist_draft_service.get_draft(request.playlist_id)
+        user_id = validated_user_id
+        draft = await playlist_draft_service.get_draft(playlist_draft_request.playlist_id)
 
         if not draft:
             raise HTTPException(status_code=404, detail="Draft playlist not found")
 
-        if draft.user_id != request.user_id:
+        if draft.user_id != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
 
         return draft
@@ -259,23 +262,24 @@ async def get_draft_playlist(request: PlaylistDraftRequest):
         raise HTTPException(status_code=500, detail="Failed to get draft playlist")
 
 @router.delete("/drafts")
-@debug_only
-async def delete_draft_playlist(request: PlaylistDraftRequest):
+@validate_user_request()
+async def delete_draft_playlist(request: Request, playlist_draft_request: PlaylistDraftRequest, validated_user_id: str = None):
     """Delete a draft playlist."""
 
     try:
-        draft = await playlist_draft_service.get_draft(request.playlist_id)
+        user_id = validated_user_id
+        draft = await playlist_draft_service.get_draft(playlist_draft_request.playlist_id)
 
         if not draft:
             raise HTTPException(status_code=404, detail="Draft playlist not found")
 
-        if draft.user_id != request.user_id:
+        if draft.user_id != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
 
         if draft.status != "draft":
             raise HTTPException(status_code=400, detail="Can only delete draft playlists")
 
-        success = await playlist_draft_service.delete_draft(request.playlist_id)
+        success = await playlist_draft_service.delete_draft(playlist_draft_request.playlist_id)
 
         if success:
             return {"message": "Draft playlist deleted successfully"}
@@ -287,5 +291,5 @@ async def delete_draft_playlist(request: PlaylistDraftRequest):
         raise
 
     except Exception as e:
-        logger.error(f"Failed to delete draft playlist {request.playlist_id}: {e}")
+        logger.error(f"Failed to delete draft playlist {playlist_draft_request.playlist_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete draft playlist")
