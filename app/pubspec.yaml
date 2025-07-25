@@ -43,7 +43,7 @@ flutter:
 
     assets:
         # Uncomment the following line if you want to build locally
-        - .env
+        # - .env
 
         - assets/logos/EchoTunerLogo.svg
         - assets/logos/SpotifyLogo.svg
