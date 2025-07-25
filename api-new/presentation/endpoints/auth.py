@@ -6,11 +6,12 @@ Unified OAuth authentication with polling support.
 import logging
 import uuid
 from fastapi import APIRouter, Request, HTTPException, Header
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
 
 from infrastructure.config.settings import settings
 from infrastructure.auth.oauth_service import oauth_service
 from infrastructure.rate_limiting.limit_service import rate_limiter_service
+from infrastructure.template.service import template_service
 from domain.shared.validation.validators import validate_user_request
 
 logger = logging.getLogger(__name__)
@@ -89,21 +90,45 @@ async def spotify_callback(code: str, state: str = None, error: str = None):
     
     if error:
         logger.error(f"Spotify OAuth error: {error}")
-        raise HTTPException(status_code=400, detail=f"OAuth error: {error}")
+        # Render error template
+        html_content = template_service.render_template(
+            "html/auth_error.html",
+            error_message="Authentication failed. Please try again.",
+            error_detail=""
+        )
+        return HTMLResponse(content=html_content, status_code=400)
     
     try:
         if settings.SHARED and not state:
-            # Owner setup callback (no appid/state)
+            # Owner setup callback (no appid/state) - just process and show success
             await oauth_service.store_owner_credentials(code)
-            return JSONResponse({"message": "Owner setup completed successfully"})
+            # Render success template without exposing data
+            html_content = template_service.render_template(
+                "html/auth_success.html",
+                session_id="",  # Don't expose session data
+                device_id=""    # Don't expose device data
+            )
+            return HTMLResponse(content=html_content)
         else:
-            # Normal user authentication
+            # Normal user authentication - process and show success
             result = await oauth_service.handle_spotify_callback(code, state)
-            return JSONResponse({"message": "Authentication successful", "user_id": result['user_id']})
+            # Render success template without exposing user data
+            html_content = template_service.render_template(
+                "html/auth_success.html", 
+                session_id="",  # Don't expose session data
+                device_id=""    # Don't expose device data
+            )
+            return HTMLResponse(content=html_content)
             
     except Exception as e:
         logger.error(f"Spotify callback failed: {e}")
-        raise HTTPException(status_code=500, detail="Authentication failed")
+        # Render error template
+        html_content = template_service.render_template(
+            "html/auth_error.html",
+            error_message="Authentication failed. Please try again.",
+            error_detail=""
+        )
+        return HTMLResponse(content=html_content, status_code=500)
 
 @router.get("/google/callback")
 async def google_callback(code: str, state: str = None, error: str = None):
@@ -111,15 +136,34 @@ async def google_callback(code: str, state: str = None, error: str = None):
     
     if error:
         logger.error(f"Google OAuth error: {error}")
-        raise HTTPException(status_code=400, detail=f"OAuth error: {error}")
+        # Render error template
+        html_content = template_service.render_template(
+            "html/auth_error.html",
+            error_message="Authentication failed. Please try again.",
+            error_detail=""
+        )
+        return HTMLResponse(content=html_content, status_code=400)
     
     try:
+        # Process Google authentication
         result = await oauth_service.handle_google_callback(code, state)
-        return JSONResponse({"message": "Authentication successful", "user_id": result['user_id']})
+        # Render success template without exposing user data
+        html_content = template_service.render_template(
+            "html/auth_success.html",
+            session_id="",  # Don't expose session data  
+            device_id=""    # Don't expose device data
+        )
+        return HTMLResponse(content=html_content)
         
     except Exception as e:
         logger.error(f"Google callback failed: {e}")
-        raise HTTPException(status_code=500, detail="Authentication failed")
+        # Render error template
+        html_content = template_service.render_template(
+            "html/auth_error.html",
+            error_message="Authentication failed. Please try again.",
+            error_detail=""
+        )
+        return HTMLResponse(content=html_content, status_code=500)
 
 @router.get("/status")
 async def auth_status(appid: str = Header(None, alias="X-Session-UUID")):

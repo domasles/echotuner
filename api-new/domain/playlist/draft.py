@@ -273,8 +273,6 @@ class PlaylistDraftService(SingletonServiceBase):
             spotify_playlist_data = {
                 'spotify_playlist_id': spotify_playlist_id,
                 'user_id': user_id,
-                'device_id': device_id,
-                'session_id': session_id,
                 'original_draft_id': playlist_id,
                 'playlist_name': playlist_name,
                 'created_at': datetime.now(),
