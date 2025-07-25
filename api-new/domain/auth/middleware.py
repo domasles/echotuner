@@ -45,4 +45,25 @@ class AuthMiddleware(SingletonServiceBase):
             logger.error(f"Failed to get access token: {e}")
             return None
 
+    async def validate_user_from_request(self, user_id: str) -> Dict[str, str]:
+        """Validate user_id and return user info for new unified auth system."""
+        if not user_id:
+            raise HTTPException(status_code=422, detail="Missing user_id")
+
+        # Construct user_info dict compatible with existing services
+        user_info = {
+            'spotify_user_id': user_id,
+            'user_id': user_id
+        }
+        
+        return user_info
+
+    async def get_access_token_for_user(self, user_id: str) -> Optional[str]:
+        """Get access token for user_id (unified auth system)."""
+        try:
+            return await self.auth_service.get_access_token_by_user_id(user_id)
+        except Exception as e:
+            logger.error(f"Failed to get access token for user {user_id}: {e}")
+            return None
+
 auth_middleware = AuthMiddleware()

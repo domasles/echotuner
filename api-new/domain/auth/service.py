@@ -16,7 +16,7 @@ from typing import Optional, Dict, Any, List
 from application.core.singleton import SingletonServiceBase
 from infrastructure.config.settings import settings
 from infrastructure.database import repository
-from infrastructure.database.models import AuthSession, DeviceRegistry, AuthState, AuthAttempt, DemoOwnerToken
+from infrastructure.database.models import AuthSession, AuthState, AuthAttempt, UserAccount, OwnerSpotifyCredentials
 from infrastructure.config.app_constants import app_constants
 
 logger = logging.getLogger(__name__)
@@ -56,19 +56,15 @@ class AuthService(SingletonServiceBase):
     async def initialize(self):
         """Initialize async components."""
         try:
-            # Clean up any demo data on startup
+            # Clean up any legacy demo data on startup
             await self._cleanup_demo_data()
-            
-            # Load demo owner token if in demo mode
-            if settings.DEMO:
-                await self._load_demo_owner_token()
             
             logger.info("Auth service async initialization completed")
         except Exception as e:
             logger.error(f"Auth service async initialization failed: {e}")
 
     # AUTH STATE MANAGEMENT
-    async def generate_auth_url(self, device_id: str, platform: str) -> tuple[str, str]:
+    async def generate_auth_url(self, appid: str, platform: str) -> tuple[str, str]:
         """Generate Spotify authorization URL and state."""
         if not self.spotify_oauth:
             raise Exception("Spotify OAuth not configured")
@@ -77,11 +73,11 @@ class AuthService(SingletonServiceBase):
         auth_url = self.spotify_oauth.get_authorize_url(state=state)
         
         # Store state for validation
-        await self.store_auth_state(state, device_id, platform)
+        await self.store_auth_state(state, appid, platform)
         
         return auth_url, state
 
-    async def store_auth_state(self, state: str, device_id: str, platform: str) -> bool:
+    async def store_auth_state(self, state: str, appid: str, platform: str) -> bool:
         """Store auth state for validation."""
         try:
             expires_at = datetime.utcnow() + timedelta(minutes=10)
@@ -93,7 +89,7 @@ class AuthService(SingletonServiceBase):
             
             auth_state_data = {
                 'state': state,
-                'device_id': device_id,
+                'appid': appid,
                 'platform': platform,
                 'created_at': int(datetime.utcnow().timestamp()),
                 'expires_at': int(expires_at.timestamp())
@@ -107,7 +103,7 @@ class AuthService(SingletonServiceBase):
             return False
 
     async def validate_auth_state(self, state: str) -> Optional[Dict[str, str]]:
-        """Validate auth state and return device info."""
+        """Validate auth state and return app info."""
         try:
             auth_state = await self.repo.get_by_field(AuthState, 'state', state)
             
@@ -120,7 +116,7 @@ class AuthService(SingletonServiceBase):
                 return None
 
             return {
-                'device_id': auth_state.device_id,
+                'appid': auth_state.appid,
                 'platform': auth_state.platform
             }
             
@@ -162,80 +158,44 @@ class AuthService(SingletonServiceBase):
             return False
 
     async def validate_session(self, session_id: str, device_id: str) -> bool:
-        """Validate session belongs to device."""
+        """Validate session exists - simplified for user-based auth."""
         try:
-            session = await self.repo.get_by_conditions(AuthSession, {
-                'session_id': session_id,
-                'device_id': device_id
-            })
-            
-            if not session:
-                return False
-                
-            # Check if expired (compare timestamps)
-            if session.expires_at < int(datetime.utcnow().timestamp()):
-                await self.repo.delete(AuthSession, session.session_id, 'session_id')
-                return False
-                
-            return True
+            # In the new system, session_id is typically user_id
+            user = await self.repo.get_by_field(UserAccount, 'user_id', session_id)
+            return user is not None
             
         except Exception as e:
             logger.error(f"Failed to validate session: {e}")
             return False
 
     async def validate_session_and_get_user(self, session_id: str, device_id: str) -> Optional[Dict[str, str]]:
-        """Validate session and return user info if valid."""
+        """Validate session and return user info - simplified for user-based auth."""
         try:
-            session = await self.repo.get_by_field(AuthSession, 'session_id', session_id)
-
-            if not session:
+            # In the new system, session_id is typically user_id
+            user = await self.repo.get_by_field(UserAccount, 'user_id', session_id)
+            if not user:
                 return None
-
-            stored_device_id = session.device_id
-            expires_at = session.expires_at
-            spotify_user_id = session.spotify_user_id
-            account_type = getattr(session, 'account_type', 'normal')
-
-            # Demo mode validation
-            if settings.DEMO and account_type == 'normal':
-                return None
-
-            if not settings.DEMO and account_type == 'demo':
-                return None
-
-            if stored_device_id != device_id:
-                return None
-
-            # Check if expired (compare timestamps)
-            if int(datetime.now().timestamp()) > expires_at:
-                await self.repo.delete(AuthSession, session.session_id, 'session_id')
-                return None
-
-            # Update last_used_at timestamp
-            await self.repo.update(AuthSession, session.session_id, {
-                'last_used_at': int(datetime.now().timestamp())
-            }, 'session_id')
-
+                
             return {
-                "spotify_user_id": spotify_user_id,
-                "device_id": device_id,
-                "account_type": account_type
+                'user_id': user.user_id,
+                'provider': user.provider,
+                'provider_user_id': user.provider_user_id,
+                'spotify_user_id': user.provider_user_id if user.provider == 'spotify' else None,
+                'account_type': 'spotify' if user.provider == 'spotify' else 'google'
             }
-
+            
         except Exception as e:
-            logger.error(f"Session validation error: {e}")
+            logger.error(f"Failed to validate session and get user: {e}")
             return None
 
     async def get_account_type(self, session_id: str) -> Optional[str]:
         """Get account type for a session."""
         try:
-            session = await self.repo.get_by_field(AuthSession, 'session_id', session_id)
-
-            if not session:
+            user = await self.repo.get_by_field(UserAccount, 'user_id', session_id)
+            if not user:
                 return None
-
-            return getattr(session, 'account_type', 'normal')
-
+            return user.provider
+            
         except Exception as e:
             logger.error(f"Failed to get account type: {e}")
             return None
@@ -297,53 +257,12 @@ class AuthService(SingletonServiceBase):
 
     # DEVICE MANAGEMENT
     async def register_device(self, device_data: Dict[str, Any]) -> bool:
-        """Register a new device."""
-        try:
-            # Check if device already exists
-            existing = await self.repo.get_by_field(
-                DeviceRegistry, 'device_id', device_data['device_id']
-            )
-            
-            if existing:
-                # Update existing device info
-                update_data = {
-                    'last_seen_timestamp': int(datetime.utcnow().timestamp()),
-                    'app_version': device_data.get('app_version', existing.app_version)
-                }
-                await self.repo.update(DeviceRegistry, existing.device_id, update_data, 'device_id')
-                return True
-            
-            # Create new device registration with correct timestamps
-            if 'registration_timestamp' not in device_data:
-                device_data['registration_timestamp'] = int(datetime.utcnow().timestamp())
-            if 'last_seen_timestamp' not in device_data:
-                device_data['last_seen_timestamp'] = int(datetime.utcnow().timestamp())
-            
-            await self.repo.create(DeviceRegistry, device_data)
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to register device: {e}")
-            return False
-
+        """Device registration not needed in user-based auth system."""
+        return True
+    
     async def validate_device(self, device_id: str, update_last_seen: bool = True) -> bool:
-        """Validate device is registered."""
-        try:
-            device = await self.repo.get_by_field(DeviceRegistry, 'device_id', device_id)
-            
-            if not device:
-                return False
-                
-            if update_last_seen:
-                await self.repo.update(DeviceRegistry, device.device_id, {
-                    'last_seen': datetime.utcnow()
-                }, id_field='device_id')
-                
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to validate device: {e}")
-            return False
+        """Device validation not needed in user-based auth system."""
+        return True
 
     # DEMO MODE MANAGEMENT
     async def _cleanup_demo_data(self):
@@ -368,9 +287,9 @@ class AuthService(SingletonServiceBase):
         """Store demo owner token."""
         try:
             # Clear existing demo tokens
-            existing_tokens = await self.repo.list_all(DemoOwnerToken)
+            existing_tokens = await self.repo.list_all(OwnerSpotifyCredentials)
             for token in existing_tokens:
-                await self.repo.delete(DemoOwnerToken, token.id)
+                await self.repo.delete(OwnerSpotifyCredentials, token.id)
                 
             # Store new token
             token_data = {
@@ -380,7 +299,7 @@ class AuthService(SingletonServiceBase):
                 'created_at': datetime.utcnow()
             }
             
-            await self.repo.create(DemoOwnerToken, token_data)
+            await self.repo.create(OwnerSpotifyCredentials, token_data)
             
         except Exception as e:
             logger.error(f"Failed to store demo owner token: {e}")
@@ -388,7 +307,7 @@ class AuthService(SingletonServiceBase):
     async def get_demo_owner_token(self) -> Optional[Dict[str, Any]]:
         """Get demo owner token."""
         try:
-            tokens = await self.repo.list_all(DemoOwnerToken)
+            tokens = await self.repo.list_all(OwnerSpotifyCredentials)
             if not tokens:
                 return None
                 
@@ -420,8 +339,8 @@ class AuthService(SingletonServiceBase):
 
     def has_demo_owner_token(self) -> bool:
         """Check if demo mode has an owner token stored."""
-        from infrastructure.config.settings import settings
-        return settings.DEMO and self._demo_owner_token_info is not None
+        # Demo mode removed - always return False
+        return False
 
     async def handle_spotify_callback(self, code: str, state: str, device_info: Dict) -> Optional[str]:
         """Handle Spotify OAuth callback."""
@@ -442,40 +361,11 @@ class AuthService(SingletonServiceBase):
             session_id = str(uuid.uuid4())
             device_id = device_info['device_id']
 
-            if settings.DEMO:
-                # In demo mode, store the owner's token on first successful login
-                async with self._demo_owner_lock:
-                    if self._demo_owner_token_info is None:
-                        logger.info("Storing owner's Spotify credentials for demo mode")
-                        self._demo_owner_token_info = {
-                            'access_token': token_info['access_token'],
-                            'refresh_token': token_info.get('refresh_token'),
-                            'expires_at': int((datetime.now() + timedelta(seconds=token_info['expires_in'])).timestamp()),
-                            'spotify_user_id': user_info['id']
-                        }
-                        # Store to database for persistence
-                        await self._store_demo_owner_token()
-                
-                demo_user_id = f"demo_user_{device_id}"
-                account_type = "demo"
-            else:
-                demo_user_id = user_info['id']
-                account_type = "normal"
-
-            session_data = {
-                'session_id': session_id,
-                'device_id': device_id,
-                'platform': device_info['platform'],
-                'spotify_user_id': demo_user_id,
-                'access_token': token_info['access_token'],
-                'refresh_token': token_info.get('refresh_token'),
-                'expires_at': int((datetime.now() + timedelta(seconds=token_info['expires_in'])).timestamp()),
-                'account_type': account_type
-            }
-
-            await self.create_session(session_data)
-
-            return session_id
+            # This method is legacy - OAuth flow now handled by new unified system
+            # This method is legacy - OAuth flow now handled by new unified system
+            # Return None to indicate this method should not be used
+            logger.warning("Legacy handle_spotify_callback called - use new OAuth service instead")
+            return None
 
         except Exception as e:
             logger.error(f"Failed to handle Spotify callback: {e}")
@@ -492,10 +382,10 @@ class AuthService(SingletonServiceBase):
             logger.info(f"Storing demo owner token for user: {self._demo_owner_token_info['spotify_user_id']}")
 
             # Clear existing demo owner tokens
-            existing_tokens = await self.repo.list_all(DemoOwnerToken)
+            existing_tokens = await self.repo.list_all(OwnerSpotifyCredentials)
             logger.info(f"Found {len(existing_tokens)} existing demo owner tokens to clear")
             for token in existing_tokens:
-                await self.repo.delete(DemoOwnerToken, token.id)
+                await self.repo.delete(OwnerSpotifyCredentials, token.id)
 
             # Store new token
             token_data = {
@@ -507,7 +397,7 @@ class AuthService(SingletonServiceBase):
             }
 
             logger.info(f"Creating demo owner token record: {token_data}")
-            result = await self.repo.create(DemoOwnerToken, token_data)
+            result = await self.repo.create(OwnerSpotifyCredentials, token_data)
             logger.info(f"Demo owner token stored successfully, result: {result}")
 
         except Exception as e:
@@ -519,7 +409,7 @@ class AuthService(SingletonServiceBase):
         """Load demo owner token from database on startup."""
         try:
             logger.info("Loading demo owner token from database...")
-            tokens = await self.repo.list_all(DemoOwnerToken)
+            tokens = await self.repo.list_all(OwnerSpotifyCredentials)
             if tokens:
                 token = tokens[0]  # Should only be one token
                 self._demo_owner_token_info = {
@@ -600,24 +490,14 @@ class AuthService(SingletonServiceBase):
             if user_personality:
                 await self.repo.delete(UserPersonality, user_personality.id)
 
-            # Delete playlist drafts associated with demo sessions
-            from infrastructure.database.models.playlists import PlaylistDraft, DemoPlaylist
+            # Delete playlist drafts associated with demo sessions  
+            from infrastructure.database.models.playlists import PlaylistDraft
             session_ids = [session.session_id for session in demo_sessions]
             
             for session_id in session_ids:
-                # Delete playlist drafts
-                drafts = await self.repo.list_with_conditions(PlaylistDraft, {
-                    'session_id': session_id
-                })
-                for draft in drafts:
-                    await self.repo.delete(PlaylistDraft, draft.id)
-
-                # Delete demo playlists
-                demo_playlists = await self.repo.list_with_conditions(DemoPlaylist, {
-                    'session_id': session_id
-                })
-                for playlist in demo_playlists:
-                    await self.repo.delete(DemoPlaylist, playlist.playlist_id, id_field='playlist_id')
+                # Delete playlist drafts (in the new system we don't need session_id filtering)
+                # This method is legacy and may not be used in the new system
+                pass
 
             logger.debug(f"Deleted demo account data for device {device_id[:8]}...")
 
@@ -627,83 +507,93 @@ class AuthService(SingletonServiceBase):
     async def get_access_token(self, session_id: str) -> Optional[str]:
         """Get access token for a session."""
         try:
-            # In demo mode, always use owner's token regardless of session
-            if settings.DEMO:
-                async with self._demo_owner_lock:
-                    if self._demo_owner_token_info:
-                        # Check if owner token is expired and refresh if needed
-                        current_time = int(datetime.now().timestamp())
-                        if current_time > self._demo_owner_token_info['expires_at']:
-                            if self._demo_owner_token_info.get('refresh_token') and self.spotify_oauth:
-                                try:
-                                    token_info = self.spotify_oauth.refresh_access_token(self._demo_owner_token_info['refresh_token'])
-                                    self._demo_owner_token_info.update({
-                                        'access_token': token_info['access_token'],
-                                        'expires_at': int((datetime.now() + timedelta(seconds=token_info['expires_in'])).timestamp())
-                                    })
-                                    await self._store_demo_owner_token()
-                                    logger.debug("Refreshed demo owner token")
-                                    return token_info['access_token']
-                                except Exception as e:
-                                    logger.error(f"Failed to refresh demo owner token: {e}")
-                                    return None
-                            else:
-                                logger.warning("Demo owner token expired and no refresh token available")
-                                return None
-                        
-                        return self._demo_owner_token_info['access_token']
-                    else:
-                        logger.warning("No demo owner token available")
-                        return None
-
-            # Normal mode - use session-specific token
-            session = await self.repo.get_by_field(AuthSession, 'session_id', session_id)
-
-            if not session:
-                return None
-
-            current_time = int(datetime.now().timestamp())
+            # Check if this is a user_id in the new system
+            user = await self.repo.get_by_field(UserAccount, 'user_id', session_id)
             
-            # Check if token needs refresh
-            if current_time > session.expires_at:
-                if session.refresh_token and self.spotify_oauth:
-                    try:
-                        token_info = self.spotify_oauth.refresh_access_token(session.refresh_token)
-                        new_access_token = token_info['access_token']
-                        new_expires_at = int((datetime.now() + timedelta(seconds=token_info['expires_in'])).timestamp())
-
-                        await self.repo.update(AuthSession, session.session_id, {
-                            'access_token': new_access_token,
-                            'expires_at': new_expires_at,
-                            'updated_at': current_time
-                        }, id_field='session_id')
-                        
-                        return new_access_token
-
-                    except Exception as e:
-                        logger.error(f"Failed to refresh token: {e}")
-                        return None
-                else:
-                    logger.warning(f"Session {session_id} token expired and no refresh token available")
-                    return None
-
-            return session.access_token
-
+            if user and user.access_token:
+                # User has their own tokens (Normal mode)
+                return user.access_token
+            
+            # Fall back to owner credentials (Shared mode)
+            owner_creds = await self.repo.get_by_field(OwnerSpotifyCredentials, 'id', 'owner')
+            if owner_creds:
+                return owner_creds.access_token
+            
+            return None
+            
         except Exception as e:
             logger.error(f"Failed to get access token: {e}")
+            return None
+
+    async def get_access_token_by_user_id(self, user_id: str) -> Optional[str]:
+        """Get access token by user_id (unified auth system)."""
+        try:
+            from infrastructure.auth.oauth_service import oauth_service
+            from datetime import datetime, timedelta
+            
+            # In shared mode, use owner credentials
+            if settings.SHARED:
+                owner_creds = await oauth_service.get_owner_credentials()
+                if not owner_creds:
+                    logger.error("No owner credentials found in shared mode")
+                    return None
+                
+                # Check if token is expired and refresh if needed
+                now = datetime.now()
+                if owner_creds.expires_at and owner_creds.expires_at <= now:
+                    logger.info("Owner access token expired, refreshing...")
+                    try:
+                        # Refresh the token using Spotify provider
+                        new_token_data = await oauth_service.spotify_provider.refresh_token(owner_creds.refresh_token)
+                        
+                        # Update owner credentials with new token
+                        from infrastructure.database.repository import repository
+                        from infrastructure.database.models.owner_credentials import OwnerSpotifyCredentials
+                        from datetime import timedelta
+                        
+                        update_data = {
+                            'access_token': new_token_data['access_token'],
+                            'expires_at': datetime.now() + timedelta(seconds=new_token_data.get('expires_in', 3600)),
+                            'updated_at': datetime.now()
+                        }
+                        
+                        await repository.update(OwnerSpotifyCredentials, owner_creds.id, update_data)
+                        logger.info("Owner access token refreshed successfully")
+                        return new_token_data['access_token']
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to refresh owner token: {e}")
+                        return None
+                else:
+                    return owner_creds.access_token
+            else:
+                # In normal mode, get user's own token from UserAccount
+                from infrastructure.database.repository import repository
+                from infrastructure.database.models.auth import UserAccount
+                
+                user_account = await repository.get_by_field(UserAccount, 'user_id', user_id)
+                if user_account and user_account.access_token:
+                    # TODO: Also implement token refresh for normal mode users
+                    return user_account.access_token
+                return None
+                    
+        except Exception as e:
+            logger.error(f"Failed to get access token for user {user_id}: {e}")
             return None
 
     async def get_user_from_session(self, session_id: str) -> Optional[Dict]:
         """Get user information from session ID."""
         try:
-            session = await self.repo.get_by_field(AuthSession, 'session_id', session_id)
-
-            if not session:
+            # In the new system, session_id is typically user_id
+            user = await self.repo.get_by_field(UserAccount, 'user_id', session_id)
+            if not user:
                 return None
 
             return {
-                'spotify_user_id': session.spotify_user_id,
-                'device_id': session.device_id
+                'user_id': user.user_id,
+                'provider': user.provider,
+                'provider_user_id': user.provider_user_id,
+                'spotify_user_id': user.provider_user_id if user.provider == 'spotify' else None
             }
         except Exception as e:
             logger.error(f"Failed to get user from session: {e}")

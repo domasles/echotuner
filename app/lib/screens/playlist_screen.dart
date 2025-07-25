@@ -396,13 +396,12 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
         if (confirmed == true && context.mounted) {
             provider.removeSong(song);
 
-            if (provider.isPlaylistAddedToSpotify && provider.currentPlaylistId != null && authService.sessionId != null && authService.deviceId != null && song.uri.isNotEmpty) {
+            if (provider.isPlaylistAddedToSpotify && provider.currentPlaylistId != null && authService.userId != null && song.uri.isNotEmpty) {
                 try {
                     final success = await provider.removeSongFromSpotifyPlaylist(
                         provider.currentPlaylistId!,
                         song.uri,
-                        authService.sessionId!,
-                        authService.deviceId!,
+                        authService.userId!,
                     );
 
                     if (success && context.mounted) {

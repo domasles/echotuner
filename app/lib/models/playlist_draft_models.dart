@@ -8,11 +8,8 @@ part 'playlist_draft_models.g.dart';
 class PlaylistDraft {
     final String id;
 
-    @JsonKey(name: 'device_id')
-    final String deviceId;
-
-    @JsonKey(name: 'session_id')
-    final String? sessionId;
+    @JsonKey(name: 'user_id')
+    final String userId;
 
     final String prompt;
     final List<Song> songs;
@@ -30,9 +27,7 @@ class PlaylistDraft {
 
     PlaylistDraft({
         required this.id,
-        required this.deviceId,
-
-        this.sessionId,
+        required this.userId,
 
         required this.prompt,
         required this.songs,
@@ -55,11 +50,8 @@ class SpotifyPlaylistRequest {
     @JsonKey(name: 'playlist_id')
     final String playlistId;
 
-    @JsonKey(name: 'device_id')
-    final String deviceId;
-
-    @JsonKey(name: 'session_id')
-    final String sessionId;
+    @JsonKey(name: 'user_id')
+    final String userId;
 
     final String name;
     final String? description;
@@ -68,8 +60,7 @@ class SpotifyPlaylistRequest {
 
     SpotifyPlaylistRequest({
         required this.playlistId,
-        required this.deviceId,
-        required this.sessionId,
+        required this.userId,
         required this.name,
         this.description,
         this.public,
@@ -105,11 +96,8 @@ class SpotifyPlaylistResponse {
 
 @JsonSerializable()
 class LibraryPlaylistsRequest {
-    @JsonKey(name: 'device_id')
-    final String deviceId;
-
-    @JsonKey(name: 'session_id')
-    final String sessionId;
+    @JsonKey(name: 'user_id')
+    final String userId;
 
     @JsonKey(name: 'include_drafts')
     final bool? includeDrafts;
@@ -118,8 +106,7 @@ class LibraryPlaylistsRequest {
     final bool? forceRefresh;
 
     LibraryPlaylistsRequest({
-        required this.deviceId,
-        required this.sessionId,
+        required this.userId,
         this.includeDrafts,
         this.forceRefresh,
     });

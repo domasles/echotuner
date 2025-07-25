@@ -2,134 +2,88 @@
 
 import logging
 import uuid
-import re
 
 from datetime import datetime
-from fastapi import HTTPException, APIRouter
+from fastapi import HTTPException, APIRouter, Request
 
 from domain.auth.decorators import debug_only
-from domain.shared.validation.validators import validate_request, UniversalValidator
+from domain.shared.validation.validators import validate_request, validate_user_request, UniversalValidator
 
 from application import PlaylistRequest, PlaylistResponse, PlaylistDraftRequest, LibraryPlaylistsRequest, LibraryPlaylistsResponse, SpotifyPlaylistInfo
 
 from infrastructure.config.settings import settings
+from infrastructure.database.repository import repository
+from infrastructure.database.models import UserAccount
 
 from domain.playlist.generator import playlist_generator_service
 from domain.playlist.spotify import spotify_playlist_service
 from domain.playlist.draft import playlist_draft_service
 from infrastructure.rate_limiting.limit_service import rate_limiter_service
 from domain.personality.service import personality_service
-from domain.auth.middleware import auth_middleware
-from infrastructure.database.repository import repository
-from infrastructure.database.models.playlists import DemoPlaylist
-from domain.auth.service import auth_service
+from infrastructure.auth.oauth_service import oauth_service
 
 logger = logging.getLogger(__name__)
 
 # Create FastAPI router
 router = APIRouter(prefix="/playlist", tags=["playlists"])
 
-async def require_auth(request: PlaylistRequest):
-    if not settings.AUTH_REQUIRED:
-        return None
-
-    if not await auth_service.validate_device(request.device_id):
-        raise HTTPException(status_code=403, detail="Invalid device ID. Please register device first.")
-
-    if not hasattr(request, 'session_id') or not request.session_id:
-        raise HTTPException(status_code=401, detail="Authentication required")
-
-    try:
-        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
-        return user_info
-
-    except HTTPException:
-        raise
-
-    except Exception as e:
-        logger.error(f"Authentication error: {e}")
-        raise HTTPException(status_code=401, detail="Authentication failed")
-
 @router.post("/generate", response_model=PlaylistResponse)
-@validate_request('prompt', 'device_id', 'session_id', 'count')
-async def generate_playlist(request: PlaylistRequest):
+@validate_user_request()
+async def generate_playlist(request: Request, playlist_request: PlaylistRequest, validated_user_id: str = None):
     """Generate a playlist using AI-powered real-time song search"""
 
     try:
-        # Validation is now handled by the decorator
-        user_info = await require_auth(request)
+        # Get user_id from validated header
+        user_id = validated_user_id
 
-        if user_info and user_info.get('account_type') == 'demo':
-            rate_limit_key = request.device_id
-        else:
-            rate_limit_key = user_info["spotify_user_id"] if user_info else request.device_id
-
-        if settings.PLAYLIST_LIMIT_ENABLED and not await rate_limiter_service.can_make_request(rate_limit_key):
+        # Use user_id as rate limiting key for both shared and normal modes
+        if settings.PLAYLIST_LIMIT_ENABLED and not await rate_limiter_service.can_make_request(user_id):
             raise HTTPException(
                 status_code=429,
                 detail=f"Daily limit of {settings.MAX_PLAYLISTS_PER_DAY} playlists reached. Try again tomorrow."
             )
 
-        user_context = request.user_context
+        user_context = playlist_request.user_context
 
-        if not user_context and request.session_id:
+        # In the new system, personality is tied to user_id instead of session_id/device_id
+        if not user_context and user_id:
             try:
-                user_context = await personality_service.get_user_personality(
-                    session_id=request.session_id,
-                    device_id=request.device_id
-                )
-
+                user_context = await personality_service.get_user_personality_by_user_id(user_id)
             except Exception as e:
                 logger.warning(f"Failed to load user personality: {e}")
 
-        if user_context and request.session_id:
+        if user_context and user_id:
             try:
-                merged_artists = await personality_service.get_merged_favorite_artists(
-                    session_id=request.session_id,
-                    device_id=request.device_id,
+                merged_artists = await personality_service.get_merged_favorite_artists_by_user_id(
+                    user_id=user_id,
                     user_context=user_context
                 )
-
                 user_context.favorite_artists = merged_artists
-
             except Exception as e:
                 logger.warning(f"Failed to merge favorite artists: {e}")
 
         songs = await playlist_generator_service.generate_playlist(
-            prompt=request.prompt,
+            prompt=playlist_request.prompt,
             user_context=user_context,
-            count=request.count if settings.DEBUG else settings.MAX_SONGS_PER_PLAYLIST,
-            discovery_strategy=request.discovery_strategy or "balanced",
-            session_id=request.session_id,
-            device_id=request.device_id
+            count=playlist_request.count if settings.DEBUG else settings.MAX_SONGS_PER_PLAYLIST,
+            discovery_strategy=playlist_request.discovery_strategy or "balanced",
+            user_id=user_id
         )
 
-        if user_info and user_info.get('account_type') == 'demo':
-            playlist_id = str(uuid.uuid4())
-
-            await repository.create(DemoPlaylist, {
-                'playlist_id': playlist_id,
-                'device_id': request.device_id,
-                'session_id': request.session_id,
-                'prompt': request.prompt,
-                'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat()
-            })
-
-        else:
-            playlist_id = await playlist_draft_service.save_draft(
-                device_id=request.device_id,
-                session_id=request.session_id,
-                prompt=request.prompt,
-                songs=songs
-            )
+        # For shared mode (Google SSO), save as draft like normal mode
+        # No more demo/normal distinction - all users get draft functionality
+        playlist_id = await playlist_draft_service.save_draft(
+            user_id=user_id,
+            prompt=playlist_request.prompt,
+            songs=songs
+        )
 
         if settings.PLAYLIST_LIMIT_ENABLED:
-            await rate_limiter_service.record_request(rate_limit_key)
+            await rate_limiter_service.record_request(user_id)
 
         return PlaylistResponse(
             songs=songs,
-            generated_from=request.prompt,
+            generated_from=playlist_request.prompt,
             total_count=len(songs),
             playlist_id=playlist_id
         )
@@ -150,31 +104,38 @@ async def generate_playlist(request: PlaylistRequest):
         raise HTTPException(status_code=500, detail=f"Error generating playlist: {sanitized_error}")
 
 @router.post("/update-draft", response_model=PlaylistResponse)
-@validate_request('device_id', 'session_id')
-async def update_playlist_draft(request: PlaylistRequest):
+@validate_user_request()
+async def update_playlist_draft(request: Request, playlist_request: PlaylistRequest, validated_user_id: str = None):
     """Update an existing playlist draft"""
     
     try:
-        user_info = await require_auth(request)
-        playlist_id = request.playlist_id
-        current_songs = request.current_songs or []
+        user_id = validated_user_id
+        playlist_id = playlist_request.playlistId
+        current_songs = playlist_request.currentSongs or []
 
         logger.info(f"Update draft request - playlist_id: {playlist_id}, current_songs count: {len(current_songs)}")
-        logger.info(f"User info: {user_info}")
+        logger.info(f"User ID: {user_id}")
 
         if not playlist_id:
             raise HTTPException(status_code=400, detail="Playlist ID is required for updates")
 
-        # Check if this is a demo user
-        if user_info and user_info.get('account_type') == 'demo':
-            # For demo users, handle differently - don't save to database, just return the response
-            logger.info("Demo user - not saving draft to database")
-            return PlaylistResponse(
-                songs=current_songs,
-                generated_from=request.prompt or "Updated playlist",
-                total_count=len(current_songs),
-                playlist_id=playlist_id
-            )
+        # No more demo/normal distinction - all users use the same logic
+        draft = await playlist_draft_service.get_draft(playlist_id)
+        if not draft:
+            logger.warning(f"Draft not found for playlist_id: {playlist_id}")
+            raise HTTPException(status_code=404, detail="Draft playlist not found")
+
+        # Update the draft
+        success = await playlist_draft_service.update_draft(playlist_id, current_songs, playlist_request.prompt)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update draft")
+
+        return PlaylistResponse(
+            songs=current_songs,
+            generated_from=playlist_request.prompt or draft.prompt,
+            total_count=len(current_songs),
+            playlist_id=playlist_id
+        )
 
         draft = await playlist_draft_service.get_draft(playlist_id)
 
@@ -206,46 +167,32 @@ async def update_playlist_draft(request: PlaylistRequest):
         raise HTTPException(status_code=500, detail=f"Error updating playlist draft: {sanitized_error}")
 
 @router.post("/library", response_model=LibraryPlaylistsResponse)
-@validate_request('device_id', 'session_id')
-async def get_library_playlists(request: LibraryPlaylistsRequest):
+@validate_user_request()
+async def get_library_playlists(request: Request, library_request: LibraryPlaylistsRequest, validated_user_id: str = None):
     try:
-        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
-        spotify_user_id = user_info.get("spotify_user_id")
+        user_id = validated_user_id
+        
         drafts = []
 
         try:
             drafts = await playlist_draft_service.get_user_drafts(
-                user_id=spotify_user_id,
-                device_id=request.device_id,
-                session_id=request.session_id,
+                user_id=user_id,
                 include_spotify=False
             )
-
         except Exception as e:
-            logger.warning(f"Failed to get user drafts for {spotify_user_id}: {e}")
-
-        if not drafts:
-            logger.debug(f"No user-based drafts found for {spotify_user_id}, falling back to device drafts")
-
-            try:
-                drafts = await playlist_draft_service.get_device_drafts(
-                    device_id=request.device_id,
-                    include_spotify=False
-                )
-
-            except Exception as e:
-                logger.error(f"Failed to get device drafts: {e}")
-                drafts = []
+            logger.warning(f"Failed to get user drafts for {user_id}: {e}")
 
         spotify_playlists = []
 
-        if spotify_playlist_service.is_ready():
+        # Only get Spotify playlists for normal mode (Spotify OAuth users)
+        if spotify_playlist_service.is_ready() and not settings.SHARED:
             try:
-                access_token = await auth_service.get_access_token(request.session_id)
+                # For normal mode, get Spotify access token from our OAuth service
+                access_token = await oauth_service.get_access_token(request.user_id)
 
                 if access_token:
                     echotuner_playlist_ids = await playlist_draft_service.get_user_echotuner_spotify_playlist_ids(
-                        user_info.get('spotify_user_id')
+                        request.user_id
                     )
 
                     if echotuner_playlist_ids:
@@ -289,7 +236,7 @@ async def get_library_playlists(request: LibraryPlaylistsRequest):
         raise HTTPException(status_code=500, detail="Failed to get library playlists")
 
 @router.post("/drafts")
-@validate_request('device_id')
+@validate_request('user_id')
 async def get_draft_playlist(request: PlaylistDraftRequest):
     """Get a specific draft playlist."""
 
@@ -299,7 +246,7 @@ async def get_draft_playlist(request: PlaylistDraftRequest):
         if not draft:
             raise HTTPException(status_code=404, detail="Draft playlist not found")
 
-        if draft.device_id != request.device_id:
+        if draft.user_id != request.user_id:
             raise HTTPException(status_code=403, detail="Access denied")
 
         return draft
@@ -322,7 +269,7 @@ async def delete_draft_playlist(request: PlaylistDraftRequest):
         if not draft:
             raise HTTPException(status_code=404, detail="Draft playlist not found")
 
-        if draft.device_id != request.device_id:
+        if draft.user_id != request.user_id:
             raise HTTPException(status_code=403, detail="Access denied")
 
         if draft.status != "draft":

@@ -19,8 +19,8 @@ async def get_server_mode():
     """Get current server mode"""
 
     return {
-        "demo_mode": settings.DEMO,
-        "mode": "demo" if settings.DEMO else "normal"
+        "shared_mode": settings.SHARED,
+        "mode": "shared" if settings.SHARED else "normal"
     }
 
 @router.get("/health")

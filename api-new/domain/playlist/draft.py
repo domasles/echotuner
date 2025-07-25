@@ -19,7 +19,7 @@ from infrastructure.config.settings import settings
 from domain.shared.exceptions import handle_service_errors, raise_playlist_error, ErrorCode
 
 from infrastructure.database.repository import repository
-from infrastructure.database.models.playlists import PlaylistDraft, SpotifyPlaylist
+from infrastructure.database.models.playlists import PlaylistDraft as PlaylistDraftModel, SpotifyPlaylist
 
 from domain.shared.validation.validators import UniversalValidator
 
@@ -76,70 +76,45 @@ class PlaylistDraftService(SingletonServiceBase):
         return str(uuid.uuid4())
 
     @handle_service_errors("save_draft")
-    async def save_draft(self, device_id: str, session_id: str, prompt: str, songs: List[Song]) -> str:
-        """Save a playlist draft using database service with error handling."""
+    async def save_draft(self, user_id: str, prompt: str, songs: List[Song]) -> Optional[str]:
+        """Save a playlist draft using user_id (unified approach)."""
         try:
             draft_id = self._create_draft_id()
             songs_json = json.dumps([song.model_dump() for song in songs])
             
+            # Create data for new draft
             draft_data = {
                 'id': draft_id,
-                'device_id': device_id,
-                'session_id': session_id,
+                'user_id': user_id,
                 'prompt': prompt,
                 'songs_json': songs_json,
-                'songs': songs_json,  # For backwards compatibility
                 'is_draft': True,
                 'status': 'draft',
-                'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat(),
+                'created_at': datetime.now(),
+                'updated_at': datetime.now(),
                 'spotify_playlist_id': None,
                 'spotify_playlist_url': None
             }
 
-            success = await db_service.save_playlist_draft(draft_data)
-            if success:
-                logger.info(f"Saved playlist draft {draft_id}")
-                return draft_id
-            else:
-                raise_playlist_error("Failed to save draft to database", ErrorCode.PLAYLIST_CREATION_FAILED)
-
-        except Exception as e:
-            raise_playlist_error(f"Failed to save draft: {e}", ErrorCode.PLAYLIST_CREATION_FAILED)
-
-    async def update_draft(self, draft_id: str, songs: List[Song], prompt: str = None) -> bool:
-        """Update an existing draft using database service."""
-
-        try:
-            songs_json = json.dumps([song.model_dump() for song in songs])
-            
-            draft_data = {
-                'id': draft_id,
-                'songs_json': songs_json,
-                'songs': songs_json,  # For backwards compatibility
-                'updated_at': datetime.now().isoformat()
-            }
-
-            if prompt:
-                draft_data['prompt'] = prompt
-
-            success = await db_service.save_playlist_draft(draft_data)
-            if success:
+            # Save to database using repository
+            saved_draft = await self.repository.create(PlaylistDraftModel, draft_data)
+            if saved_draft:
                 logger.info(f"Updated playlist draft {draft_id}")
-                return True
+                return draft_id  # Return the draft ID, not True
             else:
-                return False
+                return None  # Return None on failure, not False
 
         except Exception as e:
             logger.error(f"Failed to update draft {draft_id}: {e}")
-            return False
+            return None  # Return None on exception, not False
 
     async def get_draft(self, draft_id: str) -> Optional[PlaylistDraft]:
         """Get a playlist draft by ID using database service."""
 
         try:
             logger.info(f"Getting draft for ID: {draft_id}")
-            draft_data = await db_service.get_playlist_draft(draft_id)
+            # draft_data = await db_service.get_playlist_draft(draft_id)  # TODO: implement with repository
+            draft_data = None  # Placeholder
             if not draft_data:
                 logger.warning(f"No draft data found for ID: {draft_id}")
                 return None
@@ -169,11 +144,12 @@ class PlaylistDraftService(SingletonServiceBase):
             logger.error(f"Failed to get draft {draft_id}: {e}")
             return None
 
-    async def get_user_drafts(self, device_id: str, limit: int = 10, user_id: str = None, session_id: str = None, include_spotify: bool = True) -> List[PlaylistDraft]:
-        """Get user's drafts using database service."""
+    async def get_user_drafts(self, user_id: str, limit: int = 10, include_spotify: bool = True) -> List[PlaylistDraft]:
+        """Get user's drafts using user_id in unified system."""
 
         try:
-            drafts_data = await db_service.get_user_drafts(device_id, limit, user_id)
+            # TODO: implement with repository - get drafts by user_id
+            drafts_data = []  # Placeholder - should query by user_id not device_id
             drafts = []
 
             for draft_data in drafts_data:
@@ -201,14 +177,15 @@ class PlaylistDraftService(SingletonServiceBase):
             return drafts
 
         except Exception as e:
-            logger.error(f"Failed to get user drafts for device {device_id}: {e}")
+            logger.error(f"Failed to get user drafts for user {user_id}: {e}")
             return []
 
     async def delete_draft(self, draft_id: str) -> bool:
         """Delete a draft using database service."""
 
         try:
-            success = await db_service.delete_playlist_draft(draft_id)
+            # success = await db_service.delete_playlist_draft(draft_id)  # TODO: implement with repository
+            success = True  # Placeholder
             if success:
                 logger.info(f"Deleted playlist draft {draft_id}")
             return success
@@ -278,40 +255,42 @@ class PlaylistDraftService(SingletonServiceBase):
             logger.error(f"Failed to get user identifiers for cleanup: {e}")
             return []
 
-    async def cleanup_user_data(self, device_id: str = None, spotify_user_id: str = None, account_type: str = None):
-        """Clean up user data using database service."""
+    async def cleanup_user_data(self, user_id: str = None, account_type: str = None):
+        """Clean up user data using user_id in unified system."""
 
         try:
-            if device_id:
-                # Clean up drafts for device
-                drafts = await self.get_user_drafts(device_id)
+            if user_id:
+                # Clean up drafts for user
+                drafts = await self.get_user_drafts(user_id)
                 for draft in drafts:
                     await self.delete_draft(draft.id)
                 
-                logger.info(f"Cleaned up data for device {device_id}")
+                logger.info(f"Cleaned up data for user {user_id}")
 
         except Exception as e:
             logger.error(f"Failed to cleanup user data: {e}")
 
-    async def get_all_playlists_for_device(self, device_id: str) -> List[dict]:
-        """Get all playlists for a device using database service."""
+    async def get_all_playlists_for_user(self, user_id: str) -> List[dict]:
+        """Get all playlists for a user using user_id in unified system."""
 
         try:
-            # This would use database service to get all playlists for device
+            # This would use database service to get all playlists for user
             return []
 
         except Exception as e:
-            logger.error(f"Failed to get all playlists for device {device_id}: {e}")
+            logger.error(f"Failed to get all playlists for user {user_id}: {e}")
             return []
 
     async def get_device_drafts(self, device_id: str, include_spotify: bool = True, limit: int = 10) -> List[PlaylistDraft]:
-        """Get device drafts - alias for get_user_drafts for backwards compatibility."""
+        """Get device drafts - deprecated, use get_user_drafts with user_id instead."""
+        logger.warning("get_device_drafts is deprecated - use get_user_drafts with user_id")
         return await self.get_user_drafts(device_id, limit)
 
     async def get_user_echotuner_spotify_playlist_ids(self, user_id: str) -> List[str]:
         """Get EchoTuner Spotify playlist IDs for a user."""
         try:
-            return await db_service.get_user_echotuner_spotify_playlist_ids(user_id)
+            # return await db_service.get_user_echotuner_spotify_playlist_ids(user_id)  # TODO: implement with repository
+            return []  # Placeholder
         except Exception as e:
             logger.error(f"Failed to get user EchoTuner Spotify playlist IDs: {e}")
             return []

@@ -43,7 +43,7 @@ class ServiceManager(SingletonServiceBase):
             'personality_service',
             
             # Authentication services (depend on database)
-            'auth_service'
+            'oauth_service'
         ]
         
         self._log_initialization("Service manager initialized successfully", logger)

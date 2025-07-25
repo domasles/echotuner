@@ -47,7 +47,7 @@ class PlaylistGeneratorService(SingletonServiceBase):
             logger.error(f"Playlist generation initialization failed: {e}")
             raise RuntimeError(f"Playlist generation initialization failed: {e}")
 
-    async def generate_playlist(self, prompt: str, user_context: Optional[UserContext] = None, count: int = 30, discovery_strategy: str = "balanced", session_id: str = None, device_id: str = None) -> List[Song]:
+    async def generate_playlist(self, prompt: str, user_context: Optional[UserContext] = None, count: int = 30, discovery_strategy: str = "balanced", user_id: str = None) -> List[Song]:
         """
         Generate a playlist using AI-powered real-time song search with full personality context.
 
@@ -70,12 +70,11 @@ class PlaylistGeneratorService(SingletonServiceBase):
             if discovery_strategy not in ["new_music", "existing_music", "balanced"]:
                 discovery_strategy = "balanced"
 
-            # Get enhanced personality context if session info provided
+            # Get enhanced personality context if user_id provided
             enhanced_prompt = prompt
-            if session_id and device_id:
-                enhanced_prompt = await personality_service.get_personality_enhanced_context(
-                    session_id=session_id, 
-                    device_id=device_id, 
+            if user_id:
+                enhanced_prompt = await personality_service.get_personality_enhanced_context_by_user_id(
+                    user_id=user_id, 
                     prompt=prompt
                 )
 

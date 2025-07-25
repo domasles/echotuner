@@ -9,8 +9,7 @@ from .spotify_models import SpotifyPlaylistInfo
 
 class PlaylistRequest(BaseModel):
     prompt: str
-    device_id: str
-    session_id: str
+    user_id: str  # Format: spotify_{id} or google_{id}
     user_context: Optional[UserContext] = None
     current_songs: Optional[List[Song]] = None
     count: Optional[int] = 30
@@ -27,8 +26,7 @@ class PlaylistResponse(BaseModel):
 
 class PlaylistDraft(BaseModel):
     id: str
-    device_id: str
-    session_id: Optional[str] = None
+    user_id: str  # Format: spotify_{id} or google_{id}
     prompt: str
     songs: List[Song]
     created_at: datetime
@@ -40,12 +38,11 @@ class PlaylistDraft(BaseModel):
 
 class PlaylistDraftRequest(BaseModel):
     playlist_id: str
-    device_id: str
+    user_id: str
 
 
 class LibraryPlaylistsRequest(BaseModel):
-    device_id: str
-    session_id: str
+    user_id: str
     include_drafts: Optional[bool] = True
 
 

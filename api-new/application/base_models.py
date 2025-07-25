@@ -40,7 +40,7 @@ class UserContext(BaseModel):
 
 
 class RateLimitStatus(BaseModel):
-    device_id: str
+    user_id: str  # Format: spotify_{id} or google_{id}
     requests_made_today: int
     max_requests_per_day: int
     can_make_request: bool

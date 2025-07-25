@@ -1,5 +1,4 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 import '../services/config_service.dart';
 import '../services/auth_service.dart';
@@ -10,7 +9,6 @@ import 'api_service.dart';
 
 class PersonalityService {
     static const String _lastSyncKey = 'last_artist_sync';
-    static const String _demoPersonalityKey = 'demo_personality';
 
     final ApiService _apiService;
     final AuthService _authService;
@@ -18,66 +16,16 @@ class PersonalityService {
 
     PersonalityService({required ApiService apiService, required AuthService authService, required ConfigService configService}) : _apiService = apiService, _authService = authService, _configService = configService;
 
-    Future<bool> _isDemoAccount() async {
-        try {
-            final sessionId = await _getSessionId();
-            if (sessionId == null) return false;
-            
-            final deviceId = await _getDeviceId();
-            if (deviceId == null) return false;
-            
-            AppLogger.personality('Checking account type for session: ${sessionId.substring(0, 8)}...');
-
-            final response = await _apiService.post('/auth/account-type', body: {
-                'session_id': sessionId,
-                'device_id': deviceId
-            });
-
-            final isDemo = response['account_type'] == 'demo';
-            AppLogger.personality('Account type check result: isDemo=$isDemo');
-
-            return isDemo;
-        }
-
-        catch (e) {
-            AppLogger.personality('Failed to get account type: $e');
-
-            if (e.toString().contains('404') || e.toString().contains('401')) {
-                AppLogger.personality('Session invalid, triggering logout for re-authentication');
-                await _authService.logout();
-            }
-
-            return false;
-        }
-    }
-
-    Future<bool> isDemoAccount() async {
-        return await _isDemoAccount();
-    }
-
     Future<void> saveUserContext(UserContext context) async {
-        final isDemoAccount = await _isDemoAccount();
-
-        if (isDemoAccount) {
-            AppLogger.personality('Demo account: Saving context locally...');
-            AppLogger.personality('Demo account: Context to save: ${context.toJson()}');
-
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString(_demoPersonalityKey, jsonEncode(context.toJson()));
-
-            AppLogger.personality('Demo account: Context saved locally successfully');
-
-            return;
-        }
-
         AppLogger.personality('Saving context to API...');
         AppLogger.personality('Context data: ${context.toJson()}');
 
-        final response = await _apiService.post('/personality/save', body: {
-            'session_id': await _getSessionId(),                              
-            'device_id': await _getDeviceId(),
-            'user_context': context.toJson(),
-        });
+        final response = await _apiService.post('/personality/save', 
+            body: context.toJson(),
+            headers: {
+                'X-User-ID': await _getUserId() ?? '',
+            }
+        );
 
         AppLogger.personality('API response: $response');
 
@@ -89,41 +37,11 @@ class PersonalityService {
     }
 
     Future<UserContext?> loadUserContext() async {
-        final isDemoAccount = await _isDemoAccount();
-
-        if (isDemoAccount) {
-            AppLogger.personality('Demo account: Loading context from local storage...');
-
-            final prefs = await SharedPreferences.getInstance();
-            final personalityJson = prefs.getString(_demoPersonalityKey);
-
-            AppLogger.personality('Demo account: Raw data from storage: $personalityJson');
-
-            if (personalityJson != null) {
-                try {
-                    final contextData = jsonDecode(personalityJson);
-                    final context = UserContext.fromJson(contextData);
-
-                    AppLogger.personality('Demo account: Loaded context from local storage: ${context.toJson()}');
-
-                    return context;
-                }
-
-                catch (e) {
-                    AppLogger.personality('Demo account: Failed to parse local personality: $e');
-                }
-            }
-
-            AppLogger.personality('Demo account: No local personality found - returning null');
-            return null;
-        }
-
         AppLogger.personality('Loading context from API...');
 
         try {
             final response = await _apiService.get('/personality/load', headers: {
-                'session_id': await _getSessionId() ?? '',
-                'device_id': await _getDeviceId() ?? '',
+                'X-User-ID': await _getUserId() ?? '',
             });
 
             final userContextData = response['user_context'];
@@ -152,29 +70,23 @@ class PersonalityService {
     Future<void> clearUserContext() async {
         AppLogger.personality('Clearing context from API ONLY...');
 
-        await _apiService.post('/personality/clear', body: {
-            'session_id': await _getSessionId(),
-            'device_id': await _getDeviceId(),
-        });
+        await _apiService.post('/personality/clear', 
+            body: {},
+            headers: {
+                'X-User-ID': await _getUserId() ?? '',
+            }
+        );
 
         AppLogger.personality('Context cleared from API');
     }
 
-    Future<List<SpotifyArtist>> fetchFollowedArtists({String? sessionId}) async {
+    Future<List<SpotifyArtist>> fetchFollowedArtists({String? userId}) async {
         try {
-            final isDemoAccount = await _isDemoAccount();
-
-            if (isDemoAccount) {
-                AppLogger.personality('Demo account: Skipping followed artists fetch');
-                return [];
-            }
-            
-            final sessionIdToUse = sessionId ?? await _getSessionId();
-            if (sessionIdToUse == null) throw Exception('No session ID available');
+            final userId = await _getUserId();
+            if (userId == null) throw Exception('No user ID available');
 
             final response = await _apiService.get('/personality/followed-artists', headers: {
-                'session_id': sessionIdToUse,
-                'device_id': await _getDeviceId() ?? '',
+                'X-User-ID': await _getUserId() ?? '',
             });
 
             final List<dynamic> artistsJson = response['artists'] ?? [];
@@ -197,18 +109,21 @@ class PersonalityService {
 
     Future<List<SpotifyArtist>> searchArtists(String query) async {
         try {
-            final sessionId = await _getSessionId();
+            final userId = await _getUserId();
 
-            if (sessionId == null) {
-                throw Exception('No session ID available');
+            if (userId == null) {
+                throw Exception('No user ID available');
             }
 
-            final response = await _apiService.post('/personality/search-artists', body: {
-                'session_id': sessionId,
-                'device_id': await _getDeviceId(),
-                'query': query,
-                'limit': 20,
-            });
+            final response = await _apiService.post('/personality/search-artists', 
+                body: {
+                    'query': query,
+                    'limit': 20,
+                },
+                headers: {
+                    'X-User-ID': await _getUserId() ?? '',
+                }
+            );
 
             final List<dynamic> artistsJson = response['artists'] ?? [];
 
@@ -229,12 +144,8 @@ class PersonalityService {
         }
     }
 
-    Future<String?> _getSessionId() async {
-        return _authService.sessionId;
-    }
-
-    Future<String?> _getDeviceId() async {
-        return _authService.deviceId;
+    Future<String?> _getUserId() async {
+        return _authService.userId;
     }
 
     Future<bool> shouldSyncArtists() async {
@@ -254,8 +165,8 @@ class PersonalityService {
         await prefs.setInt(_lastSyncKey, DateTime.now().millisecondsSinceEpoch);
     }
 
-    Future<UserContext> getDefaultPersonalityContext({String? sessionId}) async {
-        final followedArtists = sessionId != null ? await fetchFollowedArtists(sessionId: sessionId) : <SpotifyArtist>[];
+    Future<UserContext> getDefaultPersonalityContext({String? userId}) async {
+        final followedArtists = userId != null ? await fetchFollowedArtists(userId: userId) : <SpotifyArtist>[];
 
         return UserContext(
             favoriteArtists: followedArtists.map((artist) => artist.name).toList(),

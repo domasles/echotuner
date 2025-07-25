@@ -4,13 +4,9 @@ part 'auth_models.g.dart';
 
 @JsonSerializable()
 class AuthInitRequest {
-    @JsonKey(name: 'device_id')
-
-    final String deviceId;
     final String platform;
 
     AuthInitRequest({
-        required this.deviceId,
         required this.platform,
     });
 
@@ -22,15 +18,18 @@ class AuthInitRequest {
 class AuthInitResponse {
     @JsonKey(name: 'auth_url')
     final String authUrl;
-    final String state;
+    
+    @JsonKey(name: 'session_uuid')
+    final String sessionUuid;
 
-    @JsonKey(name: 'device_id')
-    final String deviceId;
+    final String? action;
+    final String? message;
 
     AuthInitResponse({
         required this.authUrl,
-        required this.state,
-        required this.deviceId,
+        required this.sessionUuid,
+        this.action,
+        this.message,
     });
 
     factory AuthInitResponse.fromJson(Map<String, dynamic> json) => _$AuthInitResponseFromJson(json);
@@ -38,77 +37,63 @@ class AuthInitResponse {
 }
 
 @JsonSerializable()
-class SessionValidationRequest {
-    @JsonKey(name: 'session_id')
-    final String sessionId;
+class AuthStatusRequest {
+    @JsonKey(name: 'session_uuid')
+    final String sessionUuid;
 
-    @JsonKey(name: 'device_id')
-    final String deviceId;
-
-    SessionValidationRequest({
-        required this.sessionId,
-        required this.deviceId,
+    AuthStatusRequest({
+        required this.sessionUuid,
     });
 
-    factory SessionValidationRequest.fromJson(Map<String, dynamic> json) => _$SessionValidationRequestFromJson(json);
-    Map<String, dynamic> toJson() => _$SessionValidationRequestToJson(this);
+    factory AuthStatusRequest.fromJson(Map<String, dynamic> json) => _$AuthStatusRequestFromJson(json);
+    Map<String, dynamic> toJson() => _$AuthStatusRequestToJson(this);
 }
 
 @JsonSerializable()
-class SessionValidationResponse {
+class AuthStatusResponse {
+    final String status;
+    
+    @JsonKey(name: 'user_id')
+    final String? userId;
+
+    AuthStatusResponse({
+        required this.status,
+        this.userId,
+    });
+
+    factory AuthStatusResponse.fromJson(Map<String, dynamic> json) => _$AuthStatusResponseFromJson(json);
+    Map<String, dynamic> toJson() => _$AuthStatusResponseToJson(this);
+}
+
+@JsonSerializable()
+class UserValidationRequest {
+    @JsonKey(name: 'user_id')
+    final String userId;
+
+    UserValidationRequest({
+        required this.userId,
+    });
+
+    factory UserValidationRequest.fromJson(Map<String, dynamic> json) => _$UserValidationRequestFromJson(json);
+    Map<String, dynamic> toJson() => _$UserValidationRequestToJson(this);
+}
+
+@JsonSerializable()
+class UserValidationResponse {
     final bool valid;
 
     @JsonKey(name: 'user_id')
     final String? userId;
 
-    @JsonKey(name: 'spotify_user_id')
-    final String? spotifyUserId;
+    @JsonKey(name: 'account_type')
+    final String? accountType; // "shared" or "normal"
 
-    SessionValidationResponse({
+    UserValidationResponse({
         required this.valid,
-
         this.userId,
-        this.spotifyUserId,
+        this.accountType,
     });
 
-    factory SessionValidationResponse.fromJson(Map<String, dynamic> json) => _$SessionValidationResponseFromJson(json);
-    Map<String, dynamic> toJson() => _$SessionValidationResponseToJson(this);
-}
-
-@JsonSerializable()
-class DeviceRegistrationRequest {
-    final String platform;
-
-    @JsonKey(name: 'app_version')
-    final String? appVersion;
-
-    @JsonKey(name: 'device_fingerprint')
-    final String? deviceFingerprint;
-
-    DeviceRegistrationRequest({
-        required this.platform,
-
-        this.appVersion,
-        this.deviceFingerprint,
-    });
-
-    factory DeviceRegistrationRequest.fromJson(Map<String, dynamic> json) => _$DeviceRegistrationRequestFromJson(json);
-    Map<String, dynamic> toJson() => _$DeviceRegistrationRequestToJson(this);
-}
-
-@JsonSerializable()
-class DeviceRegistrationResponse {
-    @JsonKey(name: 'device_id')
-    final String deviceId;
-
-    @JsonKey(name: 'registration_timestamp')
-    final int registrationTimestamp;
-
-    DeviceRegistrationResponse({
-        required this.deviceId,
-        required this.registrationTimestamp,
-    });
-
-    factory DeviceRegistrationResponse.fromJson(Map<String, dynamic> json) => _$DeviceRegistrationResponseFromJson(json);
-    Map<String, dynamic> toJson() => _$DeviceRegistrationResponseToJson(this);
+    factory UserValidationResponse.fromJson(Map<String, dynamic> json) => _$UserValidationResponseFromJson(json);
+    Map<String, dynamic> toJson() => _$UserValidationResponseToJson(this);
 }

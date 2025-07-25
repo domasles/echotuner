@@ -279,8 +279,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 mode: LaunchMode.externalApplication,
             );
 
+            // Check if this is a setup scenario
+            if (authResponse.action == 'setup_required') {
+                // Show setup message and stop here - no polling
+                if (mounted) {
+                    _showSetupDialog(authResponse.message ?? 'Owner setup required. Please complete setup in the browser and restart the app.');
+                }
+                await authService.handleSetupRequired();
+                return; // Don't poll for setup
+            }
+
+            // Normal auth flow - poll for completion
             try {
-                await authService.completeAuth();
+                await authService.completeNormalAuth();
             }
 
             catch (e, stackTrace) {
@@ -307,6 +318,40 @@ class _LoginScreenState extends State<LoginScreen> {
                 _showErrorDialog('Failed to open browser. Please ensure you have a default browser set and try again.');
             }
         }
+    }
+
+    void _showSetupDialog(String message) {
+        showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+                backgroundColor: const Color(0xFF1A1625),
+                title: const Text(
+                    'Setup Required',
+                    style: TextStyle(color: Colors.white),
+                ),
+
+                content: Text(
+                    message,
+                    style: const TextStyle(color: Colors.white70),
+                ),
+
+                actions: [
+                    TextButton(
+                        onPressed: () {
+                            Navigator.of(context).pop();
+                            // Stop loading state
+                            setState(() {
+                                _isLoading = false;
+                            });
+                        },
+                        child: const Text(
+                            'OK',
+                            style: TextStyle(color: Color(0xFF8B5CF6)),
+                        ),
+                    ),
+                ],
+            ),
+        );
     }
 
     void _showErrorDialog(String message) {

@@ -11,89 +11,102 @@ from application import SpotifyPlaylistRequest, SpotifyPlaylistResponse, Spotify
 
 from domain.playlist.spotify import spotify_playlist_service
 from domain.playlist.draft import playlist_draft_service
-from domain.auth.middleware import auth_middleware
-from domain.auth.service import auth_service
+from infrastructure.auth.oauth_service import oauth_service
+from infrastructure.database.repository import repository
+from infrastructure.database.models import UserAccount
+from infrastructure.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 # Create FastAPI router
 router = APIRouter(prefix="/spotify", tags=["spotify"])
 
+async def require_auth(user_id: str):
+    """Validate user authentication with new unified system."""
+    if not settings.AUTH_REQUIRED:
+        return None
+
+    try:
+        # Validate the user exists in our database
+        user_account = await repository.get_by_field(UserAccount, "user_id", user_id)
+        if not user_account:
+            raise HTTPException(status_code=401, detail="Invalid user ID. Please authenticate first.")
+        
+        return {
+            "user_id": user_id,
+            "account_type": "shared" if settings.SHARED else "normal"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Authentication error: {e}")
+        raise HTTPException(status_code=401, detail="Authentication failed")
+
 @router.post("/create-playlist", response_model=SpotifyPlaylistResponse)
-@validate_request('session_id', 'device_id')
+@validate_request('user_id')
 async def create_spotify_playlist(request: SpotifyPlaylistRequest):
     """Create a Spotify playlist from a draft."""
 
     try:
-        user_info = await auth_middleware.validate_session_from_request(request.session_id, request.device_id)
+        user_info = await require_auth(request.user_id)
 
         if not spotify_playlist_service.is_ready():
             raise HTTPException(status_code=503, detail="Spotify playlist service not available")
 
-        if user_info and user_info.get('account_type') == 'demo':
+        # In shared mode (Google SSO), require songs list since there's no Spotify OAuth
+        if settings.SHARED:
             if not request.songs:
-                raise HTTPException(status_code=400, detail="Songs list required for demo accounts")
-
+                raise HTTPException(status_code=400, detail="Songs list required for shared mode")
             songs = request.songs
             draft = None
-
         else:
+            # Normal mode - get draft playlist
             draft = await playlist_draft_service.get_draft(request.playlist_id)
 
             if not draft:
                 raise HTTPException(status_code=404, detail="Draft playlist not found")
 
-            songs = draft.songs
-
-        if draft and draft.session_id and draft.session_id != request.session_id:
-            draft_user_info = await auth_service.get_user_from_session(draft.session_id)
-            current_user_spotify_id = user_info.get('spotify_user_id')
-            draft_user_spotify_id = draft_user_info.get('spotify_user_id') if draft_user_info else None
-
-            logger.debug(f"Cross-device check: draft user {draft_user_spotify_id}, current user {current_user_spotify_id}")
-            logger.debug(f"Draft user info: {draft_user_info}")
-            logger.debug(f"Current user info: {user_info}")
-
-            if current_user_spotify_id != draft_user_spotify_id:
-                logger.warning(f"Access denied: draft belongs to user {draft_user_spotify_id}, current user is {current_user_spotify_id}")
+            if draft.user_id != request.user_id:
                 raise HTTPException(status_code=403, detail="This draft belongs to a different user")
 
-        elif draft and not draft.session_id and draft.device_id != request.device_id:
-            logger.warning(f"Access denied: draft device {draft.device_id}, current device {request.device_id}")
-            raise HTTPException(status_code=403, detail="This draft belongs to a different device")
+            songs = draft.songs
 
-        access_token = await auth_service.get_access_token(request.session_id)
+        # For normal mode, get Spotify access token
+        if not settings.SHARED:
+            access_token = await oauth_service.get_access_token(request.user_id)
 
-        if not access_token:
-            raise HTTPException(status_code=401, detail="No valid access token")
+            if not access_token:
+                raise HTTPException(status_code=401, detail="No valid Spotify access token")
 
-        spotify_playlist_id, playlist_url = await spotify_playlist_service.create_playlist(
-            access_token=access_token,
-            playlist_name=request.name,
-            songs=songs,
-            description=request.description,
-            public=request.public or False
-        )
-
-        if draft:
-            await playlist_draft_service.mark_as_added_to_spotify(
-                playlist_id=request.playlist_id,
-                spotify_playlist_id=spotify_playlist_id,
-                spotify_url=playlist_url,
-                user_id=user_info.get('spotify_user_id'),
-                device_id=request.device_id,
-                session_id=request.session_id,
-                playlist_name=request.name
+            spotify_playlist_id, playlist_url = await spotify_playlist_service.create_playlist(
+                access_token=access_token,
+                playlist_name=request.name,
+                songs=songs,
+                description=request.description,
+                public=request.public or False
             )
 
-        logger.debug(f"Created Spotify playlist {spotify_playlist_id} from {'draft' if draft else 'demo playlist'} {request.playlist_id}")
+            if draft:
+                await playlist_draft_service.mark_as_added_to_spotify(
+                    playlist_id=request.playlist_id,
+                    spotify_playlist_id=spotify_playlist_id,
+                    spotify_url=playlist_url,
+                    user_id=request.user_id,
+                    playlist_name=request.name
+                )
 
-        return SpotifyPlaylistResponse(
-            success=True,
-            spotify_playlist_id=spotify_playlist_id,
-            playlist_url=playlist_url,
-            message="Playlist created successfully"
-        )
+            logger.debug(f"Created Spotify playlist {spotify_playlist_id} from draft {request.playlist_id}")
+
+            return SpotifyPlaylistResponse(
+                success=True,
+                spotify_playlist_id=spotify_playlist_id,
+                playlist_url=playlist_url,
+                message="Playlist created successfully"
+            )
+        else:
+            # Shared mode - no Spotify playlist creation, return error or alternative behavior
+            raise HTTPException(status_code=400, detail="Spotify playlist creation not available in shared mode")
 
     except HTTPException:
         raise
@@ -103,23 +116,24 @@ async def create_spotify_playlist(request: SpotifyPlaylistRequest):
         raise HTTPException(status_code=500, detail="Failed to create Spotify playlist")
 
 @router.post("/playlist/tracks")
-@validate_request('session_id', 'device_id')
+@validate_request('user_id')
 async def get_spotify_playlist_tracks(request: SpotifyPlaylistTracksRequest):
     """Get tracks from a Spotify playlist."""
 
     try:
-        user_info = await auth_service.validate_session_and_get_user(request.session_id, request.device_id)
-
-        if not user_info:
-            raise HTTPException(status_code=401, detail="Invalid or expired session")
+        user_info = await require_auth(request.user_id)
 
         if not spotify_playlist_service.is_ready():
             raise HTTPException(status_code=503, detail="Spotify playlist service not available")
 
-        access_token = await auth_service.get_access_token(request.session_id)
+        # Only available in normal mode
+        if settings.SHARED:
+            raise HTTPException(status_code=400, detail="Spotify playlist access not available in shared mode")
+
+        access_token = await oauth_service.get_access_token(request.user_id)
 
         if not access_token:
-            raise HTTPException(status_code=401, detail="No valid access token")
+            raise HTTPException(status_code=401, detail="No valid Spotify access token")
 
         tracks = await spotify_playlist_service.get_playlist_tracks(access_token, request.playlist_id)
 
@@ -137,10 +151,15 @@ async def remove_track_from_spotify_playlist(request: SpotifyPlaylistTrackRemove
     """Remove a track from a Spotify playlist."""
 
     try:
-        access_token = await auth_service.get_access_token(request.session_id)
+        user_info = await require_auth(request.user_id)
+
+        if settings.SHARED:
+            raise HTTPException(status_code=400, detail="Spotify playlist modification not available in shared mode")
+
+        access_token = await oauth_service.get_access_token(request.user_id)
 
         if not access_token:
-            raise HTTPException(status_code=401, detail="No valid access token")
+            raise HTTPException(status_code=401, detail="No valid Spotify access token")
 
         success = await spotify_playlist_service.remove_track_from_playlist(access_token, request.playlist_id, request.track_uri)
 

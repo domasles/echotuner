@@ -1,63 +1,43 @@
 """
 Playlist related ORM models.
+Unified playlist system for all users (Spotify and Google).
 """
 
-from sqlalchemy import Column, String, Boolean, Text, ForeignKey
+from sqlalchemy import Column, String, Boolean, Text, ForeignKey, DateTime, func
 
 from ..core import Base
 
 class PlaylistDraft(Base):
-    """Playlist drafts table."""
+    """Playlist drafts table for all users."""
     
     __tablename__ = "playlist_drafts"
     
     id = Column(String, primary_key=True)
-
-    device_id = Column(String, ForeignKey("device_registry.device_id"), nullable=False)
-    session_id = Column(String, ForeignKey("auth_sessions.session_id"))
-
+    user_id = Column(String(255), ForeignKey("user_accounts.user_id"), nullable=False)
     prompt = Column(Text, nullable=False)
-
     songs_json = Column(Text, nullable=False)
     songs = Column(Text)
-
     is_draft = Column(Boolean, default=True)
     status = Column(String, default='draft')
-
     spotify_playlist_id = Column(String)
     spotify_playlist_url = Column(String)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    created_at = Column(String, nullable=False)
-    updated_at = Column(String, nullable=False)
+    def __repr__(self):
+        return f"<PlaylistDraft(id='{self.id}', user_id='{self.user_id}')>"
 
 class SpotifyPlaylist(Base):
     """Spotify playlists table for tracking created playlists."""
     
-    __tablename__ = "echotuner_spotify_playlists"
+    __tablename__ = "spotify_playlists"
     
     spotify_playlist_id = Column(String, primary_key=True)
-    user_id = Column(String, nullable=False)
-
-    device_id = Column(String, ForeignKey("device_registry.device_id"), nullable=False)
-    session_id = Column(String, ForeignKey("auth_sessions.session_id"))
-
+    user_id = Column(String(255), ForeignKey("user_accounts.user_id"), nullable=False)
     original_draft_id = Column(String, ForeignKey("playlist_drafts.id"))
     playlist_name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    created_at = Column(String, nullable=False)
-    updated_at = Column(String, nullable=False)
-
-class DemoPlaylist(Base):
-    """Demo playlists table for tracking demo account playlists."""
-    
-    __tablename__ = "demo_playlists"
-    
-    playlist_id = Column(String, primary_key=True)
-
-    device_id = Column(String, ForeignKey("device_registry.device_id"), nullable=False)
-    session_id = Column(String, ForeignKey("auth_sessions.session_id"))
-
-    prompt = Column(Text, nullable=False)
-
-    created_at = Column(String, nullable=False)
-    updated_at = Column(String, nullable=False)
+    def __repr__(self):
+        return f"<SpotifyPlaylist(id='{self.spotify_playlist_id}', user_id='{self.user_id}')>"

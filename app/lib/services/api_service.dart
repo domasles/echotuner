@@ -89,11 +89,17 @@ class ApiService {
     }
 
     Future<PlaylistResponse> generatePlaylist(PlaylistRequest request) async {
+        final userId = _authService?.userId;
+        if (userId == null) {
+            throw ApiException('User not authenticated');
+        }
+
         final response = await _client.post(
             Uri.parse(AppConfig.apiUrl('/playlist/generate')),
 
             headers: {
                 'Content-Type': 'application/json',
+                'X-User-ID': userId,
             },
 
             body: jsonEncode(request.toJson()),
@@ -231,11 +237,17 @@ class ApiService {
     }
 
     Future<LibraryPlaylistsResponse> getLibraryPlaylists(LibraryPlaylistsRequest request) async {
+        final userId = _authService?.userId;
+        if (userId == null) {
+            throw ApiException('User not authenticated');
+        }
+
         final response = await _client.post(
             Uri.parse(AppConfig.apiUrl('/playlist/library')),
 
             headers: {
                 'Content-Type': 'application/json',
+                'X-User-ID': userId,
             },
 
             body: jsonEncode(request.toJson()),
@@ -255,7 +267,7 @@ class ApiService {
         }
     }
 
-    Future<PlaylistDraft> getDraftPlaylist(String playlistId, String deviceId) async {
+    Future<PlaylistDraft> getDraftPlaylist(String playlistId, String userId) async {
         final response = await _client.post(
             Uri.parse(AppConfig.apiUrl('/playlist/drafts')),
             headers: {
@@ -263,7 +275,7 @@ class ApiService {
             },
             body: jsonEncode({
                 'playlist_id': playlistId,
-                'device_id': deviceId,
+                'user_id': userId,
             }),
         );
 
@@ -289,7 +301,7 @@ class ApiService {
         }
     }
 
-    Future<bool> deleteDraftPlaylist(String playlistId, String deviceId) async {
+    Future<bool> deleteDraftPlaylist(String playlistId, String userId) async {
         final response = await _client.delete(
             Uri.parse(AppConfig.apiUrl('/playlist/drafts')),
             headers: {
@@ -297,7 +309,7 @@ class ApiService {
             },
             body: jsonEncode({
                 'playlist_id': playlistId,
-                'device_id': deviceId,
+                'user_id': userId,
             }),
         );
 
@@ -309,7 +321,7 @@ class ApiService {
         return response.statusCode == 200;
     }
 
-    Future<bool> deleteSpotifyPlaylist(String playlistId, String sessionId, String deviceId) async {
+    Future<bool> deleteSpotifyPlaylist(String playlistId, String userId) async {
         final response = await _client.delete(
             Uri.parse(AppConfig.apiUrl('/spotify/playlist')),
             headers: {
@@ -317,8 +329,7 @@ class ApiService {
             },
             body: jsonEncode({
                 'playlist_id': playlistId,
-                'session_id': sessionId,
-                'device_id': deviceId,
+                'user_id': userId,
             }),
         );
 
@@ -330,7 +341,7 @@ class ApiService {
         return response.statusCode == 200;
     }
 
-    Future<bool> removeTrackFromSpotifyPlaylist(String playlistId, String trackUri, String sessionId, String deviceId) async {
+    Future<bool> removeTrackFromSpotifyPlaylist(String playlistId, String trackUri, String userId) async {
         final response = await _client.delete(
             Uri.parse(AppConfig.apiUrl('/spotify/playlist/track')),
             headers: {
@@ -339,8 +350,7 @@ class ApiService {
             body: jsonEncode({
                 'playlist_id': playlistId,
                 'track_uri': trackUri,
-                'session_id': sessionId,
-                'device_id': deviceId,
+                'user_id': userId,
             }),
         );
 
@@ -352,7 +362,7 @@ class ApiService {
         return response.statusCode == 200;
     }
 
-    Future<List<Map<String, dynamic>>> getSpotifyPlaylistTracks(String playlistId, String sessionId, String deviceId) async {
+    Future<List<Map<String, dynamic>>> getSpotifyPlaylistTracks(String playlistId, String userId) async {
         final response = await _client.post(
             Uri.parse(AppConfig.apiUrl('/spotify/playlist/tracks')),
             headers: {
@@ -360,8 +370,7 @@ class ApiService {
             },
             body: jsonEncode({
                 'playlist_id': playlistId,
-                'session_id': sessionId,
-                'device_id': deviceId,
+                'user_id': userId,
             }),
         );
 
@@ -381,10 +390,16 @@ class ApiService {
     }
 
     Future<PlaylistResponse> updatePlaylistDraft(PlaylistRequest request) async {
+        final userId = _authService?.userId;
+        if (userId == null) {
+            throw ApiException('User not authenticated');
+        }
+
         final response = await _client.post(
             Uri.parse(AppConfig.apiUrl('/playlist/update-draft')),
             headers: {
                 'Content-Type': 'application/json',
+                'X-User-ID': userId,
             },
             body: jsonEncode(request.toJson()),
         );

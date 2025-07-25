@@ -46,7 +46,7 @@ async def get_config():
             "auth_required": settings.AUTH_REQUIRED,
             "playlist_limit_enabled": settings.PLAYLIST_LIMIT_ENABLED,
         },
-        "demo_mode": settings.DEMO
+        "shared_mode": settings.SHARED
     }
 
 @router.post("/reload")
@@ -73,8 +73,8 @@ async def root():
     return {
         "message": app_constants.API_WELCOME_MESSAGE,
         "description": "AI-powered playlist generation with real-time song search",
-        "demo_mode": settings.DEMO,
-        "demo_info": "Demo mode uses a shared Spotify account with device-specific experiences" if settings.DEMO else None,
+        "shared_mode": settings.SHARED,
+        "shared_info": "Shared mode uses Google SSO + owner's Spotify account" if settings.SHARED else None,
         "endpoints": {
             "generate": "/playlist/generate",
             "update_draft": "/playlist/update-draft",

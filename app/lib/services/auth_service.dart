@@ -3,25 +3,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io' show Platform;
 import 'dart:convert';
+import 'package:uuid/uuid.dart';
 
 import '../models/auth_models.dart';
 import '../config/settings.dart';
 import '../utils/app_logger.dart';
 
 class AuthService extends ChangeNotifier {
-    static const String _sessionIdKey = 'session_id';
-    static const String _deviceIdKey = 'device_id';
+    static const String _userIdKey = 'user_id';
+    static const String _tempSessionUuidKey = 'temp_session_uuid';
 
-    String? _sessionId;
-    String? _deviceId;
-    String? _tempDeviceId;
+    String? _userId;
+    String? _tempSessionUuid;
 
     bool _isAuthenticated = false;
     bool _isLoading = false;
 
-    String? get sessionId => _sessionId;
-    String? get deviceId => _deviceId;
-
+    String? get userId => _userId;
+    String? get sessionUuid => _tempSessionUuid;
     bool get isAuthenticated => _isAuthenticated;
     bool get isLoading => _isLoading;
 
@@ -31,22 +30,13 @@ class AuthService extends ChangeNotifier {
 
         try {
             final prefs = await SharedPreferences.getInstance();
-            _sessionId = prefs.getString(_sessionIdKey);
-            _deviceId = prefs.getString(_deviceIdKey);
+            _userId = prefs.getString(_userIdKey);
+            _tempSessionUuid = prefs.getString(_tempSessionUuidKey);
 
-            AppLogger.debug('Auth initialization - Device ID: ${_deviceId?.substring(0, 20)}..., Session ID: ${_sessionId?.substring(0, 20)}...');
+            AppLogger.debug('Auth initialization - User ID: ${_userId?.substring(0, 20)}...');
 
-            if (_sessionId != null && _deviceId != null) {
-                final modeResponse = await http.get(Uri.parse(AppConfig.apiUrl('/server/mode')));
-                
-                if (modeResponse.statusCode == 200) {
-                    final mode = jsonDecode(modeResponse.body);
-                    final isDemo = mode['demo_mode'] as bool;
-                    
-                    await _validateSessionMode(isDemo);
-                }
-
-                _isAuthenticated = await validateSessionOnStartup();
+            if (_userId != null) {
+                _isAuthenticated = await validateUserOnStartup();
             }
         }
 
@@ -65,26 +55,47 @@ class AuthService extends ChangeNotifier {
     }
 
     Future<AuthInitResponse> initiateAuth() async {
+        // Generate UUID for session
+        const uuid = Uuid();
+        _tempSessionUuid = uuid.v4();
+        
+        // Save temporary session UUID
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_tempSessionUuidKey, _tempSessionUuid!);
+
         final request = AuthInitRequest(
-            deviceId: '',
             platform: _getPlatform(),
         );
 
         final response = await http.post(
             Uri.parse(AppConfig.apiUrl('/auth/init')),
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-UUID': _tempSessionUuid!,
+            },
             body: jsonEncode(request.toJson()),
         );
 
         if (response.statusCode == 200) {
             final authResponse = AuthInitResponse.fromJson(jsonDecode(response.body));
-            _tempDeviceId = authResponse.deviceId;
             return authResponse;
         }
 
         else {
             throw Exception('Failed to initiate auth: ${response.body}');
         }
+    }
+
+    Future<void> handleSetupRequired() async {
+        // For setup scenarios - just open browser, don't poll
+        // The setup will be handled completely in browser
+        AppLogger.info('Setup required - opening browser for owner setup');
+        // No polling needed, setup is browser-only
+    }
+
+    Future<String> completeNormalAuth() async {
+        // For normal auth scenarios - poll until completion
+        return await completeAuth();
     }
 
     Future<AuthInitResponse> initiateDesktopAuth() async {
@@ -96,8 +107,8 @@ class AuthService extends ChangeNotifier {
     }
 
     Future<String> completeAuth() async {
-        if (_tempDeviceId == null) {
-            throw Exception('No temporary device ID available - must call initiateAuth first');
+        if (_tempSessionUuid == null) {
+            throw Exception('No temporary session UUID available - must call initiateAuth first');
         }
 
         for (int i = 0; i < 150; i++) {
@@ -105,26 +116,20 @@ class AuthService extends ChangeNotifier {
 
             try {
                 final response = await http.get(
-                    Uri.parse(AppConfig.apiUrl('/auth/check-session')),
+                    Uri.parse(AppConfig.apiUrl('/auth/status')),
                     headers: {
                         'Content-Type': 'application/json',
-                        'device_id': _tempDeviceId!,
+                        'X-Session-UUID': _tempSessionUuid!,
                     },
                 );
 
                 if (response.statusCode == 200) {
                     final data = jsonDecode(response.body);
+                    final authStatus = AuthStatusResponse.fromJson(data);
 
-                    if (data['session_id'] != null) {
-                        final sessionId = data['session_id'] as String;
-
-                        _deviceId = _tempDeviceId;
-
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.setString(_deviceIdKey, _deviceId!);
-                        
-                        await setSession(sessionId);
-                        return sessionId;
+                    if (authStatus.status == 'completed' && authStatus.userId != null) {
+                        await setUserId(authStatus.userId!);
+                        return authStatus.userId!;
                     }
                 }
             }
@@ -141,15 +146,14 @@ class AuthService extends ChangeNotifier {
         throw Exception('Authentication timeout - please try again');
     }
 
-    Future<bool> _validateSession() async {
-        if (_sessionId == null || _deviceId == null) {
+    Future<bool> _validateUser() async {
+        if (_userId == null) {
             return false;
         }
 
         try {
-            final request = SessionValidationRequest(
-                sessionId: _sessionId!,
-                deviceId: _deviceId!,
+            final request = UserValidationRequest(
+                userId: _userId!,
             );
 
             final response = await http.post(
@@ -159,20 +163,20 @@ class AuthService extends ChangeNotifier {
             );
 
             if (response.statusCode == 200) {
-                final validationResponse = SessionValidationResponse.fromJson(
+                final validationResponse = UserValidationResponse.fromJson(
                     jsonDecode(response.body)
                 );
                 return validationResponse.valid;
             }
 
             else if (response.statusCode == 401) {
-                AppLogger.debug('Session validation failed with 401 (mode mismatch or invalid session), logging out');
+                AppLogger.debug('User validation failed with 401, logging out');
                 await logout();
                 return false;
             }
 
             else {
-                AppLogger.debug('Session validation request failed with status ${response.statusCode}, logging out');
+                AppLogger.debug('User validation request failed with status ${response.statusCode}, logging out');
                 await logout();
                 return false;
             }
@@ -180,7 +184,7 @@ class AuthService extends ChangeNotifier {
 
         catch (e, stackTrace) {
             AppLogger.error(
-                'Session validation error: $e',
+                'User validation error: $e',
                 error: e,
                 stackTrace: stackTrace,
             );
@@ -190,24 +194,53 @@ class AuthService extends ChangeNotifier {
         }
     }
 
-    Future<void> setSession(String sessionId) async {
-        _sessionId = sessionId;
+    Future<bool> validateUserOnStartup() async {
+        try {
+            AppLogger.debug('Validating user on startup...');
+
+            if (_userId != null) {
+                final isValid = await _validateUser();
+
+                if (!isValid) {
+                    AppLogger.debug('User invalid, clearing local data');
+                    await _clearAllLocalData();
+                    return false;
+                }
+
+                return true;
+            }
+
+            return false;
+
+        }
+
+        catch (e) {
+            AppLogger.debug('User validation on startup failed: $e');
+
+            await _clearAllLocalData();
+            return false;
+        }
+    }
+
+    Future<void> setUserId(String userId) async {
+        _userId = userId;
         _isAuthenticated = true;
 
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_sessionIdKey, sessionId);
+        await prefs.setString(_userIdKey, userId);
+        await prefs.remove(_tempSessionUuidKey); // Clear temp session UUID
 
         notifyListeners();
     }
 
-    Future<void> _clearSession() async {
-        _sessionId = null;
-        _deviceId = null;
+    Future<void> _clearUser() async {
+        _userId = null;
+        _tempSessionUuid = null;
         _isAuthenticated = false;
 
         final prefs = await SharedPreferences.getInstance();
-        await prefs.remove(_sessionIdKey);
-        await prefs.remove(_deviceIdKey);
+        await prefs.remove(_userIdKey);
+        await prefs.remove(_tempSessionUuidKey);
 
         notifyListeners();
     }
@@ -215,38 +248,12 @@ class AuthService extends ChangeNotifier {
     Future<void> logout() async {
         AppLogger.debug('Starting logout process...');
 
-        try {
-            if (_deviceId != null) {
-                AppLogger.debug('Clearing all device data on server...');
-
-                final logoutResponse = await http.post(
-                    Uri.parse(AppConfig.apiUrl('/auth/logout')),
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'device_id': _deviceId!,
-                    },
-                );
-
-                if (logoutResponse.statusCode == 200) {
-                    AppLogger.debug('Device data cleared on server successfully');
-                }
-
-                else {
-                    AppLogger.debug('Failed to clear device data on server: ${logoutResponse.body}');
-                }
-            }
-        }
-        
-        catch (e) {
-            AppLogger.debug('Error during server logout operations: $e');
-        }
-
         await _clearAllLocalData();
         AppLogger.debug('Logout completed. isAuthenticated: $_isAuthenticated');
     }
 
     Future<void> _clearAllLocalData() async {
-        await _clearSession();
+        await _clearUser();
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.clear();
@@ -265,105 +272,18 @@ class AuthService extends ChangeNotifier {
         }
 
         catch (e) {
-            AppLogger.debug('Error checking server mode: $e');
+            AppLogger.debug('Failed to check server mode: $e');
         }
 
-        return {'demo_mode': false, 'mode': 'normal'};
-    }
-
-    Future<bool> validateSessionOnStartup() async {
-        try {
-            final serverMode = await checkServerMode();
-            AppLogger.debug('Server mode: ${serverMode['mode']}');
-
-            if (_sessionId != null) {
-                final isValid = await _validateSession();
-
-                if (!isValid) {
-                    AppLogger.debug('Session invalid, clearing local data');
-                    await _clearAllLocalData();
-                    return false;
-                }
-
-                return true;
-            }
-
-            return false;
-
-        }
-
-        catch (e) {
-            AppLogger.debug('Session validation on startup failed: $e');
-
-            await _clearAllLocalData();
-            return false;
-        }
+        return {'error': 'Failed to get server mode'};
     }
 
     Future<bool> checkAuthStatus() async {
-        if (_sessionId == null) return false;
-        final isValid = await _validateSession();
+        if (_userId == null) return false;
+        final isValid = await _validateUser();
 
-        if (!isValid) await _clearSession();
+        if (!isValid) await _clearUser();
         return isValid;
-    }
-
-    Future<bool> checkAuthStatusWithModeValidation() async {
-        if (_sessionId == null || _deviceId == null) return false;
-
-        try {
-            final modeResponse = await http.get(
-                Uri.parse(AppConfig.apiUrl('/server/mode')),
-            );
-
-            if (modeResponse.statusCode == 200) {
-                final mode = jsonDecode(modeResponse.body);
-                final isDemo = mode['demo_mode'] as bool;
-
-                await _validateSessionMode(isDemo);
-            }
-
-            final isValid = await _validateSession();
-
-            if (!isValid) {
-                await logout();
-                return false;
-            }
-
-            return true;
-        }
-
-        catch (e) {
-            AppLogger.debug('Auth status check with mode validation failed: $e');
-
-            await logout();
-            return false;
-        }
-    }
-
-    Future<void> _validateSessionMode(bool serverIsDemo) async {
-        if (_sessionId == null || _deviceId == null) return;
-
-        try {
-            final response = await http.post(
-                Uri.parse(AppConfig.apiUrl('/auth/validate')),
-                headers: {'Content-Type': 'application/json'},
-                body: jsonEncode({
-                    'session_id': _sessionId,
-                    'device_id': _deviceId,
-                }),
-            );
-
-            if (response.statusCode == 401) {
-                AppLogger.debug('Session invalid due to mode mismatch, logging out');
-                await logout();
-            }
-        }
-
-        catch (e) {
-            AppLogger.debug('Error validating session mode: $e');
-            await logout();
-        }
     }
 
     String _getPlatform() {

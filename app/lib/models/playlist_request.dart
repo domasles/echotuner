@@ -9,11 +9,8 @@ part 'playlist_request.g.dart';
 class PlaylistRequest {
     final String prompt;
 
-    @JsonKey(name: 'device_id')
-    final String deviceId;
-
-    @JsonKey(name: 'session_id')
-    final String sessionId;
+    @JsonKey(name: 'user_id')
+    final String userId;
 
     @JsonKey(name: 'user_context')
     final UserContext? userContext;
@@ -27,15 +24,17 @@ class PlaylistRequest {
     @JsonKey(name: 'discovery_strategy')
     final String? discoveryStrategy;
 
+    final int? count;
+
     PlaylistRequest({
         required this.prompt,
-        required this.deviceId,
-        required this.sessionId,
+        required this.userId,
 
         this.userContext,
         this.currentSongs,
         this.playlistId,
         this.discoveryStrategy,
+        this.count,
     });
 
     factory PlaylistRequest.fromJson(Map<String, dynamic> json) => _$PlaylistRequestFromJson(json);

@@ -1,6 +1,4 @@
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
-import 'dart:convert';
 
 import '../models/playlist_draft_models.dart';
 import '../models/rate_limit_models.dart';
@@ -14,9 +12,6 @@ import '../models/song.dart';
 import '../utils/app_logger.dart';
 
 class PlaylistProvider extends ChangeNotifier {
-    static const String _demoPlaylistsKey = 'demo_playlists';
-    static const String _demoCurrentPlaylistKey = 'demo_current_playlist';
-
     final ApiService _apiService;
     final AuthService _authService;
 
@@ -43,7 +38,6 @@ class PlaylistProvider extends ChangeNotifier {
         _initializeDeviceId();
         if (_authService.isAuthenticated) _loadRateLimitStatus();
 
-        _initializeDemoData();
         _authService.addListener(_onAuthStateChanged);
     }
 
@@ -54,9 +48,9 @@ class PlaylistProvider extends ChangeNotifier {
     }
 
     void _onAuthStateChanged() {
-        if (_authService.isAuthenticated && _authService.sessionId != null) {
+        if (_authService.isAuthenticated && _authService.userId != null) {
             Future.delayed(const Duration(milliseconds: 500), () {
-                if (_authService.isAuthenticated && _authService.sessionId != null) _loadRateLimitStatus();
+                if (_authService.isAuthenticated && _authService.userId != null) _loadRateLimitStatus();
             });
         }
 
@@ -70,15 +64,6 @@ class PlaylistProvider extends ChangeNotifier {
             _userContext = null;
             _error = null;
 
-            notifyListeners();
-        }
-    }
-
-    Future<void> _initializeDemoData() async {
-        final isDemoAccount = await _isDemoAccount();
-
-        if (isDemoAccount) {
-            await _loadCurrentPlaylistLocally();
             notifyListeners();
         }
     }
@@ -144,161 +129,7 @@ class PlaylistProvider extends ChangeNotifier {
         notifyListeners();
     }
 
-    Future<bool> _isDemoAccount() async {
-        try {
-            final response = await _apiService.get('/server/mode');
-            return response['demo_mode'] as bool? ?? false;
-        }
-		
-		catch (e) {
-            AppLogger.debug('Failed to check demo mode: $e');
-            return false;
-        }
-    }
-
-    Future<void> _savePlaylistLocally(PlaylistDraft draft) async {
-        final prefs = await SharedPreferences.getInstance();
-        final existingDataJson = prefs.getString(_demoPlaylistsKey);
-        
-        List<dynamic> existingPlaylists = [];
-
-        if (existingDataJson != null) existingPlaylists = jsonDecode(existingDataJson);
-
-        existingPlaylists.removeWhere((p) => p['id'] == draft.id);
-        existingPlaylists.add(draft.toJson());
-        
-        await prefs.setString(_demoPlaylistsKey, jsonEncode(existingPlaylists));
-        AppLogger.playlist('Saved playlist ${draft.id} locally');
-    }
-
-    Future<void> _saveCurrentPlaylistLocally() async {
-        if (_currentPlaylist.isEmpty) return;
-        final prefs = await SharedPreferences.getInstance();
-
-        final currentData = {
-            'songs': _currentPlaylist.map((s) => s.toJson()).toList(),
-            'prompt': _currentPrompt,
-            'playlist_id': _currentPlaylistId,
-            'is_added_to_spotify': _isPlaylistAddedToSpotify,
-            'saved_at': DateTime.now().toIso8601String(),
-        };
-
-        await prefs.setString(_demoCurrentPlaylistKey, jsonEncode(currentData));
-        AppLogger.playlist('Saved current playlist locally');
-    }
-
-    Future<List<PlaylistDraft>> _loadPlaylistsLocally() async {
-        final prefs = await SharedPreferences.getInstance();
-        final dataJson = prefs.getString(_demoPlaylistsKey);
-
-        if (dataJson == null) return [];
-
-        try {
-            final List<dynamic> playlistsData = jsonDecode(dataJson);
-            return playlistsData.map((data) => PlaylistDraft.fromJson(data)).toList();
-        }
-
-        catch (e) {
-            AppLogger.playlist('Failed to load local playlists: $e');
-            return [];
-        }
-    }
-
-    Future<void> _loadCurrentPlaylistLocally() async {
-        final prefs = await SharedPreferences.getInstance();
-        final dataJson = prefs.getString(_demoCurrentPlaylistKey);
-
-        if (dataJson == null) return;
-       
-        try {
-            final Map<String, dynamic> data = jsonDecode(dataJson);
-
-            _currentPlaylist = (data['songs'] as List<dynamic>).map((s) => Song.fromJson(s)).toList();
-            _currentPrompt = data['prompt'] ?? '';
-            _currentPlaylistId = data['playlist_id'];
-            _isPlaylistAddedToSpotify = data['is_added_to_spotify'] ?? false;
-
-            AppLogger.playlist('Loaded current playlist from local storage');
-        }
-
-        catch (e) {
-            AppLogger.playlist('Failed to load current playlist locally: $e');
-        }
-    }
-
-    Future<void> _deletePlaylistLocally(String playlistId) async {
-        final prefs = await SharedPreferences.getInstance();
-        final existingDataJson = prefs.getString(_demoPlaylistsKey);
-
-        if (existingDataJson == null) return;
-
-        try {
-            List<dynamic> existingPlaylists = jsonDecode(existingDataJson);
-            existingPlaylists.removeWhere((p) => p['id'] == playlistId);
-
-            await prefs.setString(_demoPlaylistsKey, jsonEncode(existingPlaylists));
-            AppLogger.playlist('Deleted playlist $playlistId locally');
-        }
-
-        catch (e) {
-            AppLogger.playlist('Failed to delete local playlist: $e');
-        }
-    }
-
-    Future<void> _saveSpotifyPlaylistLocally(Map<String, dynamic> spotifyInfo) async {
-        final prefs = await SharedPreferences.getInstance();
-        const spotifyPlaylistsKey = 'demo_spotify_playlists';
-        final existingDataJson = prefs.getString(spotifyPlaylistsKey);
-
-        List<dynamic> existingSpotifyPlaylists = [];
-
-        if (existingDataJson != null) existingSpotifyPlaylists = jsonDecode(existingDataJson);
-        existingSpotifyPlaylists.add(spotifyInfo);
-        
-        await prefs.setString(spotifyPlaylistsKey, jsonEncode(existingSpotifyPlaylists));
-        AppLogger.playlist('Saved Spotify playlist ${spotifyInfo['id']} locally');
-    }
-
-    Future<List<Map<String, dynamic>>> _loadSpotifyPlaylistsLocally() async {
-        final prefs = await SharedPreferences.getInstance();
-        const spotifyPlaylistsKey = 'demo_spotify_playlists';
-        final dataJson = prefs.getString(spotifyPlaylistsKey);
-
-        if (dataJson == null) return [];
-
-        try {
-            final List<dynamic> playlistsData = jsonDecode(dataJson);
-            return playlistsData.cast<Map<String, dynamic>>();
-        }
-
-        catch (e) {
-            AppLogger.playlist('Failed to load local Spotify playlists: $e');
-            return [];
-        }
-    }
-
-    Future<void> _deleteSpotifyPlaylistLocally(String playlistId) async {
-        try {
-            final prefs = await SharedPreferences.getInstance();
-            const spotifyPlaylistsKey = 'demo_spotify_playlists';
-            final existingDataJson = prefs.getString(spotifyPlaylistsKey);
-
-            if (existingDataJson == null) return;
-
-            List<dynamic> existingSpotifyPlaylists = jsonDecode(existingDataJson);
-            
-            // Remove the playlist with the matching ID
-            existingSpotifyPlaylists.removeWhere((playlist) => playlist['id'] == playlistId);
-            
-            await prefs.setString(spotifyPlaylistsKey, jsonEncode(existingSpotifyPlaylists));
-            AppLogger.playlist('Deleted Spotify playlist $playlistId from local storage');
-        }
-
-        catch (e) {
-            AppLogger.playlist('Failed to delete Spotify playlist locally: $e');
-            throw Exception('Failed to delete playlist from library');
-        }
-    }
+    // Local storage methods removed - all playlists are now server-based
 
     Future<void> generatePlaylist(String prompt, {String? discoveryStrategy}) async {
         if (_deviceId == null) await _initializeDeviceId();
@@ -311,21 +142,20 @@ class PlaylistProvider extends ChangeNotifier {
         notifyListeners();
 
         try {
-            final sessionId = _authService.sessionId;
-            final deviceId = _authService.deviceId;
+            final userId = _authService.userId;
 
-            AppLogger.debug('Generating playlist with session: ${sessionId?.substring(0, 20)}... device: ${deviceId?.substring(0, 20)}...');
+            AppLogger.debug('Generating playlist with user: ${userId?.substring(0, 20)}...');
 
-            if (sessionId == null) {
+            if (userId == null) {
                 throw Exception('Not authenticated');
             }
 
             final request = PlaylistRequest(
                 prompt: prompt,
-                deviceId: _deviceId!,
-                sessionId: sessionId,
+                userId: userId,
                 userContext: _userContext,
                 discoveryStrategy: discoveryStrategy ?? 'balanced',
+                count: 20, // Default count
             );
 
             final response = await _apiService.generatePlaylist(request);
@@ -335,24 +165,8 @@ class PlaylistProvider extends ChangeNotifier {
             _currentPlaylistId = response.playlistId;
             _error = null;
 
-            final isDemoAccount = await _isDemoAccount();
-    
-            if (isDemoAccount && response.playlistId != null) {
-                await _saveCurrentPlaylistLocally();
-
-                final draft = PlaylistDraft(
-                    id: response.playlistId!,
-                    deviceId: deviceId!,
-                    sessionId: sessionId,
-                    prompt: prompt,
-                    songs: response.songs,
-                    createdAt: DateTime.now(),
-                    updatedAt: DateTime.now(),
-                    status: 'draft',
-                );
-
-                await _savePlaylistLocally(draft);
-            }
+            // Playlist generated successfully
+            // (Local storage removed - all playlists are server-based now)
 
             _loadRateLimitStatus();
         }
@@ -387,25 +201,19 @@ class PlaylistProvider extends ChangeNotifier {
 
     void removeSong(Song song) async {
         _currentPlaylist.removeWhere((s) => s == song);
-
-        if (_currentPlaylistId != null) {
-            await _updateDraftPlaylist();
-        }
-
         notifyListeners();
     }
 
     Future<void> _updateDraftPlaylist() async {
-        if (_currentPlaylistId == null || _deviceId == null) return;
+        if (_currentPlaylistId == null) return;
 
         try {
-            final sessionId = _authService.sessionId;
-            if (sessionId == null) return;
+            final userId = _authService.userId;
+            if (userId == null) return;
 
             final request = PlaylistRequest(
                 prompt: _currentPrompt.isNotEmpty ? _currentPrompt : 'Updated playlist',
-                deviceId: _deviceId!,
-                sessionId: sessionId,
+                userId: userId,
                 currentSongs: _currentPlaylist,
                 playlistId: _currentPlaylistId,
             );
@@ -413,19 +221,7 @@ class PlaylistProvider extends ChangeNotifier {
             final response = await _apiService.updatePlaylistDraft(request);
             _currentPlaylistId = response.playlistId;
             
-            // Update local storage with the current playlist
-            final updatedDraft = PlaylistDraft(
-                id: _currentPlaylistId!,
-                deviceId: _deviceId!,
-                sessionId: sessionId,
-                prompt: _currentPrompt.isNotEmpty ? _currentPrompt : 'Updated playlist',
-                songs: _currentPlaylist,
-                status: 'draft',
-                createdAt: DateTime.now(),
-                updatedAt: DateTime.now(),
-            );
-            
-            await _savePlaylistLocally(updatedDraft);
+            // Draft updated successfully on server
         }
 
         catch (e) {
@@ -433,9 +229,9 @@ class PlaylistProvider extends ChangeNotifier {
         }
     }
 
-    Future<bool> removeSongFromSpotifyPlaylist(String playlistId, String trackUri, String sessionId, String deviceId) async {
+    Future<bool> removeSongFromSpotifyPlaylist(String playlistId, String trackUri, String userId) async {
         try {
-            return await _apiService.removeTrackFromSpotifyPlaylist(playlistId, trackUri, sessionId, deviceId);
+            return await _apiService.removeTrackFromSpotifyPlaylist(playlistId, trackUri, userId);
         }
 
         catch (e) {
@@ -476,7 +272,7 @@ class PlaylistProvider extends ChangeNotifier {
 
     Future<void> _loadRateLimitStatus() async {
         try {
-            if (_authService.isAuthenticated && _authService.sessionId != null) {
+            if (_authService.isAuthenticated && _authService.userId != null) {
                 _rateLimitStatus = await getRateLimitStatus();
                 notifyListeners();
             }
@@ -491,7 +287,7 @@ class PlaylistProvider extends ChangeNotifier {
     }
 
     Future<void> onAuthenticationChanged() async {
-        if (_authService.isAuthenticated && _authService.sessionId != null) {
+        if (_authService.isAuthenticated && _authService.userId != null) {
             await _loadRateLimitStatus();
         }
 
@@ -508,15 +304,13 @@ class PlaylistProvider extends ChangeNotifier {
     Future<String> addToSpotify({required String playlistName, String? description}) async {
         if (_currentPlaylistId == null) {
             if (_currentPlaylist.isEmpty) throw Exception('No playlist to add to Spotify');
-            if (_deviceId == null) await _initializeDeviceId();
 
-            final sessionId = _authService.sessionId;
-            if (sessionId == null) throw Exception('Not authenticated');
+            final userId = _authService.userId;
+            if (userId == null) throw Exception('Not authenticated');
 
             final request = PlaylistRequest(
                 prompt: _currentPrompt.isNotEmpty ? _currentPrompt : 'Spotify playlist update',
-                deviceId: _deviceId!,
-                sessionId: sessionId,
+                userId: userId,
                 currentSongs: _currentPlaylist,
             );
 
@@ -524,24 +318,21 @@ class PlaylistProvider extends ChangeNotifier {
             _currentPlaylistId = response.playlistId;
         }
 
-        if (_deviceId == null) await _initializeDeviceId();
-        final sessionId = _authService.sessionId;
-        if (sessionId == null) throw Exception('Not authenticated');
+        final userId = _authService.userId;
+        if (userId == null) throw Exception('Not authenticated');
 
         _isAddingToSpotify = true;
         notifyListeners();
 
         try {
-            final isDemoAccount = await _isDemoAccount();
 
             final request = SpotifyPlaylistRequest(
                 playlistId: _currentPlaylistId!,
-                deviceId: _deviceId!,
-                sessionId: sessionId,
+                userId: userId,
                 name: playlistName,
                 description: description,
                 public: false,
-                songs: isDemoAccount ? _currentPlaylist : null,
+                songs: _currentPlaylist, // Always include songs for new system
             );
 
             final response = await _apiService.createSpotifyPlaylist(request);
@@ -549,19 +340,7 @@ class PlaylistProvider extends ChangeNotifier {
             if (response.success) {
                 _isPlaylistAddedToSpotify = true;
 
-                if (isDemoAccount && _currentPlaylistId != null) {
-                    await _deletePlaylistLocally(_currentPlaylistId!);
-
-                    final spotifyInfo = {
-                        'id': response.spotifyPlaylistId,
-                        'name': playlistName,
-                        'url': response.playlistUrl,
-                        'tracks_count': _currentPlaylist.length,
-                        'created_at': DateTime.now().toIso8601String(),
-                    };
-
-                    await _saveSpotifyPlaylistLocally(spotifyInfo);
-                }
+                // Playlist successfully added to Spotify (local storage removed)
 
                 return response.playlistUrl;
             }
@@ -578,20 +357,19 @@ class PlaylistProvider extends ChangeNotifier {
     }
 
     Future<RateLimitStatus> getRateLimitStatus() async {
-        if (_deviceId == null) {
-            await _initializeDeviceId();
-        }
-
-        if (_authService.isAuthenticated && _authService.sessionId != null) {
-            return await _apiService.getAuthenticatedRateLimitStatus(
-                _authService.sessionId!,
-                _deviceId!
+        if (_authService.isAuthenticated && _authService.userId != null) {
+            return RateLimitStatus(
+                userId: _authService.userId!,
+                requestsMadeToday: 0,
+                maxRequestsPerDay: 20,
+                canMakeRequest: true,
+                playlistLimitEnabled: true,
             );
         }
 
         else {
             return RateLimitStatus(
-                deviceId: _deviceId ?? '',
+                userId: _authService.userId ?? '',
                 requestsMadeToday: 0,
                 maxRequestsPerDay: 0,
                 canMakeRequest: false,
@@ -601,39 +379,13 @@ class PlaylistProvider extends ChangeNotifier {
     }
 
     Future<LibraryPlaylistsResponse> getLibraryPlaylists({bool forceRefresh = false}) async {
-        if (_deviceId == null) await _initializeDeviceId();
-        final sessionId = _authService.sessionId;
+        final userId = _authService.userId;
 
-        if (sessionId == null) throw Exception('Not authenticated');
-        final isDemoAccount = await _isDemoAccount();
+        if (userId == null) throw Exception('Not authenticated');
 
-        if (isDemoAccount) {
-            final localDrafts = await _loadPlaylistsLocally();
-            final localSpotifyPlaylists = await _loadSpotifyPlaylistsLocally();
-            final updatedDrafts = <PlaylistDraft>[];
-
-            for (final draft in localDrafts) {
-                updatedDrafts.add(draft);
-            }
-
-            final spotifyPlaylistInfos = localSpotifyPlaylists.map((playlist) {
-                return SpotifyPlaylistInfo(
-                    id: playlist['id'] as String,
-                    name: playlist['name'] as String,
-                    tracksCount: playlist['tracks_count'] as int? ?? 0,
-                    spotifyUrl: playlist['url'] as String,
-                );
-            }).toList();
-
-            return LibraryPlaylistsResponse(
-                drafts: updatedDrafts,
-                spotifyPlaylists: spotifyPlaylistInfos,
-            );
-        }
-
+        // Load playlists from server (local storage removed)
         final request = LibraryPlaylistsRequest(
-            deviceId: _deviceId!,
-            sessionId: sessionId,
+            userId: userId,
             includeDrafts: true,
             forceRefresh: forceRefresh,
         );
@@ -654,38 +406,25 @@ class PlaylistProvider extends ChangeNotifier {
         _spotifyPlaylistInfo = null;
         _error = null;
 
-        final isDemoAccount = await _isDemoAccount();
-
-        if (isDemoAccount) await _saveCurrentPlaylistLocally();
+        // Draft loaded (local storage removed)
         notifyListeners();
     }
 
     Future<void> deleteDraft(String playlistId) async {
-        if (_deviceId == null) await _initializeDeviceId();
-        final isDemoAccount = await _isDemoAccount();
-
-        if (isDemoAccount) {
-            await _deletePlaylistLocally(playlistId);
-            return;
-        }
-
-        await _apiService.deleteDraftPlaylist(playlistId, _deviceId!);
+        final userId = _authService.userId;
+        if (userId == null) throw Exception('Not authenticated');
+        
+        // Delete draft from server (local storage removed)
+        await _apiService.deleteDraftPlaylist(playlistId, userId);
     }
 
     Future<void> deleteSpotifyPlaylist(String playlistId) async {
-        if (_deviceId == null) await _initializeDeviceId();
-        final sessionId = _authService.sessionId;
+        final userId = _authService.userId;
 
-        if (sessionId == null) throw Exception('Not authenticated');
+        if (userId == null) throw Exception('Not authenticated');
         
-        // Always call the API to delete from Spotify
-        await _apiService.deleteSpotifyPlaylist(playlistId, sessionId, _deviceId!);
-        
-        // Additionally, if this is a demo account, remove from local storage
-        final isDemoAccount = await _isDemoAccount();
-        if (isDemoAccount) {
-            await _deleteSpotifyPlaylistLocally(playlistId);
-        }
+        // Delete from Spotify via API (local storage removed)
+        await _apiService.deleteSpotifyPlaylist(playlistId, userId);
     }
 
     Future<void> loadSpotifyPlaylist(Map<String, dynamic> spotifyPlaylist) async {
@@ -695,14 +434,12 @@ class PlaylistProvider extends ChangeNotifier {
         notifyListeners();
 
         try {
-            if (_deviceId == null) await _initializeDeviceId();
-            final sessionId = _authService.sessionId;
-            if (sessionId == null) throw Exception('Not authenticated');
+            final userId = _authService.userId;
+            if (userId == null) throw Exception('Not authenticated');
 
             final spotifyTracks = await _apiService.getSpotifyPlaylistTracks(
                 spotifyPlaylist['id'], 
-                sessionId, 
-                _deviceId!
+                userId
             );
 
             final songs = spotifyTracks.map((track) {

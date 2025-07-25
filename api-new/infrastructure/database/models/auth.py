@@ -1,79 +1,51 @@
 """
 Authentication related ORM models.
+Unified authentication system supporting Spotify and Google OAuth.
 """
 
-from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, Text
-from sqlalchemy.orm import relationship
-
+from sqlalchemy import Column, String, Integer, Boolean, Text, DateTime, func
 from ..core import Base
 
-class DeviceRegistry(Base):
-    """Device registry table for managing registered devices."""
+class UserAccount(Base):
+    """Unified user account table for both Spotify and Google users."""
 
-    __tablename__ = "device_registry"
+    __tablename__ = "user_accounts"
 
-    device_id = Column(String, primary_key=True)
-    platform = Column(String, nullable=False)
-    app_version = Column(String)
-    device_fingerprint = Column(String)
-    registration_timestamp = Column(Integer, nullable=False)
-    last_seen_timestamp = Column(Integer, nullable=False)
-    is_active = Column(Boolean, default=True)
+    user_id = Column(String(255), primary_key=True)  # Format: spotify_{id} or google_{id}
+    provider = Column(String(50), nullable=False)    # 'spotify' or 'google'
+    provider_user_id = Column(String(255), nullable=False)  # Original ID from provider
+    access_token = Column(Text, nullable=True)       # User's own tokens (Normal mode only)
+    refresh_token = Column(Text, nullable=True)      # User's own tokens (Normal mode only)
+    expires_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+    last_used_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    sessions = relationship("AuthSession", back_populates="device", cascade="all, delete-orphan")
-    auth_states = relationship("AuthState", back_populates="device", cascade="all, delete-orphan")
-
-class AuthSession(Base):
-    """Authentication session table."""
-
-    __tablename__ = "auth_sessions"
-
-    session_id = Column(String, primary_key=True)
-    device_id = Column(String, ForeignKey("device_registry.device_id"), nullable=False)
-    platform = Column(String, nullable=False)
-    spotify_user_id = Column(String)
-    access_token = Column(String)
-    refresh_token = Column(String)
-    expires_at = Column(Integer)
-    created_at = Column(Integer, nullable=False)
-    last_used_at = Column(Integer, nullable=False)
-    account_type = Column(String, default='normal')
-
-    device = relationship("DeviceRegistry", back_populates="sessions")
-
-class AuthState(Base):
-    """Authentication state table for OAuth flow."""
-
-    __tablename__ = "auth_states"
-
-    state = Column(String, primary_key=True)
-    device_id = Column(String, ForeignKey("device_registry.device_id"), nullable=False)
-    platform = Column(String, nullable=False)
-    created_at = Column(Integer, nullable=False)
-    expires_at = Column(Integer, nullable=False)
-
-    device = relationship("DeviceRegistry", back_populates="auth_states")
+    def __repr__(self):
+        return f"<UserAccount(user_id='{self.user_id}', provider='{self.provider}')>"
 
 class AuthAttempt(Base):
-    """Authentication attempts table for rate limiting."""
+    """Rate limiting for authentication attempts per IP."""
 
     __tablename__ = "auth_attempts"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    device_id = Column(String, nullable=False)
-    platform = Column(String, nullable=False) 
-    attempted_at = Column(Integer, nullable=False)
-    expires_at = Column(Integer, nullable=False)
-    success = Column(Boolean, default=False)
+    ip_address = Column(String(45), primary_key=True)  # Support IPv6
+    attempt_count = Column(Integer, default=0)
+    window_start = Column(Integer, nullable=False)
+    last_attempt = Column(Integer, nullable=False)
 
-class DemoOwnerToken(Base):
-    """Demo owner token storage for demo mode bypass."""
+    def __repr__(self):
+        return f"<AuthAttempt(ip='{self.ip_address}', count={self.attempt_count})>"
 
-    __tablename__ = "demo_owner_tokens"
+class AuthState(Base):
+    """OAuth state storage for CSRF protection."""
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    access_token = Column(Text, nullable=False)
-    refresh_token = Column(Text)
-    expires_at = Column(Integer, nullable=False)
-    spotify_user_id = Column(String, nullable=False)
-    created_at = Column(Integer, nullable=False)
+    __tablename__ = "auth_states"
+
+    state = Column(String(255), primary_key=True)  # OAuth state parameter
+    appid = Column(String(36), nullable=True)      # App ID for linking to auth session
+    platform = Column(String(50), nullable=False)  # 'spotify' or 'google'
+    created_at = Column(Integer, nullable=False)    # Unix timestamp
+    expires_at = Column(Integer, nullable=False)    # Unix timestamp
+
+    def __repr__(self):
+        return f"<AuthState(state='{self.state[:8]}...', platform='{self.platform}')>"

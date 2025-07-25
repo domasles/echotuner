@@ -86,32 +86,3 @@ db_core = DatabaseCore()
 def get_session():
     """Get an async database session context manager."""
     return db_core.get_session()
-
-class DatabaseService(SingletonServiceBase):
-    """Minimal database service - only manages connection lifecycle."""
-    
-    def _setup_service(self):
-        """Initialize database service."""
-        self.db_core = db_core
-        
-    async def initialize(self):
-        """Initialize the database service."""
-        await self.db_core.initialize()
-        logger.info("Database service initialization completed with ORM")
-        
-    async def close(self):
-        """Close database connections."""
-        await self.db_core.close()
-        
-    def get_info(self):
-        """Get service information."""
-        return {
-            'service_type': 'database',
-            'service_name': 'database_service',
-            'description': 'Clean database connection manager',
-            'dependencies': [],
-            'status': 'initialized'
-        }
-
-# Global database service instance  
-db_service = DatabaseService()

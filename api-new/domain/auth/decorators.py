@@ -19,29 +19,22 @@ def normal_only(func):
 
     @wraps(func)
     async def wrapper(*args, **kwargs):
-        if settings.DEMO:
-            raise HTTPException(
-                status_code=403, 
-                detail="This endpoint is not available in demo mode"
-            )
-
+        # Always allow access since demo mode no longer exists
         return await func(*args, **kwargs)
 
     return wrapper
 
 
 def demo_only(func):
-    """Decorator to restrict endpoints to demo mode only"""
+    """Decorator to restrict endpoints to demo mode only - DEPRECATED"""
 
     @wraps(func)
     async def wrapper(*args, **kwargs):
-        if not settings.DEMO:
-            raise HTTPException(
-                status_code=403, 
-                detail="This endpoint is not available in normal mode"
-            )
-
-        return await func(*args, **kwargs)
+        # Demo mode no longer exists - deny all access
+        raise HTTPException(
+            status_code=403, 
+            detail="Demo mode endpoints are no longer available"
+        )
 
     return wrapper
 

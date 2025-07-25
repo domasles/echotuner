@@ -36,7 +36,7 @@ from domain.playlist.spotify import spotify_playlist_service
 from domain.playlist.generator import playlist_generator_service
 from domain.playlist.draft import playlist_draft_service
 from domain.personality.service import personality_service
-from domain.auth.service import auth_service
+from infrastructure.auth.oauth_service import oauth_service
 
 # Import routers
 from presentation.endpoints.auth import router as auth_router
@@ -75,7 +75,7 @@ async def lifespan(app: FastAPI):
         service_manager.register_service("playlist_generator_service", playlist_generator_service)
         service_manager.register_service("playlist_draft_service", playlist_draft_service)
         service_manager.register_service("personality_service", personality_service)
-        service_manager.register_service("auth_service", auth_service)
+        service_manager.register_service("oauth_service", oauth_service)
         
         # Initialize all services
         await service_manager.initialize_all_services()

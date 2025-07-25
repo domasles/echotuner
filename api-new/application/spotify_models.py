@@ -15,12 +15,11 @@ class SpotifyArtist(BaseModel):
 
 class SpotifyPlaylistRequest(BaseModel):
     playlist_id: str
-    device_id: str
-    session_id: str
+    user_id: str  # Format: spotify_{id} or google_{id}
     name: str
     description: Optional[str] = None
     public: Optional[bool] = False
-    songs: Optional[List[Song]] = None  # For demo accounts to provide current song list
+    songs: Optional[List[Song]] = None  # For shared mode to provide current song list
 
 
 class SpotifyPlaylistResponse(BaseModel):
@@ -41,20 +40,17 @@ class SpotifyPlaylistInfo(BaseModel):
 
 class SpotifyPlaylistTracksRequest(BaseModel):
     playlist_id: str
-    session_id: str
-    device_id: str
+    user_id: str  # Format: spotify_{id} or google_{id}
 
 
 class SpotifyPlaylistTrackRemoveRequest(BaseModel):
     playlist_id: str
     track_uri: str
-    session_id: str
-    device_id: str
+    user_id: str  # Format: spotify_{id} or google_{id}
 
 
 class FollowedArtistsRequest(BaseModel):
-    session_id: str
-    device_id: str
+    user_id: str  # Format: spotify_{id} or google_{id}
 
 
 class FollowedArtistsResponse(BaseModel):
@@ -62,8 +58,6 @@ class FollowedArtistsResponse(BaseModel):
 
 
 class ArtistSearchRequest(BaseModel):
-    session_id: str
-    device_id: str
     query: str
     limit: Optional[int] = 20
 

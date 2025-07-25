@@ -99,7 +99,7 @@ class RateLimiterService(SingletonServiceBase):
 
         try:
             device_hash = self._get_device_hash(device_id)
-            current_date = datetime.now().date().isoformat()
+            current_date = datetime.now().date()
 
             rate_limit = await self.repository.get_by_field(RateLimit, 'user_id', device_hash)
 
@@ -114,7 +114,7 @@ class RateLimiterService(SingletonServiceBase):
                 await self.repository.update(RateLimit, device_hash, {
                     'requests_count': new_count,
                     'last_request_date': current_date,
-                    'updated_at': datetime.now().isoformat()
+                    'updated_at': datetime.now()
                 }, id_field='user_id')
 
             else:
@@ -122,8 +122,8 @@ class RateLimiterService(SingletonServiceBase):
                     'user_id': device_hash,
                     'requests_count': 1,
                     'last_request_date': current_date,
-                    'created_at': datetime.now().isoformat(),
-                    'updated_at': datetime.now().isoformat()
+                    'created_at': datetime.now(),
+                    'updated_at': datetime.now()
                 })
 
         except Exception as e:
