@@ -196,6 +196,30 @@ class PlaylistDraftService(SingletonServiceBase):
             logger.error(f"Failed to delete draft {draft_id}: {e}")
             return False
 
+    async def update_draft(self, draft_id: str, user_id: str, prompt: str, songs: List[Song]) -> Optional[str]:
+        """Update an existing draft with new songs."""
+        try:
+            songs_json = json.dumps([song.model_dump() for song in songs])
+            
+            # Update data for existing draft
+            update_data = {
+                'prompt': prompt,
+                'songs_json': songs_json,
+                'updated_at': datetime.now()
+            }
+
+            # Update in database using repository
+            success = await self.repository.update(PlaylistDraftModel, draft_id, update_data)
+            if success:
+                logger.info(f"Updated playlist draft {draft_id}")
+                return draft_id  # Return the draft ID on success
+            else:
+                return None  # Return None on failure
+
+        except Exception as e:
+            logger.error(f"Failed to update draft {draft_id}: {e}")
+            return None
+
     async def cleanup_user_data(self, user_id: str = None, account_type: str = None):
         """Clean up user data using user_id in unified system."""
 

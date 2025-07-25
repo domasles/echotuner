@@ -110,8 +110,8 @@ async def update_playlist_draft(request: Request, playlist_request: PlaylistRequ
     
     try:
         user_id = validated_user_id
-        playlist_id = playlist_request.playlistId
-        current_songs = playlist_request.currentSongs or []
+        playlist_id = playlist_request.playlist_id
+        current_songs = playlist_request.current_songs or []
 
         logger.info(f"Update draft request - playlist_id: {playlist_id}, current_songs count: {len(current_songs)}")
         logger.info(f"User ID: {user_id}")
@@ -126,8 +126,13 @@ async def update_playlist_draft(request: Request, playlist_request: PlaylistRequ
             raise HTTPException(status_code=404, detail="Draft playlist not found")
 
         # Update the draft
-        success = await playlist_draft_service.update_draft(playlist_id, current_songs, playlist_request.prompt)
-        if not success:
+        updated_draft_id = await playlist_draft_service.update_draft(
+            draft_id=playlist_id,
+            user_id=user_id,
+            prompt=playlist_request.prompt or draft.prompt,
+            songs=current_songs
+        )
+        if not updated_draft_id:
             raise HTTPException(status_code=500, detail="Failed to update draft")
 
         return PlaylistResponse(
@@ -137,27 +142,12 @@ async def update_playlist_draft(request: Request, playlist_request: PlaylistRequ
             playlist_id=playlist_id
         )
 
-        draft = await playlist_draft_service.get_draft(playlist_id)
+    except HTTPException:
+        raise
 
-        if not draft:
-            logger.warning(f"Draft not found for playlist_id: {playlist_id}")
-            raise HTTPException(status_code=404, detail="Draft playlist not found")
-
-        success = await playlist_draft_service.update_draft(
-            draft_id=playlist_id,
-            songs=current_songs,
-            prompt=request.prompt or draft.prompt
-        )
-
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to update draft playlist")
-
-        return PlaylistResponse(
-            songs=current_songs,
-            generated_from=request.prompt or draft.prompt,
-            total_count=len(current_songs),
-            playlist_id=playlist_id
-        )
+    except Exception as e:
+        logger.error(f"Failed to update draft playlist: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update draft playlist")
 
     except HTTPException:
         raise

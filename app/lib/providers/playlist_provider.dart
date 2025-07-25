@@ -9,6 +9,7 @@ import '../services/api_service.dart';
 import '../models/info_message.dart';
 import '../models/user_context.dart';
 import '../models/song.dart';
+import '../models/app_config.dart';
 import '../utils/app_logger.dart';
 
 class PlaylistProvider extends ChangeNotifier {
@@ -28,13 +29,15 @@ class PlaylistProvider extends ChangeNotifier {
 
     UserContext? _userContext;
     RateLimitStatus? _rateLimitStatus;
+    AppConfigData? _config;
 
     String? _deviceId;
     String? _error;
 
     final List<InfoMessage> _infoMessages = [];
 
-    PlaylistProvider({required ApiService apiService, required AuthService authService}) : _apiService = apiService, _authService = authService {
+    PlaylistProvider(this._apiService, this._authService) {
+        _loadConfig();
         _initializeDeviceId();
         if (_authService.isAuthenticated) _loadRateLimitStatus();
 
@@ -76,6 +79,20 @@ class PlaylistProvider extends ChangeNotifier {
     RateLimitStatus? get rateLimitStatus => _rateLimitStatus;
 
     bool get showPlaylistLimits => _rateLimitStatus?.playlistLimitEnabled ?? false;
+
+    Future<void> _loadConfig() async {
+        try {
+            _config = await _apiService.getConfig();
+            AppLogger.info('Loaded API config: max songs=${_config?.playlists.maxSongsPerPlaylist}, max daily=${_config?.playlists.maxPlaylistsPerDay}');
+        } catch (e) {
+            AppLogger.warning('Failed to load API config, using defaults: $e');
+            // Fallback to default values if config loading fails
+        }
+    }
+
+    int get maxSongsPerPlaylist => _config?.playlists.maxSongsPerPlaylist ?? 20;
+    int get maxPlaylistsPerDay => _config?.playlists.maxPlaylistsPerDay ?? 20;
+
     bool get isPlaylistAddedToSpotify => _isPlaylistAddedToSpotify;
 
     SpotifyPlaylistInfo? get spotifyPlaylistInfo => _spotifyPlaylistInfo;
@@ -155,7 +172,7 @@ class PlaylistProvider extends ChangeNotifier {
                 userId: userId,
                 userContext: _userContext,
                 discoveryStrategy: discoveryStrategy ?? 'balanced',
-                count: 20, // Default count
+                count: maxSongsPerPlaylist, // Use config value
             );
 
             final response = await _apiService.generatePlaylist(request);
@@ -202,6 +219,9 @@ class PlaylistProvider extends ChangeNotifier {
     void removeSong(Song song) async {
         _currentPlaylist.removeWhere((s) => s == song);
         notifyListeners();
+        
+        // Update the draft on the server
+        await _updateDraftPlaylist();
     }
 
     Future<void> _updateDraftPlaylist() async {
@@ -357,19 +377,27 @@ class PlaylistProvider extends ChangeNotifier {
     }
 
     Future<RateLimitStatus> getRateLimitStatus() async {
-        if (_authService.isAuthenticated && _authService.userId != null) {
-            return RateLimitStatus(
-                userId: _authService.userId!,
-                requestsMadeToday: 0,
-                maxRequestsPerDay: 20,
-                canMakeRequest: true,
-                playlistLimitEnabled: true,
-            );
+        final userId = _authService.userId;
+        
+        if (_authService.isAuthenticated && userId != null) {
+            try {
+                return await _apiService.getUserRateLimitStatus(userId);
+            } catch (e) {
+                AppLogger.warning('Failed to get rate limit status from API: $e');
+                // Return fallback status with config values
+                return RateLimitStatus(
+                    userId: userId,
+                    requestsMadeToday: 0,
+                    maxRequestsPerDay: maxPlaylistsPerDay,
+                    canMakeRequest: true,
+                    playlistLimitEnabled: _config?.features.playlistLimitEnabled ?? false,
+                );
+            }
         }
 
         else {
             return RateLimitStatus(
-                userId: _authService.userId ?? '',
+                userId: userId ?? '',
                 requestsMadeToday: 0,
                 maxRequestsPerDay: 0,
                 canMakeRequest: false,

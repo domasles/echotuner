@@ -172,6 +172,29 @@ class ApiService {
         }
     }
 
+    Future<RateLimitStatus> getUserRateLimitStatus(String userId) async {
+        final response = await _client.get(
+            Uri.parse(AppConfig.apiUrl('/auth/rate-limit-status')),
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-ID': userId,
+            },
+        );
+
+        if (response.statusCode == 200) {
+            return RateLimitStatus.fromJson(jsonDecode(response.body));
+        }
+
+        else if (response.statusCode == 401) {
+            await _handle401();
+            throw ApiException('Authentication required');
+        }
+
+        else {
+            throw ApiException('Failed to get rate limit status');
+        }
+    }
+
     Future<bool> checkApiHealth() async {
         try {
             AppLogger.api('Checking API health');

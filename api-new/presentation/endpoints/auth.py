@@ -10,6 +10,8 @@ from fastapi.responses import RedirectResponse, JSONResponse
 
 from infrastructure.config.settings import settings
 from infrastructure.auth.oauth_service import oauth_service
+from infrastructure.rate_limiting.limit_service import rate_limiter_service
+from domain.shared.validation.validators import validate_user_request
 
 logger = logging.getLogger(__name__)
 
@@ -142,3 +144,26 @@ async def auth_status(appid: str = Header(None, alias="X-Session-UUID")):
     except Exception as e:
         logger.error(f"Session status check failed: {e}")
         raise HTTPException(status_code=500, detail="Session status check failed")
+
+@router.get("/rate-limit-status")
+@validate_user_request()
+async def get_rate_limit_status(request: Request, validated_user_id: str = None):
+    """Get current rate limit status for authenticated user."""
+    
+    try:
+        user_id = validated_user_id
+        
+        # Get rate limit status using the rate limiter service
+        status = await rate_limiter_service.get_status(user_id)
+        
+        return {
+            "userId": status.user_id,
+            "requestsMadeToday": status.requests_made_today,
+            "maxRequestsPerDay": status.max_requests_per_day,
+            "canMakeRequest": status.can_make_request,
+            "playlistLimitEnabled": settings.PLAYLIST_LIMIT_ENABLED
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get rate limit status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get rate limit status")

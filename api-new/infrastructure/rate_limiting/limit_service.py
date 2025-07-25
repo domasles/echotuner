@@ -94,14 +94,14 @@ class RateLimiterService(SingletonServiceBase):
             logger.error(f"Error checking rate limit: {e}")
             return True
 
-    async def record_request(self, device_id: str):
+    async def record_request(self, user_id: str):
         """Record a playlist generation request"""
 
         try:
-            device_hash = self._get_device_hash(device_id)
+            user_hash = self._get_device_hash(user_id)  # Reuse hash function for consistency
             current_date = datetime.now().date()
 
-            rate_limit = await self.repository.get_by_field(RateLimit, 'user_id', device_hash)
+            rate_limit = await self.repository.get_by_field(RateLimit, 'user_id', user_hash)
 
             if rate_limit:
                 request_count = rate_limit.requests_count
@@ -111,7 +111,7 @@ class RateLimiterService(SingletonServiceBase):
                     request_count = 0
 
                 new_count = request_count + 1
-                await self.repository.update(RateLimit, device_hash, {
+                await self.repository.update(RateLimit, user_hash, {
                     'requests_count': new_count,
                     'last_request_date': current_date,
                     'updated_at': datetime.now()
@@ -119,7 +119,7 @@ class RateLimiterService(SingletonServiceBase):
 
             else:
                 await self.repository.create(RateLimit, {
-                    'user_id': device_hash,
+                    'user_id': user_hash,
                     'requests_count': 1,
                     'last_request_date': current_date,
                     'created_at': datetime.now(),
@@ -129,18 +129,18 @@ class RateLimiterService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Error recording request: {e}")
 
-    async def get_status(self, device_id: str) -> RateLimitStatus:
-        """Get current rate limit status for a device"""
+    async def get_status(self, user_id: str) -> RateLimitStatus:
+        """Get current rate limit status for a user"""
 
-        device_hash = self._get_device_hash(device_id)
+        user_hash = self._get_device_hash(user_id)  # Reuse hash function for consistency
 
         try:
             current_date = datetime.now().date().isoformat()
-            rate_limit = await self.repository.get_by_field(RateLimit, 'user_id', device_hash)
+            rate_limit = await self.repository.get_by_field(RateLimit, 'user_id', user_hash)
 
             if not rate_limit:
                 return RateLimitStatus(
-                    device_id=device_id,
+                    user_id=user_id,
                     requests_made_today=0,
                     max_requests_per_day=self.max_requests_per_day,
                     can_make_request=True,
@@ -157,7 +157,7 @@ class RateLimiterService(SingletonServiceBase):
             reset_time = datetime.combine(tomorrow, datetime.min.time()).isoformat()
 
             return RateLimitStatus(
-                device_id=device_id,
+                user_id=user_id,
                 requests_made_today=request_count,
                 max_requests_per_day=self.max_requests_per_day,
                 can_make_request=request_count < self.max_requests_per_day if self.is_rate_limiting_enabled else True,
@@ -169,7 +169,7 @@ class RateLimiterService(SingletonServiceBase):
             logger.error(f"Error getting rate limit status: {e}")
 
             return RateLimitStatus(
-                device_id=device_id,
+                user_id=user_id,
                 requests_made_today=0,
                 max_requests_per_day=self.max_requests_per_day,
                 can_make_request=True,

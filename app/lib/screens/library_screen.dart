@@ -150,44 +150,6 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
         }
     }
 
-    Future<void> _deleteSpotifyPlaylist(SpotifyPlaylistInfo playlist) async {
-        final confirmed = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-                title: const Text('Delete Playlist'),
-                content: Text('Are you sure you want to delete "${playlist.name}" from Spotify? This action cannot be undone.'),
-
-                actions: [
-                    TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text('Cancel'),
-                    ),
-
-                    TextButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                    ),
-                ],
-            ),
-        );
-
-        if (confirmed == true) {
-            if (!mounted) return;
-            final provider = Provider.of<PlaylistProvider>(context, listen: false);
-
-            try {
-                await provider.deleteSpotifyPlaylist(playlist.id);
-                _silentRefreshCurrentTab();
-
-                if (mounted) MessageService.showInfo(context, 'Playlist deleted successfully');
-            }
-
-            catch (e) {
-                if (mounted) MessageService.showError(context, 'Failed to delete playlist: $e');
-            }
-        }
-    }
-
     @override
     Widget build(BuildContext context) {
         return PopScope(
@@ -482,11 +444,6 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                 trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                        IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteSpotifyPlaylist(playlist),
-                        ),
-
                         IconButton(
                             icon: const Icon(Icons.open_in_new),
                             onPressed: () async {

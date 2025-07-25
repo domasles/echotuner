@@ -70,8 +70,8 @@ class EchoTunerApp extends StatelessWidget {
 
                 ChangeNotifierProvider<PlaylistProvider>(
                     create: (context) => PlaylistProvider(
-                        apiService: context.read<ApiService>(),
-                        authService: context.read<AuthService>(),
+                        context.read<ApiService>(),
+                        context.read<AuthService>(),
                     ),
                 ),
             ],
