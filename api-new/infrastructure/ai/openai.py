@@ -9,7 +9,7 @@ import logging
 from typing import List
 
 from .base import BaseAIProvider
-from application.core.service.session_decorators import ensure_session_initialized
+from domain.ai.session_decorators import ensure_session_initialized
 
 from infrastructure.config.settings import settings
 

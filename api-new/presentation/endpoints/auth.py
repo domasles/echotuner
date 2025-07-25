@@ -201,11 +201,11 @@ async def get_rate_limit_status(request: Request, validated_user_id: str = None)
         status = await rate_limiter_service.get_status(user_id)
         
         return {
-            "userId": status.user_id,
-            "requestsMadeToday": status.requests_made_today,
-            "maxRequestsPerDay": status.max_requests_per_day,
-            "canMakeRequest": status.can_make_request,
-            "playlistLimitEnabled": settings.PLAYLIST_LIMIT_ENABLED
+            "user_id": status.user_id,
+            "requests_made_today": status.requests_made_today,
+            "max_requests_per_day": status.max_requests_per_day,
+            "can_make_request": status.can_make_request,
+            "playlist_limit_enabled": settings.PLAYLIST_LIMIT_ENABLED
         }
         
     except Exception as e:

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../models/playlist_draft_models.dart';
 import '../models/rate_limit_models.dart';
-import '../services/device_service.dart';
 import '../models/playlist_request.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
@@ -31,14 +30,12 @@ class PlaylistProvider extends ChangeNotifier {
     RateLimitStatus? _rateLimitStatus;
     AppConfigData? _config;
 
-    String? _deviceId;
     String? _error;
 
     final List<InfoMessage> _infoMessages = [];
 
     PlaylistProvider(this._apiService, this._authService) {
         _loadConfig();
-        _initializeDeviceId();
         if (_authService.isAuthenticated) _loadRateLimitStatus();
 
         _authService.addListener(_onAuthStateChanged);
@@ -59,7 +56,6 @@ class PlaylistProvider extends ChangeNotifier {
 
         else {
             _rateLimitStatus = null;
-            _deviceId = null;
             _currentPlaylist = [];
             _currentPlaylistId = null;
             _spotifyPlaylistInfo = null;
@@ -84,6 +80,9 @@ class PlaylistProvider extends ChangeNotifier {
         try {
             _config = await _apiService.getConfig();
             AppLogger.info('Loaded API config: max songs=${_config?.playlists.maxSongsPerPlaylist}, max daily=${_config?.playlists.maxPlaylistsPerDay}');
+            
+            // If API is available and we got config, also try to load rate limit status
+            _ensureRateLimitStatusLoaded();
         } catch (e) {
             AppLogger.warning('Failed to load API config, using defaults: $e');
             // Fallback to default values if config loading fails
@@ -137,10 +136,6 @@ class PlaylistProvider extends ChangeNotifier {
         notifyListeners();
     }
 
-    Future<void> _initializeDeviceId() async {
-        _deviceId = await DeviceService.getDeviceId();
-    }
-
     void updateUserContext(UserContext? context) {
         _userContext = context;
         notifyListeners();
@@ -149,8 +144,6 @@ class PlaylistProvider extends ChangeNotifier {
     // Local storage methods removed - all playlists are now server-based
 
     Future<void> generatePlaylist(String prompt, {String? discoveryStrategy}) async {
-        if (_deviceId == null) await _initializeDeviceId();
-
         _isLoading = true;
         _error = null;
         _isPlaylistAddedToSpotify = false;
@@ -185,7 +178,7 @@ class PlaylistProvider extends ChangeNotifier {
             // Playlist generated successfully
             // (Local storage removed - all playlists are server-based now)
 
-            _loadRateLimitStatus();
+            _ensureRateLimitStatusLoaded(); // Load rate limit status if not already loaded
         }
 
         catch (e, stackTrace) {
@@ -303,6 +296,14 @@ class PlaylistProvider extends ChangeNotifier {
                 'Failed to load rate limit status: $e',
                 error: e,
             );
+            // Don't set _rateLimitStatus to null here - keep trying on next API call
+        }
+    }
+
+    // Helper method to ensure rate limit status is loaded after any successful API call
+    Future<void> _ensureRateLimitStatusLoaded() async {
+        if (_rateLimitStatus == null && _authService.isAuthenticated) {
+            await _loadRateLimitStatus();
         }
     }
 
@@ -361,6 +362,7 @@ class PlaylistProvider extends ChangeNotifier {
                 _isPlaylistAddedToSpotify = true;
 
                 // Playlist successfully added to Spotify (local storage removed)
+                _ensureRateLimitStatusLoaded(); // Ensure rate limit status is loaded after successful API call
 
                 return response.playlistUrl;
             }

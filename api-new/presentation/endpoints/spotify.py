@@ -96,8 +96,6 @@ async def create_spotify_playlist(request: Request, spotify_request: SpotifyPlay
                 spotify_playlist_id=spotify_playlist_id,
                 spotify_url=playlist_url,
                 user_id=validated_user_id,
-                device_id="",  # Not used in unified system
-                session_id="",  # Not used in unified system
                 playlist_name=spotify_request.name
             )
 

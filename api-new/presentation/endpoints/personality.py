@@ -9,7 +9,6 @@ from domain.shared.validation.validators import validate_request, validate_user_
 
 from application import UserPersonalityRequest, UserPersonalityResponse, UserPersonalityClearRequest, FollowedArtistsResponse, ArtistSearchRequest, ArtistSearchResponse, UserContext
 from domain.personality.service import personality_service
-from domain.auth.middleware import auth_middleware
 from infrastructure.database.repository import repository
 from infrastructure.database.models.users import UserPersonality
 
@@ -25,8 +24,6 @@ async def save_user_personality(request: Request, user_context: UserContext, val
 
     try:
         logger.debug(f"Saving personality for user {validated_user_id}")
-
-        user_info = await auth_middleware.validate_user_from_request(validated_user_id)
 
         # Use user_id instead of session_id/device_id
         success = await personality_service.save_user_personality_by_user_id(
@@ -54,8 +51,6 @@ async def save_user_personality(request: Request, user_context: UserContext, val
 async def load_user_personality(request: Request, validated_user_id: str = None):
     """Load user personality preferences from user_id in headers"""
     try:
-        user_info = await auth_middleware.validate_user_from_request(validated_user_id)
-
         user_context = await personality_service.get_user_personality_by_user_id(validated_user_id)
 
         if user_context:
@@ -70,14 +65,11 @@ async def load_user_personality(request: Request, validated_user_id: str = None)
         raise HTTPException(status_code=500, detail="Failed to load personality")
 
 @router.post("/clear")
-@debug_only
 @validate_user_request()
 async def clear_user_personality(request: Request, validated_user_id: str = None):
     """Clear user personality preferences"""
 
     try:
-        user_info = await auth_middleware.validate_user_from_request(validated_user_id)
-
         user_personality = await repository.get_by_field(UserPersonality, 'user_id', validated_user_id)
         
         if user_personality:
@@ -100,8 +92,6 @@ async def get_followed_artists(request: Request, limit: int = 50, validated_user
     """Get user's followed artists from Spotify"""
 
     try:
-        user_info = await auth_middleware.validate_user_from_request(validated_user_id)
-
         artists = await personality_service.get_followed_artists_by_user_id(
             user_id=validated_user_id,
             limit=limit
@@ -121,8 +111,6 @@ async def search_artists(request: Request, search_request: ArtistSearchRequest, 
     """Search for artists on Spotify"""
 
     try:
-        user_info = await auth_middleware.validate_user_from_request(validated_user_id)
-
         artists = await personality_service.search_artists_by_user_id(
             user_id=validated_user_id,
             query=search_request.query,

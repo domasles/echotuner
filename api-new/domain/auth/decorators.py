@@ -14,31 +14,6 @@ from infrastructure.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-def normal_only(func):
-    """Decorator to restrict endpoints to normal mode only"""
-
-    @wraps(func)
-    async def wrapper(*args, **kwargs):
-        # Always allow access since demo mode no longer exists
-        return await func(*args, **kwargs)
-
-    return wrapper
-
-
-def demo_only(func):
-    """Decorator to restrict endpoints to demo mode only - DEPRECATED"""
-
-    @wraps(func)
-    async def wrapper(*args, **kwargs):
-        # Demo mode no longer exists - deny all access
-        raise HTTPException(
-            status_code=403, 
-            detail="Demo mode endpoints are no longer available"
-        )
-
-    return wrapper
-
-
 def debug_only(func):
     """Decorator to restrict endpoints to debug mode only"""
 

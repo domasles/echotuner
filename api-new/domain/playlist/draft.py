@@ -256,7 +256,7 @@ class PlaylistDraftService(SingletonServiceBase):
             logger.error(f"Failed to get user EchoTuner Spotify playlist IDs: {e}")
             return []
 
-    async def mark_as_added_to_spotify(self, playlist_id: str, spotify_playlist_id: str, spotify_url: str, user_id: str, device_id: str, session_id: str, playlist_name: str) -> bool:
+    async def mark_as_added_to_spotify(self, playlist_id: str, spotify_playlist_id: str, spotify_url: str, user_id: str, playlist_name: str) -> bool:
         """Mark a playlist draft as added to Spotify."""
         try:
             # Update the playlist draft to mark it as added to Spotify
