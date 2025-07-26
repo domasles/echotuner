@@ -5,7 +5,7 @@ from typing import Dict, Any
 from fastapi import HTTPException, APIRouter, Request
 
 from domain.auth.decorators import debug_only
-from domain.shared.validation.validators import validate_request, validate_user_request
+from domain.shared.validation.validators import validate_user_request
 
 from application import UserPersonalityRequest, UserPersonalityResponse, UserPersonalityClearRequest, FollowedArtistsResponse, ArtistSearchRequest, ArtistSearchResponse, UserContext
 from domain.personality.service import personality_service
@@ -25,7 +25,7 @@ async def save_user_personality(request: Request, user_context: UserContext, val
     try:
         logger.debug(f"Saving personality for user {validated_user_id}")
 
-        # Use user_id instead of session_id/device_id
+        # Unified system - use user_id directly
         success = await personality_service.save_user_personality_by_user_id(
             user_id=validated_user_id,
             user_context=user_context

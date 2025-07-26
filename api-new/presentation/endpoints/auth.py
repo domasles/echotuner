@@ -103,21 +103,13 @@ async def spotify_callback(code: str, state: str = None, error: str = None):
             # Owner setup callback (no appid/state) - just process and show success
             await oauth_service.store_owner_credentials(code)
             # Render success template without exposing data
-            html_content = template_service.render_template(
-                "html/auth_success.html",
-                session_id="",  # Don't expose session data
-                device_id=""    # Don't expose device data
-            )
+            html_content = template_service.render_template("html/auth_success.html")
             return HTMLResponse(content=html_content)
         else:
             # Normal user authentication - process and show success
             result = await oauth_service.handle_spotify_callback(code, state)
             # Render success template without exposing user data
-            html_content = template_service.render_template(
-                "html/auth_success.html", 
-                session_id="",  # Don't expose session data
-                device_id=""    # Don't expose device data
-            )
+            html_content = template_service.render_template("html/auth_success.html")
             return HTMLResponse(content=html_content)
             
     except Exception as e:
@@ -148,11 +140,7 @@ async def google_callback(code: str, state: str = None, error: str = None):
         # Process Google authentication
         result = await oauth_service.handle_google_callback(code, state)
         # Render success template without exposing user data
-        html_content = template_service.render_template(
-            "html/auth_success.html",
-            session_id="",  # Don't expose session data  
-            device_id=""    # Don't expose device data
-        )
+        html_content = template_service.render_template("html/auth_success.html")
         return HTMLResponse(content=html_content)
         
     except Exception as e:

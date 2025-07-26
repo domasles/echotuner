@@ -1,8 +1,7 @@
 """
 Mode-based endpoint decorators for EchoTuner API.
 
-This module contains decorators for controlling endpoint access based on 
-demo mode, debug mode, and production mode settings.
+This module contains decorators for controlling endpoint access based on debug mode and production mode settings.
 """
 
 import logging

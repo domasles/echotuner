@@ -21,12 +21,8 @@ class UniversalValidator:
     # Configuration constants
     MAX_PLAYLIST_NAME_LENGTH = settings.MAX_PLAYLIST_NAME_LENGTH
     MAX_PROMPT_LENGTH = settings.MAX_PROMPT_LENGTH
-    MAX_DEVICE_ID_LENGTH = 100
-    MAX_SESSION_ID_LENGTH = 100
 
     # Validation patterns
-    DEVICE_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
-    SESSION_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
     PLAYLIST_NAME_PATTERN = re.compile(r'^[\w\s\-_.,!?()\u0080-\U0001F6FF]+$', re.UNICODE)
 
     # Security patterns
@@ -90,16 +86,6 @@ class UniversalValidator:
                 raise Exception("Prompt contains potentially dangerous content")
 
         return cls.validate_string(prompt, "prompt", cls.MAX_PROMPT_LENGTH)
-
-    @classmethod
-    def validate_device_id(cls, device_id: str) -> str:
-        """Validate device ID format."""
-        return cls.validate_string(device_id, "device_id", cls.MAX_DEVICE_ID_LENGTH, cls.DEVICE_ID_PATTERN)
-
-    @classmethod
-    def validate_session_id(cls, session_id: str) -> str:
-        """Validate session ID format."""
-        return cls.validate_string(session_id, "session_id", cls.MAX_SESSION_ID_LENGTH, cls.SESSION_ID_PATTERN)
 
     @classmethod
     def validate_count(cls, count: int, min_count: int = 1, max_count: int = 100) -> int:
@@ -171,7 +157,7 @@ def validate_request(*field_names: str):
     Decorator for automatic request validation.
     
     Args:
-        *field_names: Fields to validate (e.g., 'prompt', 'device_id', 'session_id', 'count')
+        *field_names: Fields to validate (e.g., 'prompt', 'count')
     """
 
     def decorator(func: Callable) -> Callable:
@@ -197,10 +183,6 @@ def validate_request(*field_names: str):
                         
                         if field_name == 'prompt' and field_value:
                             validated_data[field_name] = UniversalValidator.validate_prompt(field_value)
-                        elif field_name == 'device_id' and field_value:
-                            validated_data[field_name] = UniversalValidator.validate_device_id(field_value)
-                        elif field_name == 'session_id' and field_value:
-                            validated_data[field_name] = UniversalValidator.validate_session_id(field_value)
                         elif field_name == 'count' and field_value is not None:
                             validated_data[field_name] = UniversalValidator.validate_count(field_value)
                         elif field_name == 'playlist_name' and field_value:

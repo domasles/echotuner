@@ -45,7 +45,7 @@ async def generate_playlist(request: Request, playlist_request: PlaylistRequest,
 
         user_context = playlist_request.user_context
 
-        # In the new system, personality is tied to user_id instead of session_id/device_id
+        # Unified system - personality is tied to user_id
         if not user_context and user_id:
             try:
                 user_context = await personality_service.get_user_personality_by_user_id(user_id)
@@ -71,7 +71,7 @@ async def generate_playlist(request: Request, playlist_request: PlaylistRequest,
         )
 
         # For shared mode (Google SSO), save as draft like normal mode
-        # No more demo/normal distinction - all users get draft functionality
+        # All users get draft functionality in the unified system
         playlist_id = await playlist_draft_service.save_draft(
             user_id=user_id,
             prompt=playlist_request.prompt,
@@ -119,7 +119,7 @@ async def update_playlist_draft(request: Request, playlist_request: PlaylistRequ
         if not playlist_id:
             raise HTTPException(status_code=400, detail="Playlist ID is required for updates")
 
-        # No more demo/normal distinction - all users use the same logic
+        # Unified system - all users use the same logic
         draft = await playlist_draft_service.get_draft(playlist_id)
         if not draft:
             logger.warning(f"Draft not found for playlist_id: {playlist_id}")

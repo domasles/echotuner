@@ -56,8 +56,7 @@ class PlaylistGeneratorService(SingletonServiceBase):
             user_context: Additional user preferences
             count: Number of songs to generate
             discovery_strategy: "new_music", "existing_music", or "balanced"
-            session_id: User session for personality data
-            device_id: Device ID for personality data
+            user_id: User ID for personality data
 
         Returns:
             List of exactly 'count' songs

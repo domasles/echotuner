@@ -33,7 +33,7 @@ def validate_input_data(input_type: str = "general"):
     Decorator for input validation.
     
     Args:
-        input_type: Type of input to validate (prompt, session_id, etc.)
+        input_type: Type of input to validate (prompt, user_id, etc.)
     """
 
     def decorator(func: Callable) -> Callable:
