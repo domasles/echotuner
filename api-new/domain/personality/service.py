@@ -46,12 +46,16 @@ class PersonalityService(SingletonServiceBase):
         try:
             logger.debug(f"Saving personality for user {user_id}")
             
+            # Validate JSON context for security
+            from domain.shared.validation.validators import UniversalValidator
+            validated_context = UniversalValidator.validate_json_context(user_context.context)
+            
             # Check if user personality already exists
             existing_personality = await self.repository.get_by_field(UserPersonality, 'user_id', user_id)
             
             personality_data = {
                 'user_id': user_id,
-                'user_context': user_context.model_dump_json(),
+                'user_context': json.dumps(validated_context),
                 'updated_at': datetime.now()
             }
             
@@ -80,7 +84,7 @@ class PersonalityService(SingletonServiceBase):
 
             if user_personality:
                 user_context_data = json.loads(user_personality.user_context)
-                return UserContext(**user_context_data)
+                return UserContext(context=user_context_data)
             else:
                 logger.debug(f"No personality data found for user {user_id}")
                 return None
@@ -155,7 +159,13 @@ class PersonalityService(SingletonServiceBase):
     async def get_merged_favorite_artists_by_user_id(self, user_id: str, user_context: UserContext) -> List[str]:
         """Get merged list of favorite artists including Spotify data for enhanced AI understanding (unified auth system)"""
         try:
-            favorite_artists = user_context.favorite_artists or []
+            # Get favorite artists from flexible JSON context
+            favorite_artists = []
+            if user_context.context.get('favorite_artists'):
+                fav_artists = user_context.context['favorite_artists']
+                if isinstance(fav_artists, list):
+                    favorite_artists = fav_artists
+                    
             all_artists = set()
 
             for artist in favorite_artists:
@@ -174,7 +184,12 @@ class PersonalityService(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Failed to merge favorite artists for user {user_id}: {e}")
-            return user_context.favorite_artists or []
+            # Fallback to context data if available
+            if user_context.context.get('favorite_artists'):
+                fav_artists = user_context.context['favorite_artists']
+                if isinstance(fav_artists, list):
+                    return fav_artists
+            return []
 
     async def get_personality_enhanced_context_by_user_id(self, user_id: str, prompt: str) -> str:
         """Get enhanced context for AI including personality preferences (unified auth system)"""

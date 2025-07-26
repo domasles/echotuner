@@ -84,19 +84,6 @@ class PlaylistGeneratorService(SingletonServiceBase):
             if not songs:
                 logger.warning("AI song lookup returned no results")
                 return []
-
-            # Filter out disliked artists if any
-            if user_context and user_context.disliked_artists:
-                disliked_artists_lower = [artist.lower() for artist in user_context.disliked_artists]
-                filtered_songs = []
-
-                for song in songs:
-                    if not any(disliked.lower() in song.artist.lower() for disliked in disliked_artists_lower):
-                        filtered_songs.append(song)
-
-                songs = filtered_songs
-
-            # Final shuffle and return exact count
             random.shuffle(songs)
             songs = songs[:count]
 
@@ -128,16 +115,9 @@ class PlaylistGeneratorService(SingletonServiceBase):
             # Build context for AI song lookup
             context_parts = [f"User request: {prompt_for_lookup}"]
             
-            # Add user preferences
-            if user_context:
-                if user_context.favorite_genres:
-                    context_parts.append(f"Favorite genres: {', '.join(user_context.favorite_genres[:settings.MAX_FAVORITE_GENRES])}")
-                if user_context.favorite_artists:
-                    context_parts.append(f"Favorite artists: {', '.join(user_context.favorite_artists[:settings.MAX_FAVORITE_ARTISTS])}")
-                if user_context.decade_preference:
-                    context_parts.append(f"Preferred decades: {', '.join(user_context.decade_preference[:settings.MAX_PREFERRED_DECADES])}")
-                if user_context.disliked_artists:
-                    context_parts.append(f"Avoid these artists: {', '.join(user_context.disliked_artists[:settings.MAX_DISLIKED_ARTISTS])}")
+            # Add user preferences as raw JSON from app
+            if user_context and user_context.context:
+                context_parts.append(f"User preferences: {json.dumps(user_context.context)}")
             
             # Strategy-specific instructions
             if discovery_strategy == "existing_music":
@@ -146,8 +126,7 @@ class PlaylistGeneratorService(SingletonServiceBase):
                 instruction = "Focus on lesser-known gems, underground artists, and hidden tracks from the preferred genres and decades."
             else:
                 instruction = "Mix popular classics with some hidden gems and lesser-known tracks."
-            
-            # Create AI prompt for real song lookup - OPTIMIZED: Only title and artist to save tokens
+
             ai_prompt = f"""
 {chr(10).join(context_parts)}
 

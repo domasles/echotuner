@@ -88,6 +88,36 @@ class UniversalValidator:
         return cls.validate_string(prompt, "prompt", cls.MAX_PROMPT_LENGTH)
 
     @classmethod
+    def validate_json_context(cls, json_data: dict, max_size_bytes: int = 10240) -> dict:
+        """Validate and sanitize JSON user context data."""
+        import json
+        
+        if not isinstance(json_data, dict):
+            raise Exception("User context must be a valid JSON object")
+        
+        # Convert to JSON string to check size
+        json_str = json.dumps(json_data)
+        if len(json_str.encode('utf-8')) > max_size_bytes:
+            raise Exception(f"User context exceeds maximum size of {max_size_bytes} bytes")
+        
+        # Check for dangerous patterns in JSON values
+        def sanitize_value(value):
+            if isinstance(value, str):
+                # Check for dangerous patterns
+                for pattern in cls.DANGEROUS_PROMPT_PATTERNS:
+                    if re.search(pattern, value, re.IGNORECASE):
+                        raise Exception("User context contains potentially dangerous content")
+                return value
+            elif isinstance(value, list):
+                return [sanitize_value(item) for item in value]
+            elif isinstance(value, dict):
+                return {k: sanitize_value(v) for k, v in value.items()}
+            else:
+                return value
+        
+        return sanitize_value(json_data)
+
+    @classmethod
     def validate_count(cls, count: int, min_count: int = 1, max_count: int = 100) -> int:
         """Validate count parameter."""
         if not isinstance(count, int):

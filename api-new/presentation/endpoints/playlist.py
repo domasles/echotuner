@@ -58,7 +58,7 @@ async def generate_playlist(request: Request, playlist_request: PlaylistRequest,
                     user_id=user_id,
                     user_context=user_context
                 )
-                user_context.favorite_artists = merged_artists
+                user_context.context['favorite_artists'] = merged_artists
             except Exception as e:
                 logger.warning(f"Failed to merge favorite artists: {e}")
 
