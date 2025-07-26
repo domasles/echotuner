@@ -15,7 +15,7 @@ from typing import Optional, Dict, Any, List
 from application.core.singleton import SingletonServiceBase
 from infrastructure.config.settings import settings
 from infrastructure.database import repository
-from infrastructure.database.models import AuthSession, AuthState, AuthAttempt, UserAccount, OwnerSpotifyCredentials
+from infrastructure.database.models import AuthState
 from infrastructure.config.app_constants import app_constants
 
 logger = logging.getLogger(__name__)
@@ -107,52 +107,6 @@ class AuthService(SingletonServiceBase):
     def is_ready(self) -> bool:
         """Check if service is ready for use."""
         return True  # Auth service is always ready since it uses repository pattern
-
-    async def _delete_demo_account_data(self, device_id: str, demo_sessions: list):
-        """Delete all shared mode account data for a specific device"""
-        try:
-            demo_user_id = f"demo_user_{device_id}"
-            
-            # Delete user personality data
-            from infrastructure.database.models.users import UserPersonality
-            user_personality = await self.repo.get_by_field(UserPersonality, 'user_id', demo_user_id)
-            if user_personality:
-                await self.repo.delete(UserPersonality, user_personality.id)
-
-            # Delete playlist drafts associated with shared mode sessions  
-            from infrastructure.database.models.playlists import PlaylistDraft
-            session_ids = [session.session_id for session in demo_sessions]
-            
-            for session_id in session_ids:
-                # Legacy method - unified system handles cleanup differently
-                # This method is legacy and may not be used anymore
-                pass
-
-            logger.debug(f"Deleted demo account data for device {device_id[:8]}...")
-
-        except Exception as e:
-            logger.error(f"Failed to delete demo account data: {e}")
-
-    async def get_access_token(self, session_id: str) -> Optional[str]:
-        """Get access token for a session."""
-        try:
-            # Check if this is a user_id in the unified system
-            user = await self.repo.get_by_field(UserAccount, 'user_id', session_id)
-            
-            if user and user.access_token:
-                # User has their own tokens (Normal mode)
-                return user.access_token
-            
-            # Fall back to owner credentials (Shared mode)
-            owner_creds = await self.repo.get_by_field(OwnerSpotifyCredentials, 'id', 'owner')
-            if owner_creds:
-                return owner_creds.access_token
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"Failed to get access token: {e}")
-            return None
 
     async def get_access_token_by_user_id(self, user_id: str) -> Optional[str]:
         """Get access token by user_id (unified auth system)."""

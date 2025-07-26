@@ -7,7 +7,7 @@ from fastapi import HTTPException, APIRouter, Request
 from domain.auth.decorators import debug_only
 from domain.shared.validation.validators import validate_user_request
 
-from application import UserPersonalityRequest, UserPersonalityResponse, UserPersonalityClearRequest, FollowedArtistsResponse, ArtistSearchRequest, ArtistSearchResponse, UserContext
+from application import UserPersonalityResponse, FollowedArtistsResponse, ArtistSearchRequest, ArtistSearchResponse, UserContext
 from domain.personality.service import personality_service
 from infrastructure.database.repository import repository
 from infrastructure.database.models.users import UserPersonality
