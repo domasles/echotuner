@@ -9,6 +9,7 @@ from fastapi import HTTPException, APIRouter, Request
 
 from domain.auth.decorators import debug_only
 from domain.shared.validation.validators import validate_request, validate_user_request, UniversalValidator
+from domain.shared.validation.security_validator import SecurityValidator
 
 from application import PlaylistRequest, PlaylistResponse, LibraryPlaylistsResponse, SpotifyPlaylistInfo, SpotifyPlaylistRequest, SpotifyPlaylistResponse
 
@@ -46,6 +47,11 @@ async def generate_or_create_playlist(request: Request, playlist_request: Union[
             # Ensure we have a SpotifyPlaylistRequest for Spotify creation
             if not isinstance(playlist_request, SpotifyPlaylistRequest):
                 raise HTTPException(status_code=400, detail="SpotifyPlaylistRequest required for Spotify playlist creation")
+            
+            # Validate Spotify request fields
+            SecurityValidator.validate_string_length(playlist_request.name, settings.MAX_PLAYLIST_NAME_LENGTH, "Playlist name")
+            if playlist_request.description:
+                SecurityValidator.validate_string_length(playlist_request.description, settings.MAX_PLAYLIST_NAME_LENGTH, "Playlist description")
                 
             # Create Spotify playlist from draft
             playlist_id = request.headers.get('X-Playlist-ID') or request.headers.get('x-playlist-id')
@@ -111,6 +117,10 @@ async def generate_or_create_playlist(request: Request, playlist_request: Union[
             # Ensure we have a PlaylistRequest for draft generation
             if not isinstance(playlist_request, PlaylistRequest):
                 raise HTTPException(status_code=400, detail="PlaylistRequest required for draft generation")
+            
+            # Validate PlaylistRequest fields
+            SecurityValidator.validate_string_length(playlist_request.prompt, settings.MAX_PROMPT_LENGTH, "Prompt")
+            SecurityValidator.validate_user_context_size(playlist_request.user_context)
                 
             # Use user_id as rate limiting key for both shared and normal modes
             if settings.PLAYLIST_LIMIT_ENABLED and not await rate_limiter_service.can_make_request(user_id):
