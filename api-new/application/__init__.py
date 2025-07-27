@@ -9,13 +9,13 @@ from .base_models import Song, UserContext, RateLimitStatus
 # Playlist models
 from .playlist_models import (
     PlaylistRequest, PlaylistResponse, PlaylistDraft,
-    PlaylistDraftRequest, LibraryPlaylistsRequest, LibraryPlaylistsResponse
+    LibraryPlaylistsRequest, LibraryPlaylistsResponse
 )
 
 # Spotify models
 from .spotify_models import (
     SpotifyArtist, SpotifyPlaylistRequest, SpotifyPlaylistResponse,
-    SpotifyPlaylistInfo, SpotifyPlaylistTracksRequest,
+    SpotifyPlaylistInfo,
     SpotifyPlaylistTrackRemoveRequest,
     FollowedArtistsRequest, FollowedArtistsResponse,
     ArtistSearchRequest, ArtistSearchResponse

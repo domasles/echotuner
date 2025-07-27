@@ -14,8 +14,6 @@ class SpotifyArtist(BaseModel):
 
 
 class SpotifyPlaylistRequest(BaseModel):
-    playlist_id: str
-    user_id: str  # Format: spotify_{id} or google_{id}
     name: str
     description: Optional[str] = None
     public: Optional[bool] = False
@@ -38,15 +36,8 @@ class SpotifyPlaylistInfo(BaseModel):
     images: Optional[List[dict]] = []
 
 
-class SpotifyPlaylistTracksRequest(BaseModel):
-    playlist_id: str
-    user_id: str  # Format: spotify_{id} or google_{id}
-
-
 class SpotifyPlaylistTrackRemoveRequest(BaseModel):
-    playlist_id: str
     track_uri: str
-    user_id: str  # Format: spotify_{id} or google_{id}
 
 
 class FollowedArtistsRequest(BaseModel):

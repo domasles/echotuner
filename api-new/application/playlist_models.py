@@ -9,11 +9,9 @@ from .spotify_models import SpotifyPlaylistInfo
 
 class PlaylistRequest(BaseModel):
     prompt: str
-    user_id: str  # Format: spotify_{id} or google_{id}
     user_context: Optional[UserContext] = None
     current_songs: Optional[List[Song]] = None
     count: Optional[int] = 30
-    playlist_id: Optional[str] = None
     discovery_strategy: Optional[str] = "balanced"
 
 
@@ -36,13 +34,8 @@ class PlaylistDraft(BaseModel):
     spotify_playlist_url: Optional[str] = None
 
 
-class PlaylistDraftRequest(BaseModel):
-    playlist_id: str
-    user_id: str
-
 
 class LibraryPlaylistsRequest(BaseModel):
-    user_id: str
     include_drafts: Optional[bool] = True
 
 

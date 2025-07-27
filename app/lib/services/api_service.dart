@@ -88,6 +88,70 @@ class ApiService {
         }
     }
 
+    Future<Map<String, dynamic>> put(String endpoint, {Map<String, dynamic>? body, Map<String, String>? headers}) async {
+        AppLogger.api('PUT $endpoint');
+
+        final defaultHeaders = {'Content-Type': 'application/json'};
+        final mergedHeaders = headers != null ? {...defaultHeaders, ...headers} : defaultHeaders;
+
+        final response = await _client.put(
+            Uri.parse(AppConfig.apiUrl(endpoint)),
+            headers: mergedHeaders,
+            body: body != null ? jsonEncode(body) : null,
+        );
+
+        if (response.statusCode == 200) {
+            AppLogger.api('PUT $endpoint - Success');
+            return jsonDecode(response.body);
+        }
+
+        else if (response.statusCode == 401) {
+            AppLogger.api('PUT $endpoint - 401 Unauthorized');
+            await _handle401();
+            throw ApiException('Authentication required');
+        }
+
+        else if (response.statusCode == 404) {
+            AppLogger.api('PUT $endpoint - 404 Not Found');
+            throw ApiException('Resource not found');
+        }
+
+        else {
+            AppLogger.api('PUT $endpoint - ${response.statusCode} Error');
+            throw ApiException('Request failed with status ${response.statusCode}');
+        }
+    }
+
+    Future<Map<String, dynamic>> delete(String endpoint, {Map<String, String>? headers}) async {
+        AppLogger.api('DELETE $endpoint');
+
+        final response = await _client.delete(
+            Uri.parse(AppConfig.apiUrl(endpoint)),
+            headers: headers,
+        );
+
+        if (response.statusCode == 200) {
+            AppLogger.api('DELETE $endpoint - Success');
+            return response.body.isNotEmpty ? jsonDecode(response.body) : {};
+        }
+
+        else if (response.statusCode == 401) {
+            AppLogger.api('DELETE $endpoint - 401 Unauthorized');
+            await _handle401();
+            throw ApiException('Authentication required');
+        }
+
+        else if (response.statusCode == 404) {
+            AppLogger.api('DELETE $endpoint - 404 Not Found');
+            throw ApiException('Resource not found');
+        }
+
+        else {
+            AppLogger.api('DELETE $endpoint - ${response.statusCode} Error');
+            throw ApiException('Request failed with status ${response.statusCode}');
+        }
+    }
+
     Future<PlaylistResponse> generatePlaylist(PlaylistRequest request) async {
         final userId = _authService?.userId;
         if (userId == null) {
@@ -95,7 +159,7 @@ class ApiService {
         }
 
         final response = await _client.post(
-            Uri.parse(AppConfig.apiUrl('/playlist/generate')),
+            Uri.parse(AppConfig.apiUrl('/playlists')),
 
             headers: {
                 'Content-Type': 'application/json',
@@ -172,11 +236,15 @@ class ApiService {
         }
     }
 
-    Future<RateLimitStatus> getUserRateLimitStatus(String userId) async {
+    Future<RateLimitStatus> getUserRateLimitStatus() async {
+        final userId = _authService?.userId;
+        if (userId == null) {
+            throw ApiException('User not authenticated');
+        }
+
         final response = await _client.get(
             Uri.parse(AppConfig.apiUrl('/auth/rate-limit-status')),
             headers: {
-                'Content-Type': 'application/json',
                 'X-User-ID': userId,
             },
         );
@@ -230,18 +298,19 @@ class ApiService {
         }
     }
 
-    Future<SpotifyPlaylistResponse> createSpotifyPlaylist(SpotifyPlaylistRequest request) async {
+    Future<SpotifyPlaylistResponse> createSpotifyPlaylist(SpotifyPlaylistRequest request, String playlistId) async {
         final userId = _authService?.userId;
         if (userId == null) {
             throw ApiException('User not authenticated');
         }
 
         final response = await _client.post(
-            Uri.parse(AppConfig.apiUrl('/spotify/create-playlist')),
+            Uri.parse(AppConfig.apiUrl('/playlists?status=spotify')),
 
             headers: {
                 'Content-Type': 'application/json',
                 'X-User-ID': userId,
+                'X-Playlist-ID': playlistId,
             },
 
             body: jsonEncode(request.toJson()),
@@ -265,21 +334,23 @@ class ApiService {
         }
     }
 
-    Future<LibraryPlaylistsResponse> getLibraryPlaylists(LibraryPlaylistsRequest request) async {
+    Future<LibraryPlaylistsResponse> getLibraryPlaylists({String? status}) async {
         final userId = _authService?.userId;
         if (userId == null) {
             throw ApiException('User not authenticated');
         }
 
-        final response = await _client.post(
-            Uri.parse(AppConfig.apiUrl('/playlist/library')),
+        String endpoint = '/playlists';
+        if (status != null) {
+            endpoint += '?status=$status';
+        }
+
+        final response = await _client.get(
+            Uri.parse(AppConfig.apiUrl(endpoint)),
 
             headers: {
-                'Content-Type': 'application/json',
                 'X-User-ID': userId,
             },
-
-            body: jsonEncode(request.toJson()),
         );
 
         if (response.statusCode == 200) {
@@ -296,17 +367,18 @@ class ApiService {
         }
     }
 
-    Future<PlaylistDraft> getDraftPlaylist(String playlistId, String userId) async {
-        final response = await _client.post(
-            Uri.parse(AppConfig.apiUrl('/playlist/drafts')),
+    Future<PlaylistDraft> getDraftPlaylist(String playlistId) async {
+        final userId = _authService?.userId;
+        if (userId == null) {
+            throw ApiException('User not authenticated');
+        }
+
+        final response = await _client.get(
+            Uri.parse(AppConfig.apiUrl('/playlists')),
             headers: {
-                'Content-Type': 'application/json',
                 'X-User-ID': userId,
+                'X-Playlist-ID': playlistId,
             },
-            body: jsonEncode({
-                'playlist_id': playlistId,
-                'user_id': userId,
-            }),
         );
 
         if (response.statusCode == 200) {
@@ -331,17 +403,18 @@ class ApiService {
         }
     }
 
-    Future<bool> deleteDraftPlaylist(String playlistId, String userId) async {
+    Future<bool> deleteDraftPlaylist(String playlistId) async {
+        final userId = _authService?.userId;
+        if (userId == null) {
+            throw ApiException('User not authenticated');
+        }
+
         final response = await _client.delete(
-            Uri.parse(AppConfig.apiUrl('/playlist/drafts')),
+            Uri.parse(AppConfig.apiUrl('/playlists')),
             headers: {
-                'Content-Type': 'application/json',
                 'X-User-ID': userId,
+                'X-Playlist-ID': playlistId,
             },
-            body: jsonEncode({
-                'playlist_id': playlistId,
-                'user_id': userId,
-            }),
         );
 
         if (response.statusCode == 401) {
@@ -352,38 +425,27 @@ class ApiService {
         return response.statusCode == 200;
     }
 
-    Future<bool> deleteSpotifyPlaylist(String playlistId, String userId) async {
-        final response = await _client.delete(
-            Uri.parse(AppConfig.apiUrl('/spotify/playlist')),
-            headers: {
-                'Content-Type': 'application/json',
-                'X-User-ID': userId,
-            },
-            body: jsonEncode({
-                'playlist_id': playlistId,
-                'user_id': userId,
-            }),
-        );
-
-        if (response.statusCode == 401) {
-            await _handle401();
-            throw ApiException('Authentication required');
-        }
-
-        return response.statusCode == 200;
+    Future<bool> deleteSpotifyPlaylist(String spotifyPlaylistId) async {
+        // This endpoint doesn't exist in the current API
+        // Spotify playlists should be deleted through Spotify directly
+        throw ApiException('Deleting Spotify playlists is not supported through the API');
     }
 
-    Future<bool> removeTrackFromSpotifyPlaylist(String playlistId, String trackUri, String userId) async {
+    Future<bool> removeTrackFromSpotifyPlaylist(String spotifyPlaylistId, String trackUri) async {
+        final userId = _authService?.userId;
+        if (userId == null) {
+            throw ApiException('User not authenticated');
+        }
+
         final response = await _client.delete(
-            Uri.parse(AppConfig.apiUrl('/spotify/playlist/track')),
+            Uri.parse(AppConfig.apiUrl('/spotify/tracks')),
             headers: {
                 'Content-Type': 'application/json',
                 'X-User-ID': userId,
+                'X-Spotify-Playlist-ID': spotifyPlaylistId,
             },
             body: jsonEncode({
-                'playlist_id': playlistId,
                 'track_uri': trackUri,
-                'user_id': userId,
             }),
         );
 
@@ -395,17 +457,18 @@ class ApiService {
         return response.statusCode == 200;
     }
 
-    Future<List<Map<String, dynamic>>> getSpotifyPlaylistTracks(String playlistId, String userId) async {
-        final response = await _client.post(
-            Uri.parse(AppConfig.apiUrl('/spotify/playlist/tracks')),
+    Future<List<Map<String, dynamic>>> getSpotifyPlaylistTracks(String spotifyPlaylistId) async {
+        final userId = _authService?.userId;
+        if (userId == null) {
+            throw ApiException('User not authenticated');
+        }
+
+        final response = await _client.get(
+            Uri.parse(AppConfig.apiUrl('/spotify/tracks')),
             headers: {
-                'Content-Type': 'application/json',
                 'X-User-ID': userId,
+                'X-Spotify-Playlist-ID': spotifyPlaylistId,
             },
-            body: jsonEncode({
-                'playlist_id': playlistId,
-                'user_id': userId,
-            }),
         );
 
         if (response.statusCode == 200) {
@@ -423,17 +486,18 @@ class ApiService {
         }
     }
 
-    Future<PlaylistResponse> updatePlaylistDraft(PlaylistRequest request) async {
+    Future<PlaylistResponse> updatePlaylistDraft(PlaylistRequest request, String playlistId) async {
         final userId = _authService?.userId;
         if (userId == null) {
             throw ApiException('User not authenticated');
         }
 
-        final response = await _client.post(
-            Uri.parse(AppConfig.apiUrl('/playlist/update-draft')),
+        final response = await _client.put(
+            Uri.parse(AppConfig.apiUrl('/playlists')),
             headers: {
                 'Content-Type': 'application/json',
                 'X-User-ID': userId,
+                'X-Playlist-ID': playlistId,
             },
             body: jsonEncode(request.toJson()),
         );

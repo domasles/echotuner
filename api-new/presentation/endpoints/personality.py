@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # Create FastAPI router
 router = APIRouter(prefix="/personality", tags=["personality"])
 
-@router.post("/save", response_model=UserPersonalityResponse)
+@router.put("", response_model=UserPersonalityResponse)
 @validate_user_request()
 async def save_user_personality(request: Request, user_context: UserContext, validated_user_id: str = None):
     """Save user personality preferences"""
@@ -46,7 +46,7 @@ async def save_user_personality(request: Request, user_context: UserContext, val
         logger.error(f"Failed to save user personality: {e}")
         raise HTTPException(status_code=500, detail="Failed to save personality")
 
-@router.get("/load", response_model=Dict[str, Any])
+@router.get("", response_model=Dict[str, Any])
 @validate_user_request()
 async def load_user_personality(request: Request, validated_user_id: str = None):
     """Load user personality preferences from user_id in headers"""
@@ -64,7 +64,7 @@ async def load_user_personality(request: Request, validated_user_id: str = None)
         logger.error(f"Failed to load user personality: {e}")
         raise HTTPException(status_code=500, detail="Failed to load personality")
 
-@router.post("/clear")
+@router.delete("")
 @validate_user_request()
 async def clear_user_personality(request: Request, validated_user_id: str = None):
     """Clear user personality preferences"""
@@ -86,42 +86,39 @@ async def clear_user_personality(request: Request, validated_user_id: str = None
         logger.error(f"Failed to clear user personality: {e}")
         raise HTTPException(status_code=500, detail="Failed to clear personality")
 
-@router.get("/followed-artists", response_model=FollowedArtistsResponse)
+@router.get("/artists", response_model=FollowedArtistsResponse)
 @validate_user_request()
-async def get_followed_artists(request: Request, limit: int = 50, validated_user_id: str = None):
-    """Get user's followed artists from Spotify"""
+async def get_artists(request: Request, validated_user_id: str = None):
+    """Get user's followed artists from Spotify or search for artists"""
 
     try:
-        artists = await personality_service.get_followed_artists_by_user_id(
-            user_id=validated_user_id,
-            limit=limit
-        )
+        # Check query parameters to determine what to return
+        search_query = request.query_params.get('q')
+        artist_type = request.query_params.get('type', 'followed')
+        limit = int(request.query_params.get('limit', 50))
 
-        return FollowedArtistsResponse(artists=artists)
+        if search_query:
+            # Search for artists
+            artists = await personality_service.search_artists(
+                query=search_query,
+                limit=limit
+            )
+            return ArtistSearchResponse(artists=artists)
+        elif artist_type == 'followed':
+            # Get followed artists
+            artists = await personality_service.get_followed_artists_by_user_id(
+                user_id=validated_user_id,
+                limit=limit
+            )
+            return FollowedArtistsResponse(artists=artists)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid artist type or missing search query")
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.warning(f"Failed to get followed artists: {e}")
-        return FollowedArtistsResponse(artists=[])
-
-@router.post("/search-artists", response_model=ArtistSearchResponse)
-@validate_user_request()
-async def search_artists(request: Request, search_request: ArtistSearchRequest, validated_user_id: str = None):
-    """Search for artists on Spotify"""
-
-    try:
-        artists = await personality_service.search_artists_by_user_id(
-            user_id=validated_user_id,
-            query=search_request.query,
-            limit=search_request.limit or 20
-        )
-
-        return ArtistSearchResponse(artists=artists)
-
-    except HTTPException:
-        raise
-
-    except Exception as e:
-        logger.error(f"Failed to search artists: {e}")
-        raise HTTPException(status_code=500, detail="Failed to search artists")
+        logger.warning(f"Failed to get artists: {e}")
+        if search_query:
+            return ArtistSearchResponse(artists=[])
+        else:
+            return FollowedArtistsResponse(artists=[])

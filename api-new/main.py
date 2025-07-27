@@ -41,7 +41,6 @@ from infrastructure.auth.oauth_service import oauth_service
 # Import routers
 from presentation.endpoints.auth import router as auth_router
 from presentation.endpoints.playlist import router as playlist_router
-from presentation.endpoints.spotify import router as spotify_router
 from presentation.endpoints.personality import router as personality_router
 from presentation.endpoints.ai import router as ai_router
 from presentation.endpoints.config import router as config_router, root
@@ -161,7 +160,6 @@ app.add_middleware(
 # Include all routers
 app.include_router(auth_router)
 app.include_router(playlist_router)
-app.include_router(spotify_router)
 app.include_router(personality_router)
 app.include_router(ai_router)
 app.include_router(config_router)

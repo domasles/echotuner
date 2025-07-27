@@ -9,17 +9,11 @@ part 'playlist_request.g.dart';
 class PlaylistRequest {
     final String prompt;
 
-    @JsonKey(name: 'user_id')
-    final String userId;
-
     @JsonKey(name: 'user_context')
     final UserContext? userContext;
 
     @JsonKey(name: 'current_songs')
     final List<Song>? currentSongs;
-
-    @JsonKey(name: 'playlist_id')
-    final String? playlistId;
 
     @JsonKey(name: 'discovery_strategy')
     final String? discoveryStrategy;
@@ -28,11 +22,9 @@ class PlaylistRequest {
 
     PlaylistRequest({
         required this.prompt,
-        required this.userId,
 
         this.userContext,
         this.currentSongs,
-        this.playlistId,
         this.discoveryStrategy,
         this.count,
     });

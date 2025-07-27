@@ -162,7 +162,6 @@ class PlaylistProvider extends ChangeNotifier {
 
             final request = PlaylistRequest(
                 prompt: prompt,
-                userId: userId,
                 userContext: _userContext,
                 discoveryStrategy: discoveryStrategy ?? 'balanced',
                 count: maxSongsPerPlaylist, // Use config value
@@ -226,12 +225,10 @@ class PlaylistProvider extends ChangeNotifier {
 
             final request = PlaylistRequest(
                 prompt: _currentPrompt.isNotEmpty ? _currentPrompt : 'Updated playlist',
-                userId: userId,
                 currentSongs: _currentPlaylist,
-                playlistId: _currentPlaylistId,
             );
 
-            final response = await _apiService.updatePlaylistDraft(request);
+            final response = await _apiService.updatePlaylistDraft(request, _currentPlaylistId!);
             _currentPlaylistId = response.playlistId;
             
             // Draft updated successfully on server
@@ -244,7 +241,7 @@ class PlaylistProvider extends ChangeNotifier {
 
     Future<bool> removeSongFromSpotifyPlaylist(String playlistId, String trackUri, String userId) async {
         try {
-            return await _apiService.removeTrackFromSpotifyPlaylist(playlistId, trackUri, userId);
+            return await _apiService.removeTrackFromSpotifyPlaylist(playlistId, trackUri);
         }
 
         catch (e) {
@@ -331,11 +328,10 @@ class PlaylistProvider extends ChangeNotifier {
 
             final request = PlaylistRequest(
                 prompt: _currentPrompt.isNotEmpty ? _currentPrompt : 'Spotify playlist update',
-                userId: userId,
                 currentSongs: _currentPlaylist,
             );
 
-            final response = await _apiService.updatePlaylistDraft(request);
+            final response = await _apiService.updatePlaylistDraft(request, _currentPlaylistId!);
             _currentPlaylistId = response.playlistId;
         }
 
@@ -348,15 +344,13 @@ class PlaylistProvider extends ChangeNotifier {
         try {
 
             final request = SpotifyPlaylistRequest(
-                playlistId: _currentPlaylistId!,
-                userId: userId,
                 name: playlistName,
                 description: description,
                 public: false,
                 songs: _currentPlaylist, // Always include songs for new system
             );
 
-            final response = await _apiService.createSpotifyPlaylist(request);
+            final response = await _apiService.createSpotifyPlaylist(request, _currentPlaylistId!);
 
             if (response.success) {
                 _isPlaylistAddedToSpotify = true;
@@ -383,7 +377,7 @@ class PlaylistProvider extends ChangeNotifier {
         
         if (_authService.isAuthenticated && userId != null) {
             try {
-                return await _apiService.getUserRateLimitStatus(userId);
+                return await _apiService.getUserRateLimitStatus();
             } catch (e) {
                 AppLogger.warning('Failed to get rate limit status from API: $e');
                 // Return fallback status with config values
@@ -414,13 +408,7 @@ class PlaylistProvider extends ChangeNotifier {
         if (userId == null) throw Exception('Not authenticated');
 
         // Load playlists from server (local storage removed)
-        final request = LibraryPlaylistsRequest(
-            userId: userId,
-            includeDrafts: true,
-            forceRefresh: forceRefresh,
-        );
-
-        return await _apiService.getLibraryPlaylists(request);
+        return await _apiService.getLibraryPlaylists();
     }
 
     Future<LibraryPlaylistsResponse> refreshLibraryPlaylists() async {
@@ -445,7 +433,7 @@ class PlaylistProvider extends ChangeNotifier {
         if (userId == null) throw Exception('Not authenticated');
         
         // Delete draft from server (local storage removed)
-        await _apiService.deleteDraftPlaylist(playlistId, userId);
+        await _apiService.deleteDraftPlaylist(playlistId);
     }
 
     Future<void> deleteSpotifyPlaylist(String playlistId) async {
@@ -454,7 +442,7 @@ class PlaylistProvider extends ChangeNotifier {
         if (userId == null) throw Exception('Not authenticated');
         
         // Delete from Spotify via API (local storage removed)
-        await _apiService.deleteSpotifyPlaylist(playlistId, userId);
+        await _apiService.deleteSpotifyPlaylist(playlistId);
     }
 
     Future<void> loadSpotifyPlaylist(Map<String, dynamic> spotifyPlaylist) async {
@@ -468,8 +456,7 @@ class PlaylistProvider extends ChangeNotifier {
             if (userId == null) throw Exception('Not authenticated');
 
             final spotifyTracks = await _apiService.getSpotifyPlaylistTracks(
-                spotifyPlaylist['id'], 
-                userId
+                spotifyPlaylist['id']
             );
 
             final songs = spotifyTracks.map((track) {

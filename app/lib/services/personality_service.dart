@@ -20,7 +20,7 @@ class PersonalityService {
         AppLogger.personality('Saving context to API...');
         AppLogger.personality('Context data: ${context.toJson()}');
 
-        final response = await _apiService.post('/personality/save', 
+        final response = await _apiService.put('/personality', 
             body: context.toJson(),
             headers: {
                 'X-User-ID': await _getUserId() ?? '',
@@ -40,7 +40,7 @@ class PersonalityService {
         AppLogger.personality('Loading context from API...');
 
         try {
-            final response = await _apiService.get('/personality/load', headers: {
+            final response = await _apiService.get('/personality', headers: {
                 'X-User-ID': await _getUserId() ?? '',
             });
 
@@ -70,8 +70,7 @@ class PersonalityService {
     Future<void> clearUserContext() async {
         AppLogger.personality('Clearing context from API ONLY...');
 
-        await _apiService.post('/personality/clear', 
-            body: {},
+        await _apiService.delete('/personality', 
             headers: {
                 'X-User-ID': await _getUserId() ?? '',
             }
@@ -85,7 +84,7 @@ class PersonalityService {
             final userId = await _getUserId();
             if (userId == null) throw Exception('No user ID available');
 
-            final response = await _apiService.get('/personality/followed-artists', headers: {
+            final response = await _apiService.get('/personality/artists?type=followed', headers: {
                 'X-User-ID': await _getUserId() ?? '',
             });
 
@@ -115,11 +114,7 @@ class PersonalityService {
                 throw Exception('No user ID available');
             }
 
-            final response = await _apiService.post('/personality/search-artists', 
-                body: {
-                    'query': query,
-                    'limit': 20,
-                },
+            final response = await _apiService.get('/personality/artists?q=${Uri.encodeComponent(query)}&limit=20', 
                 headers: {
                     'X-User-ID': await _getUserId() ?? '',
                 }

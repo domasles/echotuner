@@ -3,7 +3,6 @@
 # Import routers - this is what main.py actually needs
 from .auth import router as auth_router  
 from .playlist import router as playlist_router
-from .spotify import router as spotify_router
 from .personality import router as personality_router
 from .ai import router as ai_router
 from .config import router as config_router

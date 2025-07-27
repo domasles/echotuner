@@ -47,20 +47,12 @@ class PlaylistDraft {
 
 @JsonSerializable()
 class SpotifyPlaylistRequest {
-    @JsonKey(name: 'playlist_id')
-    final String playlistId;
-
-    @JsonKey(name: 'user_id')
-    final String userId;
-
     final String name;
     final String? description;
     final bool? public;
     final List<Song>? songs;
 
     SpotifyPlaylistRequest({
-        required this.playlistId,
-        required this.userId,
         required this.name,
         this.description,
         this.public,
@@ -96,19 +88,11 @@ class SpotifyPlaylistResponse {
 
 @JsonSerializable()
 class LibraryPlaylistsRequest {
-    @JsonKey(name: 'user_id')
-    final String userId;
-
     @JsonKey(name: 'include_drafts')
     final bool? includeDrafts;
 
-    @JsonKey(name: 'force_refresh')
-    final bool? forceRefresh;
-
     LibraryPlaylistsRequest({
-        required this.userId,
         this.includeDrafts,
-        this.forceRefresh,
     });
 
     factory LibraryPlaylistsRequest.fromJson(Map<String, dynamic> json) => _$LibraryPlaylistsRequestFromJson(json);
