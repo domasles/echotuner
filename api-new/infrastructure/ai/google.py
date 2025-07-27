@@ -11,7 +11,6 @@ from typing import List
 from infrastructure.config.settings import settings
 
 from .base import BaseAIProvider
-from domain.ai.session_decorators import ensure_session_initialized
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +25,6 @@ class GoogleProvider(BaseAIProvider):
         self.name = "google"
         self.headers = {"x-goog-api-key": settings.CLOUD_API_KEY}
 
-    @ensure_session_initialized
     async def test_availability(self) -> bool:
         """Test if Google Gemini is available."""
 
@@ -51,7 +49,6 @@ class GoogleProvider(BaseAIProvider):
             logger.debug(f"Google availability test failed: {e}")
             return False
 
-    @ensure_session_initialized
     async def generate_text(self, prompt: str, **kwargs) -> str:
         """Generate text using Google Gemini."""
 

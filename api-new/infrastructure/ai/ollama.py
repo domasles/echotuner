@@ -9,7 +9,6 @@ import logging
 from typing import List
 
 from .base import BaseAIProvider
-from domain.ai.session_decorators import ensure_session_initialized
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,6 @@ class OllamaProvider(BaseAIProvider):
         super().__init__()
         self.name = "ollama"
 
-    @ensure_session_initialized
     async def test_availability(self) -> bool:
         """Test if Ollama is available."""
 
@@ -34,7 +32,6 @@ class OllamaProvider(BaseAIProvider):
             logger.debug(f"Ollama availability test failed: {e}")
             return False
 
-    @ensure_session_initialized
     async def generate_text(self, prompt: str, **kwargs) -> str:
         """Generate text using Ollama."""
 

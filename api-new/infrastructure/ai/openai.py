@@ -9,7 +9,6 @@ import logging
 from typing import List
 
 from .base import BaseAIProvider
-from domain.ai.session_decorators import ensure_session_initialized
 
 from infrastructure.config.settings import settings
 
@@ -26,7 +25,6 @@ class OpenAIProvider(BaseAIProvider):
         self.name = "openai"
         self.headers = {"Authorization": f"Bearer {settings.CLOUD_API_KEY}"}
 
-    @ensure_session_initialized
     async def test_availability(self) -> bool:
         """Test if OpenAI is available."""
 
@@ -52,7 +50,6 @@ class OpenAIProvider(BaseAIProvider):
             logger.debug(f"OpenAI availability test failed: {e}")
             return False
 
-    @ensure_session_initialized
     async def generate_text(self, prompt: str, **kwargs) -> str:
         """Generate text using OpenAI."""
 
