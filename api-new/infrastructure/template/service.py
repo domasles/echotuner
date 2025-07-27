@@ -7,7 +7,7 @@ import secrets
 
 from pathlib import Path
 
-from application.core.singleton import SingletonServiceBase
+from infrastructure.singleton import SingletonServiceBase
 
 from domain.shared.validation.validators import UniversalValidator
 

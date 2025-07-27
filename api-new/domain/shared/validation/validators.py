@@ -152,7 +152,7 @@ class UniversalValidator:
             
         return ip_address
 
-def validate_user_request():
+def validate_request_headers():
     """
     Decorator for automatic user_id validation from headers.
     Validates user_id from request headers.
@@ -182,17 +182,19 @@ def validate_user_request():
         return wrapper
     return decorator
 
-def validate_request(*field_names: str):
+def validate_request_data(*input_fields: str):
     """
-    Decorator for automatic request validation.
+    Decorator for automatic request validation of model fields.
     
     Args:
-        *field_names: Fields to validate (e.g., 'prompt', 'count')
+        input_fields: List of fields to validate from request model
     """
-
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args, **kwargs):
+            # Default fields to validate if none specified
+            field_names = input_fields or ['prompt', 'count', 'playlist_name']
+            
             # Find the request object in args
             request = None
             for arg in args:

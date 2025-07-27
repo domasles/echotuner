@@ -9,7 +9,7 @@ import logging
 
 from typing import List, Dict, Any, Optional, Tuple
 
-from application.core.singleton import SingletonServiceBase
+from infrastructure.singleton import SingletonServiceBase
 from application import Song
 
 from infrastructure.config.app_constants import AppConstants

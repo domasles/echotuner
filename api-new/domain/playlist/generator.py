@@ -9,7 +9,7 @@ import json
 
 from typing import List, Dict, Any, Optional
 
-from application.core.singleton import SingletonServiceBase
+from infrastructure.singleton import SingletonServiceBase
 from application import Song, UserContext
 from infrastructure.config.settings import settings
 from infrastructure.config.app_constants import app_constants

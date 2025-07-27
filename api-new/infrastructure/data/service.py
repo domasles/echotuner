@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Any
 from functools import lru_cache
 
-from application.core.singleton import SingletonServiceBase
+from infrastructure.singleton import SingletonServiceBase
 
 logger = logging.getLogger(__name__)
 

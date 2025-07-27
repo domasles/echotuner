@@ -7,6 +7,6 @@ __all__ = [
     'validate_request_data',
     'validate_input_data',
     'UniversalValidator',
-    'validate_request',
+    'validate_request_data',
     'validate_input',
 ]

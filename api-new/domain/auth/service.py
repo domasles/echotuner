@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from spotipy.oauth2 import SpotifyOAuth
 from typing import Optional, Dict, Any, List
 
-from application.core.singleton import SingletonServiceBase
+from infrastructure.singleton import SingletonServiceBase
 from infrastructure.config.settings import settings
 from infrastructure.database import repository
 from infrastructure.database.models import AuthState

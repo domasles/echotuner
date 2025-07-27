@@ -7,7 +7,7 @@ import logging
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 
-from application.core.singleton import SingletonServiceBase
+from infrastructure.singleton import SingletonServiceBase
 from infrastructure.config.settings import settings
 from infrastructure.database.repository import repository
 from infrastructure.database.models import AuthSession, UserAccount, OwnerSpotifyCredentials

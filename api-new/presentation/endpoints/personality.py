@@ -5,8 +5,7 @@ from typing import Dict, Any
 from fastapi import HTTPException, APIRouter, Request
 
 from domain.auth.decorators import debug_only
-from domain.shared.validation.validators import validate_request, validate_user_request, UniversalValidator
-from domain.shared.validation.security_validator import SecurityValidator
+from domain.shared.validation.validators import validate_request_data, validate_request_headers, UniversalValidator
 
 from application import UserPersonalityResponse, FollowedArtistsResponse, ArtistSearchRequest, ArtistSearchResponse, UserContext
 from domain.personality.service import personality_service
@@ -19,13 +18,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/personality", tags=["personality"])
 
 @router.put("", response_model=UserPersonalityResponse)
-@validate_user_request()
+@validate_request_headers()
 async def save_user_personality(request: Request, user_context: UserContext, validated_user_id: str = None):
     """Save user personality preferences"""
 
     try:
         # Security validation
-        SecurityValidator.validate_user_context_size(user_context)
+        UniversalValidator.validate_user_context_size(user_context)
             
         logger.debug(f"Saving personality for user {validated_user_id}")
 
@@ -51,7 +50,7 @@ async def save_user_personality(request: Request, user_context: UserContext, val
         raise HTTPException(status_code=500, detail="Failed to save personality")
 
 @router.get("", response_model=Dict[str, Any])
-@validate_user_request()
+@validate_request_headers()
 async def load_user_personality(request: Request, validated_user_id: str = None):
     """Load user personality preferences from user_id in headers"""
     try:
@@ -69,7 +68,7 @@ async def load_user_personality(request: Request, validated_user_id: str = None)
         raise HTTPException(status_code=500, detail="Failed to load personality")
 
 @router.delete("")
-@validate_user_request()
+@validate_request_headers()
 async def clear_user_personality(request: Request, validated_user_id: str = None):
     """Clear user personality preferences"""
 
@@ -91,7 +90,7 @@ async def clear_user_personality(request: Request, validated_user_id: str = None
         raise HTTPException(status_code=500, detail="Failed to clear personality")
 
 @router.get("/artists", response_model=FollowedArtistsResponse)
-@validate_user_request()
+@validate_request_headers()
 async def get_artists(request: Request, validated_user_id: str = None):
     """Get user's followed artists from Spotify or search for artists"""
 

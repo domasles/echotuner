@@ -5,24 +5,27 @@ import click
 import sys
 import re
 
-from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi import FastAPI, Request
-
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from application import *
+# FastAPI and middleware imports
+from fastapi import FastAPI, Request
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
+# Application layer imports
+from application import *
+from application.service_manager import service_manager
+
+# Infrastructure imports
 from infrastructure.config.app_constants import app_constants
 from infrastructure.config.security import security
 from infrastructure.config.settings import settings
-from domain.shared.validation.validators import UniversalValidator
-
-# Core services
-from application.service_manager import service_manager
 from infrastructure.logging.config import configure_logging
+
+# Domain imports  
+from domain.shared.validation.validators import UniversalValidator
 
 # Service imports for registration
 from infrastructure.filesystem.service import filesystem_service
@@ -38,7 +41,7 @@ from domain.playlist.draft import playlist_draft_service
 from domain.personality.service import personality_service
 from infrastructure.auth.oauth_service import oauth_service
 
-# Import routers
+# Router imports
 from presentation.endpoints.auth import router as auth_router
 from presentation.endpoints.playlist import router as playlist_router
 from presentation.endpoints.personality import router as personality_router

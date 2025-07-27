@@ -12,7 +12,7 @@ import json
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-from application.core.singleton import SingletonServiceBase
+from infrastructure.singleton import SingletonServiceBase
 from application import PlaylistDraft, Song
 from infrastructure.config.app_constants import AppConstants
 from infrastructure.config.settings import settings

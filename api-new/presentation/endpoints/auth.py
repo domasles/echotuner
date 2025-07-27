@@ -12,7 +12,7 @@ from infrastructure.config.settings import settings
 from infrastructure.auth.oauth_service import oauth_service
 from infrastructure.rate_limiting.limit_service import rate_limiter_service
 from infrastructure.template.service import template_service
-from domain.shared.validation.validators import validate_user_request
+from domain.shared.validation.validators import validate_request_headers
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +178,7 @@ async def auth_status(appid: str = Header(None, alias="X-Session-UUID")):
         raise HTTPException(status_code=500, detail="Session status check failed")
 
 @router.get("/rate-limit-status")
-@validate_user_request()
+@validate_request_headers()
 async def get_rate_limit_status(request: Request, validated_user_id: str = None):
     """Get current rate limit status for authenticated user."""
     

@@ -8,7 +8,7 @@ import logging
 
 from datetime import datetime, timedelta
 
-from application.core.singleton import SingletonServiceBase
+from infrastructure.singleton import SingletonServiceBase
 from application import RateLimitStatus
 
 from infrastructure.config.settings import settings

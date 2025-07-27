@@ -12,7 +12,7 @@ from typing import List, Optional
 from spotipy.cache_handler import CacheFileHandler
 from spotipy.oauth2 import SpotifyClientCredentials
 
-from application.core.singleton import SingletonServiceBase
+from infrastructure.singleton import SingletonServiceBase
 from application import Song, UserContext
 from infrastructure.config.settings import settings
 

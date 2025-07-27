@@ -5,7 +5,7 @@ Validation decorators for standardizing validation method patterns.
 from functools import wraps
 from typing import Callable
 
-from domain.shared.validation.validators import UniversalValidator, validate_request, validate_input
+from domain.shared.validation.validators import UniversalValidator, validate_request_data, validate_input
 
 def validate_request_data(validation_func: Callable = None, **validation_kwargs):
     """

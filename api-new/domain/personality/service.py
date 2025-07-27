@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Optional, List
 
 from application import UserContext, SpotifyArtist
-from application.core.singleton import SingletonServiceBase
+from infrastructure.singleton import SingletonServiceBase
 
 from infrastructure.config.settings import settings
 

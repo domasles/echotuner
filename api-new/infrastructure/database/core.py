@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import text
 
-from application.core.singleton import SingletonServiceBase
+from infrastructure.singleton import SingletonServiceBase
 from infrastructure.config import app_constants
 
 logger = logging.getLogger(__name__)

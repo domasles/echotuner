@@ -8,8 +8,7 @@ from typing import Union
 from fastapi import HTTPException, APIRouter, Request
 
 from domain.auth.decorators import debug_only
-from domain.shared.validation.validators import validate_request, validate_user_request, UniversalValidator
-from domain.shared.validation.security_validator import SecurityValidator
+from domain.shared.validation.validators import validate_request_data, validate_request_headers, UniversalValidator
 
 from application import PlaylistRequest, PlaylistResponse, LibraryPlaylistsResponse, SpotifyPlaylistInfo, SpotifyPlaylistRequest, SpotifyPlaylistResponse
 
@@ -31,7 +30,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/playlists", tags=["playlists"])
 
 @router.post("", response_model=Union[PlaylistResponse, SpotifyPlaylistResponse])
-@validate_user_request()
+@validate_request_headers()
 async def generate_or_create_playlist(request: Request, playlist_request: Union[PlaylistRequest, SpotifyPlaylistRequest], validated_user_id: str = None):
     """Generate a new playlist or create a Spotify playlist from draft based on status parameter"""
 
@@ -49,9 +48,9 @@ async def generate_or_create_playlist(request: Request, playlist_request: Union[
                 raise HTTPException(status_code=400, detail="SpotifyPlaylistRequest required for Spotify playlist creation")
             
             # Validate Spotify request fields
-            SecurityValidator.validate_string_length(playlist_request.name, settings.MAX_PLAYLIST_NAME_LENGTH, "Playlist name")
+            UniversalValidator.validate_string(playlist_request.name, "Playlist name", settings.MAX_PLAYLIST_NAME_LENGTH)
             if playlist_request.description:
-                SecurityValidator.validate_string_length(playlist_request.description, settings.MAX_PLAYLIST_NAME_LENGTH, "Playlist description")
+                UniversalValidator.validate_string(playlist_request.description, "Playlist description", settings.MAX_PLAYLIST_NAME_LENGTH)
                 
             # Create Spotify playlist from draft
             playlist_id = request.headers.get('X-Playlist-ID') or request.headers.get('x-playlist-id')
@@ -119,8 +118,8 @@ async def generate_or_create_playlist(request: Request, playlist_request: Union[
                 raise HTTPException(status_code=400, detail="PlaylistRequest required for draft generation")
             
             # Validate PlaylistRequest fields
-            SecurityValidator.validate_string_length(playlist_request.prompt, settings.MAX_PROMPT_LENGTH, "Prompt")
-            SecurityValidator.validate_user_context_size(playlist_request.user_context)
+            UniversalValidator.validate_prompt(playlist_request.prompt)
+            UniversalValidator.validate_user_context_size(playlist_request.user_context)
                 
             # Use user_id as rate limiting key for both shared and normal modes
             if settings.PLAYLIST_LIMIT_ENABLED and not await rate_limiter_service.can_make_request(user_id):
@@ -190,7 +189,7 @@ async def generate_or_create_playlist(request: Request, playlist_request: Union[
         raise HTTPException(status_code=500, detail=f"Error generating playlist: {sanitized_error}")
 
 @router.put("", response_model=PlaylistResponse)
-@validate_user_request()
+@validate_request_headers()
 async def update_playlist_draft(request: Request, playlist_request: PlaylistRequest, validated_user_id: str = None):
     """Update an existing playlist draft"""
     
@@ -248,7 +247,7 @@ async def update_playlist_draft(request: Request, playlist_request: PlaylistRequ
         raise HTTPException(status_code=500, detail=f"Error updating playlist draft: {sanitized_error}")
 
 @router.get("", response_model=LibraryPlaylistsResponse)
-@validate_user_request()
+@validate_request_headers()
 async def get_playlists(request: Request, validated_user_id: str = None):
     """Get playlists - all playlists or specific playlist based on X-Playlist-ID header"""
     
@@ -341,7 +340,7 @@ async def get_playlists(request: Request, validated_user_id: str = None):
         raise HTTPException(status_code=500, detail="Failed to get playlists")
 
 @router.delete("", response_model=dict)
-@validate_user_request()
+@validate_request_headers()
 async def delete_playlist(request: Request, validated_user_id: str = None):
     """Delete a specific playlist."""
 

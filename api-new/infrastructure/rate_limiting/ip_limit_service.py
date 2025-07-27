@@ -8,7 +8,7 @@ import logging
 
 from datetime import datetime, timedelta
 
-from application.core.singleton import SingletonServiceBase
+from infrastructure.singleton import SingletonServiceBase
 
 from infrastructure.database.repository import repository
 from infrastructure.database.models.rate_limits import IPAttempt

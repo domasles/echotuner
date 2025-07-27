@@ -8,7 +8,7 @@ import os
 from typing import List, Dict, Any
 from pathlib import Path
 
-from application.core.singleton import SingletonServiceBase
+from infrastructure.singleton import SingletonServiceBase
 from infrastructure.config.app_constants import AppConstants
 
 logger = logging.getLogger(__name__)

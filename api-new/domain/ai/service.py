@@ -7,7 +7,7 @@ import logging
 
 from typing import Dict, Any, Optional, List
 
-from application.core.singleton import SingletonServiceBase
+from infrastructure.singleton import SingletonServiceBase
 
 from infrastructure.ai.registry import provider_registry
 from infrastructure.ai.base import BaseAIProvider

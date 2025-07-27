@@ -6,7 +6,7 @@ Centralized service initialization and dependency management.
 import logging
 from typing import Dict, Any
 
-from application.core.singleton import SingletonServiceBase
+from infrastructure.singleton import SingletonServiceBase
 
 logger = logging.getLogger(__name__)
 

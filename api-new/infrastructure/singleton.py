@@ -13,20 +13,16 @@ class SingletonServiceBase:
 
     def _setup_service(self):
         """Override this method to set up the service."""
-
         pass
 
     def _log_initialization(self, message: str, logger):
         """Log initialization only once per singleton instance."""
-
         logger.info(message)
 
     def cleanup(self):
         """Clean up resources and shutdown the service."""
-
         logger.info("Service cleanup completed.")
 
     def __del__(self):
         """Cleanup resources on destruction"""
-
         self.cleanup()
