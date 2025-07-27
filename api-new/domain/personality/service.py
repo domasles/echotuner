@@ -98,7 +98,7 @@ class PersonalityService(SingletonServiceBase):
         try:
             # In shared mode, don't pull followed artists from Spotify
             if settings.SHARED:
-                logger.info("Shared mode enabled - not pulling followed artists from Spotify")
+                logger.debug("Shared mode enabled - not pulling followed artists from Spotify")
                 return []
             
             access_token = await self.auth_service.get_access_token_by_user_id(user_id)

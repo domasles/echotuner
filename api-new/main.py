@@ -82,6 +82,10 @@ async def lifespan(app: FastAPI):
         # Initialize all services
         await service_manager.initialize_all_services()
         
+        # Initialize database explicitly during startup
+        from infrastructure.database.core import db_core
+        await db_core.initialize()
+
         # Pre-load data cache in background
         asyncio.create_task(preload_data_cache())
         

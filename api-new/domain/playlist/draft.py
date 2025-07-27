@@ -249,7 +249,7 @@ class PlaylistDraftService(SingletonServiceBase):
                 if draft.spotify_playlist_id:
                     playlist_ids.append(draft.spotify_playlist_id)
             
-            logger.info(f"Found {len(playlist_ids)} EchoTuner Spotify playlists for user {user_id}")
+            logger.debug(f"Found {len(playlist_ids)} EchoTuner Spotify playlists for user {user_id}")
             return playlist_ids
             
         except Exception as e:

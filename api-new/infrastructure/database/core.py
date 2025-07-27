@@ -49,7 +49,7 @@ class DatabaseCore:
                 from infrastructure.database.models import Base as ModelsBase
                 await conn.run_sync(ModelsBase.metadata.create_all)
 
-            logger.info("Database core initialized successfully with SQLAlchemy ORM")
+            logger.debug("Database core initialized successfully with SQLAlchemy ORM")
 
         except Exception as e:
             logger.error(f"Database core initialization failed: {e}")
@@ -59,7 +59,7 @@ class DatabaseCore:
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
         """Create and provide a database session with proper cleanup."""
         if not self.async_session_factory:
-            await self.initialize()
+            raise RuntimeError("Database not initialized. Call initialize() first.")
 
         session = self.async_session_factory()
         try:
@@ -82,7 +82,3 @@ class DatabaseCore:
 
 # Global database core instance
 db_core = DatabaseCore()
-
-def get_session():
-    """Get an async database session context manager."""
-    return db_core.get_session()

@@ -158,12 +158,13 @@ def validate_request_headers():
     Validates user_id from request headers.
     Note: The endpoint function MUST have 'request: Request' as first parameter.
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(request: Request, *args, **kwargs):
             # Get user_id from headers (check both cases)
             user_id = request.headers.get('X-User-ID') or request.headers.get('x-user-id')
-            logger.info(f"Extracted user_id: '{user_id}'")
+            logger.debug(f"Extracted user_id: '{user_id}'")
             
             if not user_id:
                 logger.error("VALIDATOR: Missing X-User-ID header")

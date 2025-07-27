@@ -9,7 +9,7 @@ from sqlalchemy.future import select
 from sqlalchemy import and_, or_, desc, func, delete, update
 from sqlalchemy.orm import selectinload
 
-from .core import get_session
+from .core import db_core
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class GenericRepository:
     
     async def create(self, model_class: Type[Any], data: Dict[str, Any]) -> Any:
         """Create a new record."""
-        async with get_session() as session:
+        async with db_core.get_session() as session:
             instance = model_class(**data)
             session.add(instance)
             await session.commit()
@@ -30,7 +30,7 @@ class GenericRepository:
     
     async def get_by_id(self, model_class: Type[Any], id_value: Any) -> Optional[Any]:
         """Get record by ID."""
-        async with get_session() as session:
+        async with db_core.get_session() as session:
             result = await session.execute(
                 select(model_class).where(model_class.id == id_value)
             )
@@ -38,7 +38,7 @@ class GenericRepository:
     
     async def get_by_field(self, model_class: Type[Any], field: str, value: Any) -> Optional[Any]:
         """Get record by any field."""
-        async with get_session() as session:
+        async with db_core.get_session() as session:
             result = await session.execute(
                 select(model_class).where(getattr(model_class, field) == value)
             )
@@ -46,7 +46,7 @@ class GenericRepository:
     
     async def get_by_conditions(self, model_class: Type[Any], conditions: Dict[str, Any]) -> Optional[Any]:
         """Get record by multiple conditions."""
-        async with get_session() as session:
+        async with db_core.get_session() as session:
             query = select(model_class)
             for field, value in conditions.items():
                 query = query.where(getattr(model_class, field) == value)
@@ -55,13 +55,13 @@ class GenericRepository:
     
     async def list_all(self, model_class: Type[Any]) -> List[Any]:
         """List all records."""
-        async with get_session() as session:
+        async with db_core.get_session() as session:
             result = await session.execute(select(model_class))
             return list(result.scalars().all())
     
     async def list_by_field(self, model_class: Type[Any], field: str, value: Any) -> List[Any]:
         """List records by field value."""
-        async with get_session() as session:
+        async with db_core.get_session() as session:
             result = await session.execute(
                 select(model_class).where(getattr(model_class, field) == value)
             )
@@ -71,7 +71,7 @@ class GenericRepository:
                                  limit: Optional[int] = None, 
                                  order_by: Optional[str] = None) -> List[Any]:
         """List records with multiple conditions."""
-        async with get_session() as session:
+        async with db_core.get_session() as session:
             query = select(model_class)
             
             # Apply conditions
@@ -95,7 +95,7 @@ class GenericRepository:
     async def update(self, model_class: Type[Any], id_value: Any, data: Dict[str, Any], 
                     id_field: str = 'id') -> Optional[Any]:
         """Update record by ID field."""
-        async with get_session() as session:
+        async with db_core.get_session() as session:
             result = await session.execute(
                 select(model_class).where(getattr(model_class, id_field) == id_value)
             )
@@ -112,7 +112,7 @@ class GenericRepository:
     async def update_by_conditions(self, model_class: Type[Any], conditions: Dict[str, Any], 
                                  data: Dict[str, Any]) -> int:
         """Update records by conditions. Returns number of affected rows."""
-        async with get_session() as session:
+        async with db_core.get_session() as session:
             query = update(model_class)
             
             for field, value in conditions.items():
@@ -125,7 +125,7 @@ class GenericRepository:
     
     async def delete(self, model_class: Type[Any], id_value: Any, id_field: str = 'id') -> bool:
         """Delete record by primary key field."""
-        async with get_session() as session:
+        async with db_core.get_session() as session:
             result = await session.execute(
                 select(model_class).where(getattr(model_class, id_field) == id_value)
             )
@@ -139,7 +139,7 @@ class GenericRepository:
     
     async def delete_by_conditions(self, model_class: Type[Any], conditions: Dict[str, Any]) -> int:
         """Delete records by conditions. Returns number of deleted rows."""
-        async with get_session() as session:
+        async with db_core.get_session() as session:
             query = delete(model_class)
             
             for field, value in conditions.items():
@@ -151,7 +151,7 @@ class GenericRepository:
     
     async def count(self, model_class: Type[Any], conditions: Optional[Dict[str, Any]] = None) -> int:
         """Count records."""
-        async with get_session() as session:
+        async with db_core.get_session() as session:
             query = select(func.count()).select_from(model_class)
             
             if conditions:

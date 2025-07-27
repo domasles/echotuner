@@ -124,7 +124,7 @@ class AuthService(SingletonServiceBase):
                 # Check if token is expired and refresh if needed
                 now = datetime.now()
                 if owner_creds.expires_at and owner_creds.expires_at <= now:
-                    logger.info("Owner access token expired, refreshing...")
+                    logger.debug("Owner access token expired, refreshing...")
                     try:
                         # Refresh the token using Spotify provider
                         new_token_data = await oauth_service.spotify_provider.refresh_token(owner_creds.refresh_token)
@@ -141,7 +141,7 @@ class AuthService(SingletonServiceBase):
                         }
                         
                         await repository.update(OwnerSpotifyCredentials, owner_creds.id, update_data)
-                        logger.info("Owner access token refreshed successfully")
+                        logger.debug("Owner access token refreshed successfully")
                         return new_token_data['access_token']
                         
                     except Exception as e:
