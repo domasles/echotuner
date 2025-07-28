@@ -18,7 +18,6 @@ class Song(BaseModel):
 class UserContext(BaseModel):
     context: dict = {}
 
-
 class RateLimitStatus(BaseModel):
     user_id: str  # Format: spotify_{id} or google_{id}
     requests_made_today: int

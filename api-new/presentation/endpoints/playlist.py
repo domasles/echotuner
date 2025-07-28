@@ -119,7 +119,6 @@ async def generate_or_create_playlist(request: Request, playlist_request: Union[
             
             # Validate PlaylistRequest fields
             UniversalValidator.validate_prompt(playlist_request.prompt)
-            UniversalValidator.validate_user_context_size(playlist_request.user_context)
                 
             # Use user_id as rate limiting key for both shared and normal modes
             if settings.PLAYLIST_LIMIT_ENABLED and not await rate_limiter_service.can_make_request(user_id):

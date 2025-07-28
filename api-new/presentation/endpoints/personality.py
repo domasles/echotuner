@@ -22,10 +22,7 @@ router = APIRouter(prefix="/personality", tags=["personality"])
 async def save_user_personality(request: Request, user_context: UserContext, validated_user_id: str = None):
     """Save user personality preferences"""
 
-    try:
-        # Security validation
-        UniversalValidator.validate_user_context_size(user_context)
-            
+    try: 
         logger.debug(f"Saving personality for user {validated_user_id}")
 
         # Unified system - use user_id directly
