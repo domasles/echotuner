@@ -9,15 +9,10 @@ class SingletonServiceBase:
 
     def __init__(self):
         self._logger_name = self.__class__.__name__
-        self._setup_service()
 
-    def _setup_service(self):
+    async def _setup_service(self):
         """Override this method to set up the service."""
         pass
-
-    def _log_initialization(self, message: str, logger):
-        """Log initialization only once per singleton instance."""
-        logger.info(message)
 
     def cleanup(self):
         """Clean up resources and shutdown the service."""

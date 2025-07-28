@@ -19,11 +19,10 @@ class FilesystemService(SingletonServiceBase):
     def __init__(self):
         super().__init__()
 
-    def _setup_service(self):
+    async def _setup_service(self):
         """Initialize the filesystem service."""
 
         self.required_directories = AppConstants.REQUIRED_DIRECTORIES
-        self._log_initialization("Filesystem service initialized successfully", logger)
 
     async def initialize(self):
         """Initialize filesystem by ensuring all required directories exist."""

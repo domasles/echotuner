@@ -27,19 +27,12 @@ class PersonalityService(SingletonServiceBase):
     def __init__(self):
         super().__init__()
 
-    def _setup_service(self):
+    async def _setup_service(self):
         """Initialize the PersonalityService."""
 
         self.auth_service = auth_service
         self.spotify_search = spotify_search_service
         self.repository = repository
-
-        self._log_initialization("Personality service initialized successfully", logger)
-
-    async def initialize(self):
-        """Initialize the service"""
-
-        await self.spotify_search.initialize()
 
     async def save_user_personality_by_user_id(self, user_id: str, user_context: UserContext) -> bool:
         """Save user personality preferences by user_id (unified auth system)."""

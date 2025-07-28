@@ -25,13 +25,8 @@ class SpotifyPlaylistService(SingletonServiceBase):
     def __init__(self):
         super().__init__()
 
-    def _setup_service(self):
+    async def _setup_service(self):
         """Initialize the SpotifyPlaylistService."""
-
-        self._log_initialization("Spotify playlist service initialized successfully", logger)
-
-    async def initialize(self):
-        """Initialize the Spotify playlist service."""
 
         try:
             if not settings.SPOTIFY_CLIENT_ID or not settings.SPOTIFY_CLIENT_SECRET:

@@ -26,29 +26,15 @@ class RateLimiterService(SingletonServiceBase):
     Tracks requests per device and enforces daily limits.
     """
 
-    def _setup_service(self):
+    def __init__(self):
+        super().__init__()
+
+    async def _setup_service(self):
         """Initialize the RateLimiterService."""
 
         self.is_rate_limiting_enabled = settings.PLAYLIST_LIMIT_ENABLED
         self.max_requests_per_day = settings.MAX_PLAYLISTS_PER_DAY
         self.repository = repository
-
-        self._log_initialization("Rate limiter service initialized successfully", logger)
-
-    def __init__(self):
-        super().__init__()
-
-    async def initialize(self):
-        """Initialize the database and create tables if needed"""
-
-        try:
-            pass  # Rate limiter ready
-
-        except Exception as e:
-            logger.error(f"Error initializing rate limiter: {e}")
-            sanitized_error = UniversalValidator.sanitize_error_message(str(e))
-
-            raise RuntimeError(f"Rate limiter initialization failed: {sanitized_error}")
 
     def _get_device_hash(self, device_id: str) -> str:
         """Create a hash of the device ID for privacy"""

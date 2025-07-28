@@ -24,14 +24,12 @@ class DataLoader(SingletonServiceBase):
     def __init__(self):
         super().__init__()
 
-    def _setup_service(self):
+    async def _setup_service(self):
         """Initialize the DataLoader."""
 
         self.data_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'data')
         self._cache = {}
         self._executor = ThreadPoolExecutor(max_workers=4)
-
-        self._log_initialization("Data loader service initialized successfully", logger)
 
     @lru_cache(maxsize=32)
     def _load_json_file(self, filename: str) -> Dict[str, Any]:

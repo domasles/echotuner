@@ -31,15 +31,11 @@ class PlaylistDraftService(SingletonServiceBase):
     def __init__(self):
         super().__init__()
 
-    def _setup_service(self):
+    async def _setup_service(self):
         """Initialize the PlaylistDraftService."""
 
         self.repository = repository
-        self._log_initialization("Playlist draft service initialized with ORM", logger)
 
-    @handle_service_errors("initialize_playlist_draft_service")
-    async def initialize(self):
-        """Initialize the playlist draft service with error handling."""
         try:
             asyncio.create_task(self._cleanup_expired_drafts_loop())
         except Exception as e:

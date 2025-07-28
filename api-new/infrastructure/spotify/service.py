@@ -28,18 +28,13 @@ class SpotifySearchService(SingletonServiceBase):
     def __init__(self):
         super().__init__()
 
-    def _setup_service(self):
+    async def _setup_service(self):
         """Initialize the SpotifySearchService."""
 
         self.client_id = settings.SPOTIFY_CLIENT_ID
         self.client_secret = settings.SPOTIFY_CLIENT_SECRET
         self.spotify = None
 
-        self._log_initialization("Spotify search service initialized successfully", logger)
-
-    async def initialize(self):
-        """Initialize Spotify client"""
-            
         try:
             if not self.client_id or not self.client_secret:
                 logger.error("Spotify credentials not found")

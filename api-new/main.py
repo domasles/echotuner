@@ -24,15 +24,12 @@ from infrastructure.config.security import security
 from infrastructure.config.settings import settings
 from infrastructure.logging.config import configure_logging
 
-# Domain imports  
-from domain.shared.validation.validators import UniversalValidator
-
 # Service imports for registration
 from infrastructure.filesystem.service import filesystem_service
 from infrastructure.data.service import data_loader
 from infrastructure.rate_limiting.limit_service import rate_limiter_service
-from infrastructure.rate_limiting.ip_limit_service import ip_rate_limiter_service
 from infrastructure.template.service import template_service
+from infrastructure.database.core import db_core
 from domain.ai.service import ai_service
 from infrastructure.spotify.service import spotify_search_service
 from domain.playlist.spotify import spotify_playlist_service
@@ -69,7 +66,6 @@ async def lifespan(app: FastAPI):
         service_manager.register_service("filesystem_service", filesystem_service)
         service_manager.register_service("data_service", data_loader)
         service_manager.register_service("rate_limiter_service", rate_limiter_service)
-        service_manager.register_service("ip_rate_limiter_service", ip_rate_limiter_service)
         service_manager.register_service("template_service", template_service)
         service_manager.register_service("ai_service", ai_service)
         service_manager.register_service("spotify_search_service", spotify_search_service)
@@ -78,18 +74,15 @@ async def lifespan(app: FastAPI):
         service_manager.register_service("playlist_draft_service", playlist_draft_service)
         service_manager.register_service("personality_service", personality_service)
         service_manager.register_service("oauth_service", oauth_service)
-        
+        service_manager.register_service("database_core", db_core)
+
         # Initialize all services
         await service_manager.initialize_all_services()
-        
-        # Initialize database explicitly during startup
-        from infrastructure.database.core import db_core
-        await db_core.initialize()
 
         # Pre-load data cache in background
         asyncio.create_task(preload_data_cache())
         
-        logger.info("✓ All services initialized successfully")
+        logger.info("All services initialized successfully")
         
     except Exception as e:
         logger.error(f"Failed to initialize services: {e}")
@@ -99,9 +92,11 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down EchoTuner API...")
+
     try:
         await service_manager.shutdown_all()
-        logger.info("✓ All services shut down successfully")
+        logger.info("All services shut down successfully")
+
     except Exception as e:
         logger.warning(f"Error during shutdown: {e}")
 

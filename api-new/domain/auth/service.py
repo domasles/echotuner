@@ -28,10 +28,11 @@ class AuthService(SingletonServiceBase):
 
     def _setup_service(self):
         """Initialize the AuthService."""
+
         self.repo = repository
         self.spotify_oauth = None
+
         self._initialize_spotify_oauth()
-        logger.info("Auth service initialized successfully")
 
     def _initialize_spotify_oauth(self):
         """Initialize Spotify OAuth with proper settings."""
@@ -50,12 +51,6 @@ class AuthService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Failed to initialize Spotify OAuth: {e}")
 
-    async def initialize(self):
-        """Initialize async components."""
-            
-        logger.info("Auth service async initialization completed")
-
-    # AUTH STATE MANAGEMENT
     async def store_auth_state(self, state: str, appid: str, platform: str) -> bool:
         """Store auth state for validation."""
         try:

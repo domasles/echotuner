@@ -18,17 +18,19 @@ from infrastructure.config import app_constants
 logger = logging.getLogger(__name__)
 Base = declarative_base()
 
-class DatabaseCore:
+class DatabaseCore(SingletonServiceBase):
     """Core database functionality with SQLAlchemy async engine."""
 
     def __init__(self):
-        """Initialize the database core."""
+        super().__init__()
+
+    async def _setup_service(self):
+        """Initialize database engine and session factory."""
+
         self.database_url = f"sqlite+aiosqlite:///{Path(app_constants.DATABASE_FILEPATH).as_posix()}"
         self.async_session_factory = None
         self.engine = None
 
-    async def initialize(self):
-        """Initialize database engine and session factory."""
         try:
             self.engine = create_async_engine(
                 self.database_url,

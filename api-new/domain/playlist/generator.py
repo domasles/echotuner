@@ -29,23 +29,10 @@ class PlaylistGeneratorService(SingletonServiceBase):
     def __init__(self):
         super().__init__()
 
-    def _setup_service(self):
+    async def _setup_service(self):
         """Initialize the PlaylistGeneratorService."""
 
         self.spotify_search = spotify_search_service
-        self._log_initialization("Playlist generator service initialized successfully", logger)
-
-    async def initialize(self):
-        """Initialize the AI model and Spotify search service"""
-
-        try:
-            await self.spotify_search.initialize()
-
-            logger.info("AI Playlist Generation initialized successfully!")
-
-        except Exception as e:
-            logger.error(f"Playlist generation initialization failed: {e}")
-            raise RuntimeError(f"Playlist generation initialization failed: {e}")
 
     async def generate_playlist(self, prompt: str, user_context: Optional[UserContext] = None, count: int = 30, discovery_strategy: str = "balanced", user_id: str = None) -> List[Song]:
         """
@@ -69,17 +56,8 @@ class PlaylistGeneratorService(SingletonServiceBase):
             if discovery_strategy not in ["new_music", "existing_music", "balanced"]:
                 discovery_strategy = "balanced"
 
-            # Get enhanced personality context if user_id provided
-            enhanced_prompt = prompt
-            if user_id:
-                enhanced_prompt = await personality_service.get_personality_enhanced_context_by_user_id(
-                    user_id=user_id, 
-                    prompt=prompt
-                )
-
-            # AI-powered real song lookup - OPTIMIZED: Single call with higher count
             target_count = min(count + 10, settings.MAX_SONGS_PER_PLAYLIST)  # Request slightly more for better filtering
-            songs = await self._ai_lookup_real_songs(enhanced_prompt, user_context, discovery_strategy, target_count, original_prompt=prompt)
+            songs = await self._ai_lookup_real_songs(prompt, user_context, discovery_strategy, target_count, original_prompt=prompt)
             
             if not songs:
                 logger.warning("AI song lookup returned no results")
@@ -102,8 +80,6 @@ class PlaylistGeneratorService(SingletonServiceBase):
             sanitized_error = UniversalValidator.sanitize_error_message(str(e))
 
             raise RuntimeError(f"Playlist generation failed: {sanitized_error}")
-
-
 
     async def _ai_lookup_real_songs(self, prompt: str, user_context: Optional[UserContext] = None, discovery_strategy: str = "balanced", count: int = 30, original_prompt: str = None) -> List[Song]:
         """AI-powered real song lookup - generates actual songs from training data"""

@@ -22,14 +22,10 @@ class AIService(SingletonServiceBase):
     def __init__(self):
         super().__init__()
 
-    def _setup_service(self):
+    async def _setup_service(self):
         """Initialize the AIService."""
 
         self._current_provider: Optional[BaseAIProvider] = None
-        self._log_initialization("AI service initialized successfully", logger)
-    
-    async def initialize(self):
-        """Initialize the AI service."""
 
         if self._current_provider and getattr(self._current_provider, '_session', None):
             logger.debug("AI service already initialized, skipping")

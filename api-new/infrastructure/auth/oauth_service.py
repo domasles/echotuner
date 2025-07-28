@@ -23,7 +23,7 @@ class OAuthService(SingletonServiceBase):
     def __init__(self):
         super().__init__()
     
-    def _setup_service(self):
+    async def _setup_service(self):
         """Initialize OAuth providers."""
         
         # Initialize Spotify provider
@@ -39,8 +39,6 @@ class OAuthService(SingletonServiceBase):
             client_secret=settings.GOOGLE_CLIENT_SECRET,
             redirect_uri=settings.GOOGLE_REDIRECT_URI
         )
-        
-        self._log_initialization("OAuth service initialized successfully", logger)
     
     def get_auth_url(self, provider: str, appid: str = None) -> str:
         """Get OAuth authorization URL for the specified provider."""

@@ -17,7 +17,7 @@ class TemplateService(SingletonServiceBase):
     def __init__(self):
         super().__init__()
 
-    def _setup_service(self):
+    async def _setup_service(self):
         """Initialize the TemplateService."""
 
         self.templates_dir = Path(__file__).parent.parent.parent / "templates"
