@@ -20,8 +20,12 @@ class PersonalityService {
         AppLogger.personality('Saving context to API...');
         AppLogger.personality('Context data: ${context.toJson()}');
 
+        final requestBody = {
+            'context': context.toJson()
+        };
+
         final response = await _apiService.put('/personality', 
-            body: context.toJson(),
+            body: requestBody,
             headers: {
                 'X-User-ID': await _getUserId() ?? '',
             }
@@ -44,11 +48,12 @@ class PersonalityService {
                 'X-User-ID': await _getUserId() ?? '',
             });
 
-            final userContextData = response['user_context'];
+            final userContextWrapper = response['user_context'];
 
-            if (userContextData != null) {
-                AppLogger.personality('Loaded context from API: $userContextData');
-                return UserContext.fromJson(userContextData);
+            if (userContextWrapper != null && userContextWrapper['context'] != null) {
+                final actualUserData = userContextWrapper['context'];
+                AppLogger.personality('Loaded context from API: $actualUserData');
+                return UserContext.fromJson(actualUserData);
             }
 
             AppLogger.personality('No context found in API');

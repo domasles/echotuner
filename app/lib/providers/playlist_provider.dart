@@ -36,9 +36,11 @@ class PlaylistProvider extends ChangeNotifier {
 
     PlaylistProvider(this._apiService, this._authService) {
         _loadConfig();
-        if (_authService.isAuthenticated) _loadRateLimitStatus();
-
         _authService.addListener(_onAuthStateChanged);
+
+        Future.delayed(const Duration(milliseconds: 100), () {
+            if (_authService.isAuthenticated) _loadRateLimitStatus();
+        });
     }
 
     @override
