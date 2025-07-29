@@ -16,9 +16,6 @@ class UserContext {
     @JsonKey(name: 'disliked_artists')
     final List<String>? dislikedArtists;
 
-    @JsonKey(name: 'recent_listening_history')
-    final List<String>? recentListeningHistory;
-
     @JsonKey(name: 'music_discovery_preference')
     final String? musicDiscoveryPreference;
 
@@ -72,7 +69,6 @@ class UserContext {
         this.favoriteGenres,
         this.favoriteArtists,
         this.dislikedArtists,
-        this.recentListeningHistory,
         this.musicDiscoveryPreference,
         this.energyPreference,
         this.happyMusicPreference,
@@ -99,7 +95,6 @@ class UserContext {
         List<String>? favoriteGenres,
         List<String>? favoriteArtists,
         List<String>? dislikedArtists,
-        List<String>? recentListeningHistory,
         String? musicDiscoveryPreference,
         String? energyPreference,
         String? happyMusicPreference,
@@ -122,7 +117,6 @@ class UserContext {
             favoriteGenres: favoriteGenres ?? this.favoriteGenres,
             favoriteArtists: favoriteArtists ?? this.favoriteArtists,
             dislikedArtists: dislikedArtists ?? this.dislikedArtists,
-            recentListeningHistory: recentListeningHistory ?? this.recentListeningHistory,
             musicDiscoveryPreference: musicDiscoveryPreference ?? this.musicDiscoveryPreference,
             energyPreference: energyPreference ?? this.energyPreference,
             happyMusicPreference: happyMusicPreference ?? this.happyMusicPreference,
