@@ -152,6 +152,140 @@ class UniversalValidator:
             
         return ip_address
 
+    @classmethod
+    def validate_dict_against_template(cls, data: dict, validation_template: dict) -> dict:
+        """
+        Validate a dictionary against a validation template with __all__ type-based defaults.
+        
+        Args:
+            data: Dictionary to validate
+            validation_template: Dict with field validation rules
+                Format: {
+                    'field_name': {
+                        'type': 'list'|'string'|'int',
+                        'max_count': int (for lists),
+                        'max_length': int (for strings/ints),
+                    },
+                    '__all__': {
+                        'type': 'string'|'int'|'list',
+                        'max_length': int (for strings/ints),
+                        'max_count': int (for lists)
+                    }
+                }
+        
+        Returns:
+            Validated and sanitized dictionary
+        """
+        
+        validated_data = {}
+        
+        # Extract __all__ type-based defaults
+        all_defaults = {}
+        for field_name, rules in validation_template.items():
+            if field_name == '__all__':
+                # Handle nested structure: '__all__': {'string': {...}, 'int': {...}}
+                if isinstance(rules, dict):
+                    for type_name, type_rules in rules.items():
+                        all_defaults[type_name] = type_rules
+        
+        # First, validate explicitly defined fields
+        for field_name, rules in validation_template.items():
+            if field_name == '__all__':
+                continue
+                
+            field_value = data.get(field_name)
+            
+            # Skip validation if field is not provided
+            if field_value is None:
+                continue
+            
+            # Auto-detect field type and validate
+            field_type = cls._determine_field_type(field_value)
+            validated_data[field_name] = cls._validate_field_by_type(
+                field_value, field_name, field_type, rules
+            )
+        
+        # Then, validate remaining fields using __all__ defaults
+        for field_name, field_value in data.items():
+            if field_name in validation_template or field_name in validated_data:
+                continue  # Already validated
+                
+            if field_value is None:
+                continue
+            
+            # Auto-detect field type and apply __all__ rules
+            field_type = cls._determine_field_type(field_value)
+            
+            if field_type in all_defaults:
+                validated_data[field_name] = cls._validate_field_by_type(
+                    field_value, field_name, field_type, all_defaults[field_type]
+                )
+            else:
+                # No __all__ rule for this type, pass through
+                validated_data[field_name] = field_value
+        
+        return validated_data
+
+    @classmethod
+    def _determine_field_type(cls, value: Any) -> str:
+        """Determine the type of a field value."""
+        if isinstance(value, list):
+            return 'list'
+        elif isinstance(value, str):
+            return 'string'
+        elif isinstance(value, int):
+            return 'int'
+        elif isinstance(value, bool):
+            return 'bool'
+        else:
+            return 'unknown'
+
+    @classmethod
+    def _validate_field_by_type(cls, field_value: Any, field_name: str, field_type: str, rules: dict) -> Any:
+        """Validate a field based on its type and rules."""
+        
+        if field_type == 'list':
+            if not isinstance(field_value, list):
+                raise Exception(f"{field_name} must be a list")
+            
+            max_count = rules.get('max_count')
+            if max_count and len(field_value) > max_count:
+                raise Exception(f"{field_name} cannot contain more than {max_count} items")
+            
+            # Validate each item in the list is a string (for most use cases)
+            validated_list = []
+            for item in field_value:
+                if isinstance(item, str):
+                    validated_list.append(item.strip())
+                else:
+                    validated_list.append(item)
+            
+            return validated_list
+            
+        elif field_type == 'string':
+            if not isinstance(field_value, str):
+                raise Exception(f"{field_name} must be a string")
+            
+            max_length = rules.get('max_length', 1000)
+            return cls.validate_string(field_value, field_name, max_length, required=False)
+            
+        elif field_type == 'int':
+            if not isinstance(field_value, int):
+                raise Exception(f"{field_name} must be an integer")
+            
+            # Check integer length (number of digits)
+            max_length = rules.get('max_length')
+            if max_length:
+                int_str = str(abs(field_value))  # Remove negative sign for length check
+                if len(int_str) > max_length:
+                    raise Exception(f"{field_name} integer length cannot exceed {max_length} digits")
+            
+            return field_value
+            
+        else:
+            # For unknown types, just pass through
+            return field_value
+
 def validate_request_headers():
     """
     Decorator for automatic user_id validation from headers.

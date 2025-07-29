@@ -11,6 +11,7 @@ from application import UserPersonalityResponse, FollowedArtistsResponse, Artist
 from domain.personality.service import personality_service
 from infrastructure.database.repository import repository
 from infrastructure.database.models.users import UserPersonality
+from infrastructure.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,49 @@ router = APIRouter(prefix="/personality", tags=["personality"])
 async def save_user_personality(request: Request, user_context: UserContext, validated_user_id: str = None):
     """Save user personality preferences"""
 
-    try: 
+    try:
+        # Define validation template for user context with __all__ type-based defaults
+        USER_CONTEXT_VALIDATION_TEMPLATE = {
+            # Explicitly defined fields with settings.py limits
+            'favorite_artists': {
+                'type': 'list', 
+                'max_count': settings.MAX_FAVORITE_ARTISTS
+            },
+            'disliked_artists': {
+                'type': 'list', 
+                'max_count': settings.MAX_DISLIKED_ARTISTS
+            },
+            'favorite_genres': {
+                'type': 'list', 
+                'max_count': settings.MAX_FAVORITE_GENRES
+            },
+            'decade_preference': {
+                'type': 'list', 
+                'max_count': settings.MAX_PREFERRED_DECADES
+            },
+            
+            # Type-based defaults for all other fields
+            '__all__': {
+                'string': {
+                    'max_length': 128
+                },
+                'int': {
+                    'max_length': 10  # Max 10 digits for integers
+                }
+            }
+        }
+
+        # Validate user context using the generic template validator
+        if user_context.context:
+            # First validate JSON size and security
+            validated_json = UniversalValidator.validate_json_context(user_context.context, max_size_bytes=10240)
+            
+            # Then validate against personality-specific template
+            validated_context = UniversalValidator.validate_dict_against_template(validated_json, USER_CONTEXT_VALIDATION_TEMPLATE)
+            
+            # Update the user context with validated data
+            user_context.context = validated_context
+ 
         logger.debug(f"Saving personality for user {validated_user_id}")
 
         # Unified system - use user_id directly
@@ -99,7 +142,8 @@ async def get_artists(request: Request, validated_user_id: str = None):
 
         if search_query:
             # Search for artists
-            artists = await personality_service.search_artists(
+            artists = await personality_service.search_artists_by_user_id(
+                user_id=validated_user_id,
                 query=search_query,
                 limit=limit
             )
