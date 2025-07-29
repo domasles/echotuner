@@ -18,11 +18,10 @@
         <p class="auth-footer">You can now close this window and return to the app.</p>
     </div>
     <script nonce="{{nonce}}">
+        // Just notify success and close - no data sharing through callback
         if (window.opener) {
             window.opener.postMessage({
-                type: 'SPOTIFY_AUTH_SUCCESS',
-                sessionId: '{{session_id}}',
-                deviceId: '{{device_id}}'
+                type: 'SPOTIFY_AUTH_SUCCESS'
             }, '*');
         }
 

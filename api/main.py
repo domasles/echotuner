@@ -5,50 +5,46 @@ import click
 import sys
 import re
 
-from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi import FastAPI, Request
-
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from models import *
+# FastAPI and middleware imports
+from fastapi import FastAPI, Request
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-from config.app_constants import app_constants
-from config.security import security
-from config.settings import settings
-from core.validation.validators import UniversalValidator
+# Application layer imports
+from application import *
+from application.service_manager import service_manager
 
-# Core services
-from core.service_manager import service_manager
-from core.logging_config import configure_logging
+# Infrastructure imports
+from infrastructure.config.app_constants import app_constants
+from infrastructure.config.security import security
+from infrastructure.config.settings import settings
+from infrastructure.logging.config import configure_logging
 
 # Service imports for registration
-from services.filesystem.filesystem import filesystem_service
-from services.database.database import db_service
-from services.ai.embedding_cache import embedding_cache_service
-from services.data.data import data_loader
-from services.rate_limiting.rate_limiter import rate_limiter_service
-from services.rate_limiting.ip_rate_limiter import ip_rate_limiter_service
-from services.template.template import template_service
-from services.ai.ai import ai_service
-from services.ai.prompt import prompt_validator_service
-from services.spotify.search import spotify_search_service
-from services.playlist.spotify import spotify_playlist_service
-from services.playlist.generator import playlist_generator_service
-from services.playlist.draft import playlist_draft_service
-from services.personality.personality import personality_service
-from services.auth.auth import auth_service
+from infrastructure.filesystem.service import filesystem_service
+from infrastructure.data.service import data_loader
+from infrastructure.rate_limiting.limit_service import rate_limiter_service
+from infrastructure.template.service import template_service
+from infrastructure.database.core import db_core
+from domain.ai.service import ai_service
+from infrastructure.spotify.service import spotify_search_service
+from domain.playlist.spotify import spotify_playlist_service
+from domain.playlist.generator import playlist_generator_service
+from domain.playlist.draft import playlist_draft_service
+from domain.personality.service import personality_service
+from infrastructure.auth.oauth_service import oauth_service
 
-# Import routers
-from endpoints.auth import router as auth_router
-from endpoints.playlists import router as playlist_router
-from endpoints.spotify import router as spotify_router
-from endpoints.personality import router as personality_router
-from endpoints.ai import router as ai_router
-from endpoints.config import router as config_router, root
-from endpoints.server import router as server_router
+# Router imports
+from presentation.endpoints.auth import router as auth_router
+from presentation.endpoints.playlist import router as playlist_router
+from presentation.endpoints.personality import router as personality_router
+from presentation.endpoints.ai import router as ai_router
+from presentation.endpoints.config import router as config_router, root
+from presentation.endpoints.server import router as server_router
 
 # Configure structured logging early
 configure_logging(
@@ -68,28 +64,25 @@ async def lifespan(app: FastAPI):
     try:
         # Register services with service manager
         service_manager.register_service("filesystem_service", filesystem_service)
-        service_manager.register_service("database_service", db_service)
-        service_manager.register_service("embedding_cache_service", embedding_cache_service)
         service_manager.register_service("data_service", data_loader)
         service_manager.register_service("rate_limiter_service", rate_limiter_service)
-        service_manager.register_service("ip_rate_limiter_service", ip_rate_limiter_service)
         service_manager.register_service("template_service", template_service)
         service_manager.register_service("ai_service", ai_service)
-        service_manager.register_service("prompt_validator_service", prompt_validator_service)
         service_manager.register_service("spotify_search_service", spotify_search_service)
         service_manager.register_service("spotify_playlist_service", spotify_playlist_service)
         service_manager.register_service("playlist_generator_service", playlist_generator_service)
         service_manager.register_service("playlist_draft_service", playlist_draft_service)
         service_manager.register_service("personality_service", personality_service)
-        service_manager.register_service("auth_service", auth_service)
-        
+        service_manager.register_service("oauth_service", oauth_service)
+        service_manager.register_service("database_core", db_core)
+
         # Initialize all services
         await service_manager.initialize_all_services()
-        
+
         # Pre-load data cache in background
         asyncio.create_task(preload_data_cache())
         
-        logger.info("✓ All services initialized successfully")
+        logger.info("All services initialized successfully")
         
     except Exception as e:
         logger.error(f"Failed to initialize services: {e}")
@@ -99,9 +92,11 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down EchoTuner API...")
+
     try:
         await service_manager.shutdown_all()
-        logger.info("✓ All services shut down successfully")
+        logger.info("All services shut down successfully")
+
     except Exception as e:
         logger.warning(f"Error during shutdown: {e}")
 
@@ -167,7 +162,6 @@ app.add_middleware(
 # Include all routers
 app.include_router(auth_router)
 app.include_router(playlist_router)
-app.include_router(spotify_router)
 app.include_router(personality_router)
 app.include_router(ai_router)
 app.include_router(config_router)

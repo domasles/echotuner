@@ -1,5 +1,5 @@
 # EchoTuner Docker Compose Configuration
-# This configuration uses pre-built images from Github Container Registry (GHCR).
+# This configuration uses pre-built images from GitHub Container Registry (GHCR).
 # To use local builds instead, use docker compose up --build.
 
 services:

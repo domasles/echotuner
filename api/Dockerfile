@@ -1,9 +1,6 @@
 # EchoTuner API Dockerfile
 FROM python:3.12-alpine
 
-# Install system dependencies
-RUN apk add --no-cache curl
-
 # Create api user
 RUN addgroup api
 RUN adduser -D -u 999 -G api -s /bin/sh api
