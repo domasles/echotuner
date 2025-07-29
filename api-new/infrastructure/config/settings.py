@@ -17,7 +17,6 @@ class Settings:
     API_HOST: str = os.getenv("API_HOST", "0.0.0.0")
     API_PORT: int = int(os.getenv("API_PORT", 8000))
 
-    # Authentication Mode
     SHARED: bool = os.getenv("SHARED", "false").lower() == "true"
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
@@ -30,16 +29,13 @@ class Settings:
     AI_MAX_TOKENS: Optional[int] = int(os.getenv("AI_MAX_TOKENS", 2000))
     AI_TEMPERATURE: Optional[float] = float(os.getenv("AI_TEMPERATURE", 0.7))
     AI_TIMEOUT: int = int(os.getenv("AI_TIMEOUT", 30))
-    AI_MODEL_PULL_TIMEOUT: int = int(os.getenv("AI_MODEL_PULL_TIMEOUT", 300))
 
     CLOUD_API_KEY: Optional[str] = os.getenv("CLOUD_API_KEY")
 
-    # Spotify OAuth Configuration
     SPOTIFY_CLIENT_ID: Optional[str] = os.getenv("SPOTIFY_CLIENT_ID")
     SPOTIFY_CLIENT_SECRET: Optional[str] = os.getenv("SPOTIFY_CLIENT_SECRET")
     SPOTIFY_REDIRECT_URI: str = os.getenv("SPOTIFY_REDIRECT_URI", f"http://{API_HOST}:{API_PORT}/auth/spotify/callback")
-
-    # Google OAuth Configuration  
+ 
     GOOGLE_CLIENT_ID: Optional[str] = os.getenv("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET: Optional[str] = os.getenv("GOOGLE_CLIENT_SECRET")
     GOOGLE_REDIRECT_URI: str = os.getenv("GOOGLE_REDIRECT_URI", f"http://{API_HOST}:{API_PORT}/auth/google/callback")
@@ -51,20 +47,11 @@ class Settings:
     MAX_PLAYLISTS_PER_DAY: int = int(os.getenv("MAX_PLAYLISTS_PER_DAY", 3))
     MAX_SONGS_PER_PLAYLIST: int = int(os.getenv("MAX_SONGS_PER_PLAYLIST", 30))
 
-    SESSION_TIMEOUT: int = int(os.getenv("SESSION_TIMEOUT", 24))
-
-    DRAFT_STORAGE_TIMEOUT: int = int(os.getenv("DRAFT_STORAGE_TIMEOUT", 7))
-    DRAFT_CLEANUP_INTERVAL: int = int(os.getenv("DRAFT_CLEANUP_INTERVAL", 24))
-
-    CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "true").lower() == "true"
-
     MAX_FAVORITE_ARTISTS: int = int(os.getenv("MAX_FAVORITE_ARTISTS", 12))
     MAX_DISLIKED_ARTISTS: int = int(os.getenv("MAX_DISLIKED_ARTISTS", 20))
     MAX_FAVORITE_GENRES: int = int(os.getenv("MAX_FAVORITE_GENRES", 10))
     MAX_PREFERRED_DECADES: int = int(os.getenv("MAX_PREFERRED_DECADES", 5))
 
-    MAX_AUTH_ATTEMPTS_PER_IP: int = int(os.getenv("MAX_AUTH_ATTEMPTS_PER_IP", 10))
-    AUTH_ATTEMPT_WINDOW_MINUTES: int = int(os.getenv("AUTH_ATTEMPT_WINDOW_MINUTES", 60))
     SECURE_HEADERS: bool = os.getenv("SECURE_HEADERS", "true").lower() == "true"
 
     CORS_ORIGINS: list[str] = loads(os.getenv("CORS_ORIGINS", '["*"]'))
@@ -93,7 +80,6 @@ class Settings:
             if not self.AUTH_REQUIRED:
                 errors.append("AUTH_REQUIRED should be enabled in production")
 
-        
         return errors
         
 settings = Settings()
