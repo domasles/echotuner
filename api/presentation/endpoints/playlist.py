@@ -149,7 +149,7 @@ async def generate_or_create_playlist(request: Request, playlist_request: Union[
             songs = await playlist_generator_service.generate_playlist(
                 prompt=playlist_request.prompt,
                 user_context=user_context,
-                count=playlist_request.count if settings.DEBUG else settings.MAX_SONGS_PER_PLAYLIST,
+                count=settings.MAX_SONGS_PER_PLAYLIST,
                 discovery_strategy=playlist_request.discovery_strategy or "balanced",
                 user_id=user_id
             )

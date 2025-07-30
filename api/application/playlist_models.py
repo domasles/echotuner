@@ -11,7 +11,6 @@ class PlaylistRequest(BaseModel):
     prompt: str
     user_context: Optional[UserContext] = None
     current_songs: Optional[List[Song]] = None
-    count: Optional[int] = 30
     discovery_strategy: Optional[str] = "balanced"
 
 
