@@ -7,9 +7,9 @@ from fastapi import HTTPException, APIRouter
 from domain.shared.validation.validators import UniversalValidator
 from domain.auth.decorators import debug_only
 
-from infrastructure.config.security import security
+from domain.config.security import security
 
-from domain.ai.service import ai_service
+from infrastructure.ai.registry import provider_registry
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -20,9 +20,9 @@ async def get_ai_models():
 
     models = {}
 
-    for model_id in ai_service.list_available_providers():
+    for model_id in provider_registry.list_available_providers():
         try:
-            model_info = ai_service.get_provider_info(model_id)
+            model_info = provider_registry.get_provider_info(model_id)
             models[model_id] = model_info
 
         except Exception as e:
@@ -41,11 +41,11 @@ async def test_ai_model(request):
         data = await request.json()
         model_id = data.get("model_id")
         prompt = data.get("prompt", "Hello, this is a test.")
-        response = await ai_service.generate_text(prompt, model_id=model_id)
+        response = await provider_registry.generate_text(prompt, model_id=model_id)
 
         return {
             "success": True,
-            "model_used": ai_service.get_provider_info(model_id),
+            "model_used": provider_registry.get_provider_info(model_id),
             "response": response
         }
 

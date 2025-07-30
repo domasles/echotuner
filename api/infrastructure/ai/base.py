@@ -10,7 +10,7 @@ import logging
 from typing import Dict, Any, Optional, List
 from abc import ABC, abstractmethod
 
-from infrastructure.config.settings import settings
+from domain.config.settings import settings
 
 logger = logging.getLogger(__name__)
 

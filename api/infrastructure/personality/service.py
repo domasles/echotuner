@@ -12,12 +12,12 @@ from typing import Optional, List
 from application import UserContext, SpotifyArtist
 from infrastructure.singleton import SingletonServiceBase
 
-from infrastructure.config.settings import settings
+from domain.config.settings import settings
 
 from infrastructure.spotify.service import spotify_search_service
 from infrastructure.database.repository import repository
 from infrastructure.database.models.users import UserPersonality
-from domain.auth.service import auth_service
+from infrastructure.auth.service import oauth_service
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class PersonalityService(SingletonServiceBase):
     async def _setup_service(self):
         """Initialize the PersonalityService."""
 
-        self.auth_service = auth_service
+        self.oauth_service = oauth_service
         self.spotify_search = spotify_search_service
         self.repository = repository
 
@@ -94,7 +94,7 @@ class PersonalityService(SingletonServiceBase):
                 logger.debug("Shared mode enabled - not pulling followed artists from Spotify")
                 return []
             
-            access_token = await self.auth_service.get_access_token_by_user_id(user_id)
+            access_token = await self.oauth_service.get_access_token_by_user_id(user_id)
 
             if not access_token:
                 logger.error(f"No access token available for followed artists for user {user_id}")
@@ -123,7 +123,7 @@ class PersonalityService(SingletonServiceBase):
         """Search for artists on Spotify by user_id (unified auth system)."""
 
         try:
-            access_token = await self.auth_service.get_access_token_by_user_id(user_id)
+            access_token = await self.oauth_service.get_access_token_by_user_id(user_id)
 
             if not access_token:
                 logger.error(f"No access token available for artist search for user {user_id}")

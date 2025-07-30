@@ -5,13 +5,14 @@ from typing import Dict, Any
 from fastapi import HTTPException, APIRouter, Request
 
 from domain.auth.decorators import debug_only
-from domain.shared.validation.validators import validate_request_data, validate_request_headers, UniversalValidator
+from domain.shared.validation.validators import UniversalValidator
+from domain.shared.validation.decorators import validate_request_data, validate_request_headers
 
 from application import UserPersonalityResponse, FollowedArtistsResponse, ArtistSearchRequest, ArtistSearchResponse, UserContext
-from domain.personality.service import personality_service
+from infrastructure.personality.service import personality_service
 from infrastructure.database.repository import repository
 from infrastructure.database.models.users import UserPersonality
-from infrastructure.config.settings import settings
+from domain.config.settings import settings
 
 logger = logging.getLogger(__name__)
 

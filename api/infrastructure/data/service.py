@@ -149,7 +149,7 @@ class DataLoader(SingletonServiceBase):
         self._load_json_file.cache_clear()
         logger.info("Configuration cache cleared - files will be reloaded on next access")
 
-    def cleanup(self):
+    async def cleanup(self):
         """Clean up resources and shutdown the service."""
 
         self._patterns = {}
@@ -160,7 +160,9 @@ class DataLoader(SingletonServiceBase):
         self._activity_energy_mapping = {}
         self._broader_keywords = []
 
-        self._executor.shutdown(wait=False)
+        # Only shutdown executor if it exists
+        if hasattr(self, '_executor') and self._executor is not None:
+            self._executor.shutdown(wait=False)
 
         logger.info("Service cleanup completed.")
 

@@ -8,11 +8,11 @@ import uuid
 from fastapi import APIRouter, Request, HTTPException, Header
 from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
 
-from infrastructure.config.settings import settings
-from infrastructure.auth.oauth_service import oauth_service
+from domain.config.settings import settings
+from infrastructure.auth.service import oauth_service
 from infrastructure.rate_limiting.limit_service import rate_limiter_service
 from infrastructure.template.service import template_service
-from domain.shared.validation.validators import validate_request_headers
+from domain.shared.validation.decorators import validate_request_headers
 
 logger = logging.getLogger(__name__)
 

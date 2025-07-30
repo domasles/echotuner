@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 import click
-from infrastructure.config.app_constants import app_constants
+from domain.config.app_constants import app_constants
 
 class StructuredFormatter(logging.Formatter):
     """JSON structured logging formatter"""

@@ -9,7 +9,7 @@ import logging
 from fastapi import HTTPException
 from functools import wraps
 
-from infrastructure.config.settings import settings
+from domain.config.settings import settings
 
 logger = logging.getLogger(__name__)
 

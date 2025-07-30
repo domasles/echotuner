@@ -11,13 +11,13 @@ from typing import List, Dict, Any, Optional
 
 from infrastructure.singleton import SingletonServiceBase
 from application import Song, UserContext
-from infrastructure.config.settings import settings
-from infrastructure.config.app_constants import app_constants
+from domain.config.settings import settings
+from domain.config.app_constants import app_constants
 
 from infrastructure.spotify.service import spotify_search_service
 from infrastructure.data.service import data_loader
-from domain.ai.service import ai_service
-from domain.personality.service import personality_service
+from infrastructure.ai.registry import provider_registry
+from infrastructure.personality.service import personality_service
 
 from domain.shared.validation.validators import UniversalValidator
 
@@ -207,7 +207,7 @@ Requirements:
         """Universal method to call different AI models"""
 
         try:
-            return await ai_service.generate_text(prompt, model_id=None)
+            return await provider_registry.generate_text(prompt, model_id=None)
 
         except Exception as e:
             logger.error(f"AI model call failed: {e}")

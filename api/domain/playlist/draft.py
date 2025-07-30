@@ -14,8 +14,8 @@ from typing import List, Optional
 
 from infrastructure.singleton import SingletonServiceBase
 from application import PlaylistDraft, Song
-from infrastructure.config.app_constants import AppConstants
-from infrastructure.config.settings import settings
+from domain.config.app_constants import AppConstants
+from domain.config.settings import settings
 from domain.shared.exceptions import handle_service_errors, raise_playlist_error, ErrorCode
 
 from infrastructure.database.repository import repository

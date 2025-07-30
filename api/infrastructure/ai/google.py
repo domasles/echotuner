@@ -8,7 +8,7 @@ import logging
 
 from typing import List
 
-from infrastructure.config.settings import settings
+from domain.config.settings import settings
 
 from .base import BaseAIProvider
 

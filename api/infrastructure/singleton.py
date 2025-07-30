@@ -1,4 +1,4 @@
-"""Singleton pattern implementation for EchoTuner services."""
+"""Singleton implementation for EchoTuner services."""
 
 import logging
 
@@ -14,10 +14,6 @@ class SingletonServiceBase:
         """Override this method to set up the service."""
         pass
 
-    def cleanup(self):
+    async def cleanup(self):
         """Clean up resources and shutdown the service."""
         logger.info("Service cleanup completed.")
-
-    def __del__(self):
-        """Cleanup resources on destruction"""
-        self.cleanup()

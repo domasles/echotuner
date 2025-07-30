@@ -8,21 +8,22 @@ from typing import Union
 from fastapi import HTTPException, APIRouter, Request
 
 from domain.auth.decorators import debug_only
-from domain.shared.validation.validators import validate_request_data, validate_request_headers, UniversalValidator
+from domain.shared.validation.validators import UniversalValidator
+from domain.shared.validation.decorators import validate_request_data, validate_request_headers
 
 from application import PlaylistRequest, PlaylistResponse, LibraryPlaylistsResponse, SpotifyPlaylistInfo, SpotifyPlaylistRequest, SpotifyPlaylistResponse
 
-from infrastructure.config import app_constants
-from infrastructure.config.settings import settings
+from domain.config import app_constants
+from domain.config.settings import settings
 from infrastructure.database.repository import repository
 from infrastructure.database.models import UserAccount
 
 from domain.playlist.generator import playlist_generator_service
 from domain.playlist.spotify import spotify_playlist_service
 from domain.playlist.draft import playlist_draft_service
-from domain.auth.service import auth_service
+from infrastructure.auth.service import oauth_service
 from infrastructure.rate_limiting.limit_service import rate_limiter_service
-from domain.personality.service import personality_service
+from infrastructure.personality.service import personality_service
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,7 @@ async def generate_or_create_playlist(request: Request, playlist_request: Union[
             if not spotify_playlist_service.is_ready():
                 raise HTTPException(status_code=503, detail="Spotify playlist service not available")
 
-            access_token = await auth_service.get_access_token_by_user_id(user_id)
+            access_token = await oauth_service.get_access_token_by_user_id(user_id)
             if not access_token:
                 if settings.SHARED:
                     raise HTTPException(status_code=401, detail="No valid Spotify credentials for shared account")
@@ -291,7 +292,7 @@ async def get_playlists(request: Request, validated_user_id: str = None):
             if spotify_playlist_service.is_ready():
                 try:
                     # Get access token (works for both shared and normal mode)
-                    access_token = await auth_service.get_access_token_by_user_id(user_id)
+                    access_token = await oauth_service.get_access_token_by_user_id(user_id)
 
                     if access_token:
                         echotuner_playlist_ids = await playlist_draft_service.get_user_echotuner_spotify_playlist_ids(

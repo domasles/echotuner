@@ -9,7 +9,7 @@ from typing import List, Dict, Any
 from pathlib import Path
 
 from infrastructure.singleton import SingletonServiceBase
-from infrastructure.config.app_constants import AppConstants
+from domain.config.app_constants import AppConstants
 
 logger = logging.getLogger(__name__)
 

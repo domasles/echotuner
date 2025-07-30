@@ -14,9 +14,9 @@ from spotipy.oauth2 import SpotifyClientCredentials
 
 from infrastructure.singleton import SingletonServiceBase
 from application import Song, UserContext
-from infrastructure.config.settings import settings
+from domain.config.settings import settings
 
-from infrastructure.config.app_constants import app_constants
+from domain.config.app_constants import app_constants
 
 from domain.shared.validation.validators import UniversalValidator
 

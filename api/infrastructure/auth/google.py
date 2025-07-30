@@ -1,30 +1,31 @@
 """
-Spotify OAuth Provider.
-Handles Spotify OAuth2 authentication flow.
+Google OAuth Provider.
+Handles Google OAuth2 authentication flow.
 """
 
-import base64
 import httpx
 from urllib.parse import urlencode
 from typing import Dict, Any
 
-from .base_oauth import BaseOAuthProvider
+from .base import BaseOAuthProvider
 
-class SpotifyOAuthProvider(BaseOAuthProvider):
-    """Spotify OAuth2 provider implementation."""
+class GoogleOAuthProvider(BaseOAuthProvider):
+    """Google OAuth2 provider implementation."""
     
-    AUTH_URL = "https://accounts.spotify.com/authorize"
-    TOKEN_URL = "https://accounts.spotify.com/api/token"
-    USER_INFO_URL = "https://api.spotify.com/v1/me"
+    AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+    TOKEN_URL = "https://oauth2.googleapis.com/token"
+    USER_INFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
     
     def get_auth_url(self, state: str = None) -> str:
-        """Generate Spotify OAuth authorization URL."""
+        """Generate Google OAuth authorization URL."""
         
         params = {
             'client_id': self.client_id,
             'response_type': 'code',
             'redirect_uri': self.redirect_uri,
-            'scope': 'playlist-modify-public playlist-modify-private user-read-private user-read-email'
+            'scope': 'openid email profile',
+            'access_type': 'offline',
+            'prompt': 'consent'
         }
         
         if state:
@@ -33,25 +34,19 @@ class SpotifyOAuthProvider(BaseOAuthProvider):
         return f"{self.AUTH_URL}?{urlencode(params)}"
     
     async def handle_callback(self, code: str, state: str = None) -> Dict[str, Any]:
-        """Handle Spotify OAuth callback and return user data."""
-        
-        # Exchange code for tokens
-        auth_header = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
-        
-        headers = {
-            'Authorization': f'Basic {auth_header}',
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
+        """Handle Google OAuth callback and return user data."""
         
         data = {
-            'grant_type': 'authorization_code',
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
             'code': code,
+            'grant_type': 'authorization_code',
             'redirect_uri': self.redirect_uri
         }
         
         async with httpx.AsyncClient() as client:
             # Get tokens
-            token_response = await client.post(self.TOKEN_URL, headers=headers, data=data)
+            token_response = await client.post(self.TOKEN_URL, data=data)
             
             if token_response.status_code != 200:
                 raise Exception(f"Token exchange failed: {token_response.text}")
@@ -68,7 +63,7 @@ class SpotifyOAuthProvider(BaseOAuthProvider):
             user_data = user_response.json()
             
             return {
-                'provider': 'spotify',
+                'provider': 'google',
                 'provider_user_id': user_data['id'],
                 'access_token': token_data['access_token'],
                 'refresh_token': token_data.get('refresh_token'),
@@ -77,22 +72,17 @@ class SpotifyOAuthProvider(BaseOAuthProvider):
             }
     
     async def refresh_token(self, refresh_token: str) -> Dict[str, Any]:
-        """Refresh Spotify access token."""
-        
-        auth_header = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
-        
-        headers = {
-            'Authorization': f'Basic {auth_header}',
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
+        """Refresh Google access token."""
         
         data = {
-            'grant_type': 'refresh_token',
-            'refresh_token': refresh_token
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
+            'refresh_token': refresh_token,
+            'grant_type': 'refresh_token'
         }
         
         async with httpx.AsyncClient() as client:
-            response = await client.post(self.TOKEN_URL, headers=headers, data=data)
+            response = await client.post(self.TOKEN_URL, data=data)
             
             if response.status_code != 200:
                 raise Exception(f"Token refresh failed: {response.text}")
@@ -101,4 +91,4 @@ class SpotifyOAuthProvider(BaseOAuthProvider):
     
     def get_provider_name(self) -> str:
         """Get provider name."""
-        return "spotify"
+        return "google"

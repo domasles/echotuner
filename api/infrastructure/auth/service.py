@@ -8,12 +8,12 @@ from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 
 from infrastructure.singleton import SingletonServiceBase
-from infrastructure.config.settings import settings
+from domain.config.settings import settings
 from infrastructure.database.repository import repository
-from infrastructure.database.models import AuthSession, UserAccount, OwnerSpotifyCredentials
+from infrastructure.database.models import AuthSession, UserAccount, OwnerSpotifyCredentials, AuthState
 
-from .oauth_spotify import SpotifyOAuthProvider
-from .oauth_google import GoogleOAuthProvider
+from .spotify import SpotifyOAuthProvider
+from .google import GoogleOAuthProvider
 
 logger = logging.getLogger(__name__)
 
@@ -238,5 +238,90 @@ class OAuthService(SingletonServiceBase):
         if session:
             update_data = {"userid": user_id}
             await repository.update_by_conditions(AuthSession, {"appid": appid}, update_data)
+    
+    async def store_auth_state(self, state: str, appid: str, platform: str) -> bool:
+        """Store auth state for validation."""
+        try:
+            expires_at = datetime.utcnow() + timedelta(minutes=10)
+            
+            # Check if state already exists and delete it first
+            existing_state = await repository.get_by_field(AuthState, 'state', state)
+            if existing_state:
+                await repository.delete(AuthState, existing_state.state, 'state')
+            
+            auth_state_data = {
+                'state': state,
+                'appid': appid,
+                'platform': platform,
+                'created_at': int(datetime.utcnow().timestamp()),
+                'expires_at': int(expires_at.timestamp())
+            }
+            
+            await repository.create(AuthState, auth_state_data)
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to store auth state: {e}")
+            return False
+
+    async def validate_auth_state(self, state: str) -> Optional[Dict[str, str]]:
+        """Validate auth state and return app info."""
+        try:
+            auth_state = await repository.get_by_field(AuthState, 'state', state)
+            if not auth_state:
+                logger.warning(f"Auth state not found: {state}")
+                return None
+            
+            # Check if expired
+            if auth_state.expires_at < datetime.utcnow().timestamp():
+                logger.warning(f"Auth state expired: {state}")
+                await repository.delete(AuthState, auth_state.state, 'state')
+                return None
+            
+            # Clean up after successful validation
+            await repository.delete(AuthState, auth_state.state, 'state')
+            
+            return {
+                'appid': auth_state.appid,
+                'platform': auth_state.platform
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to validate auth state: {e}")
+            return None
+
+    def is_ready(self) -> bool:
+        """Check if service is ready for use."""
+        return True
+
+    async def get_access_token_by_user_id(self, user_id: str) -> Optional[str]:
+        """Get access token by user_id (unified auth system)."""
+        try:
+            # In shared mode, use owner credentials
+            if settings.SHARED:
+                owner_creds = await self.get_owner_credentials()
+                if not owner_creds:
+                    logger.error("No owner credentials found in shared mode")
+                    return None
+                
+                # Check if token is expired and refresh if needed
+                now = datetime.now()
+                if self._is_token_expired(owner_creds):
+                    refreshed_creds = await self._refresh_owner_token(owner_creds)
+                    if refreshed_creds:
+                        return refreshed_creds.access_token
+                    else:
+                        logger.error("Failed to refresh owner token")
+                        return None
+                
+                return owner_creds.access_token
+            
+            else:
+                # Normal mode - get user's individual access token
+                return await self.get_access_token(user_id)
+                
+        except Exception as e:
+            logger.error(f"Failed to get access token for user {user_id}: {e}")
+            return None
 
 oauth_service = OAuthService()

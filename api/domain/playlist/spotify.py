@@ -12,8 +12,8 @@ from typing import List, Dict, Any, Optional, Tuple
 from infrastructure.singleton import SingletonServiceBase
 from application import Song
 
-from infrastructure.config.app_constants import AppConstants
-from infrastructure.config.settings import settings
+from domain.config.app_constants import AppConstants
+from domain.config.settings import settings
 
 from domain.shared.validation.validators import UniversalValidator
 

@@ -11,10 +11,10 @@ from application import SpotifyPlaylistRequest, SpotifyPlaylistResponse, Spotify
 
 from domain.playlist.spotify import spotify_playlist_service
 from domain.playlist.draft import playlist_draft_service
-from domain.auth.service import auth_service
+from infrastructure.auth.service import oauth_service
 from infrastructure.database.repository import repository
 from infrastructure.database.models import UserAccount
-from infrastructure.config.settings import settings
+from domain.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ async def create_spotify_playlist(request: Request, spotify_request: SpotifyPlay
             songs = draft.songs
 
         # Get access token (owner's token in shared mode, user's token in normal mode)
-        access_token = await auth_service.get_access_token_by_user_id(validated_user_id)
+        access_token = await oauth_service.get_access_token_by_user_id(validated_user_id)
 
         if not access_token:
             if settings.SHARED:
@@ -140,7 +140,7 @@ async def get_spotify_playlist_tracks(request: Request, validated_user_id: str =
         if not spotify_playlist_id:
             raise HTTPException(status_code=400, detail="X-Spotify-Playlist-ID header is required")
 
-        access_token = await auth_service.get_access_token_by_user_id(validated_user_id)
+        access_token = await oauth_service.get_access_token_by_user_id(validated_user_id)
 
         if not access_token:
             raise HTTPException(status_code=401, detail="No valid Spotify access token")
@@ -172,7 +172,7 @@ async def remove_track_from_spotify_playlist(request: Request, track_remove_requ
         if not spotify_playlist_id:
             raise HTTPException(status_code=400, detail="X-Spotify-Playlist-ID header is required")
 
-        access_token = await auth_service.get_access_token_by_user_id(validated_user_id)
+        access_token = await oauth_service.get_access_token_by_user_id(validated_user_id)
 
         if not access_token:
             raise HTTPException(status_code=401, detail="No valid Spotify access token")

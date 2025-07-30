@@ -5,7 +5,7 @@ Provides endpoint protection and security features for EchoTuner API.
 
 import logging
 
-from domain.config.settings import settings
+from .settings import settings
 
 logger = logging.getLogger(__name__)
 

@@ -4,8 +4,8 @@ import logging
 
 from fastapi import HTTPException, APIRouter
 
-from infrastructure.config.app_constants import app_constants
-from infrastructure.config.settings import settings
+from domain.config.app_constants import app_constants
+from domain.config.settings import settings
 
 from infrastructure.data.service import data_loader
 

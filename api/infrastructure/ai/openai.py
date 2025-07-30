@@ -10,7 +10,7 @@ from typing import List
 
 from .base import BaseAIProvider
 
-from infrastructure.config.settings import settings
+from domain.config.settings import settings
 
 logger = logging.getLogger(__name__)
 

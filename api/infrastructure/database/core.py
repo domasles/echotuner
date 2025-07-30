@@ -13,7 +13,7 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy import text
 
 from infrastructure.singleton import SingletonServiceBase
-from infrastructure.config import app_constants
+from domain.config import app_constants
 
 logger = logging.getLogger(__name__)
 Base = declarative_base()

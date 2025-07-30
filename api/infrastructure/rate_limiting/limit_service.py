@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from infrastructure.singleton import SingletonServiceBase
 from application import RateLimitStatus
 
-from infrastructure.config.settings import settings
+from domain.config.settings import settings
 
 from infrastructure.database.repository import repository
 from infrastructure.database.models.rate_limits import RateLimit

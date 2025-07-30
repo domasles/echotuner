@@ -4,10 +4,10 @@ import logging
 from fastapi import APIRouter
 from domain.auth.decorators import debug_only
 
-from infrastructure.config.settings import settings
+from domain.config.settings import settings
 from application.service_manager import service_manager
 
-from infrastructure.config.app_constants import app_constants
+from domain.config.app_constants import app_constants
 
 logger = logging.getLogger(__name__)
 

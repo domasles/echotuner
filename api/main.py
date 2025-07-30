@@ -19,9 +19,9 @@ from application import *
 from application.service_manager import service_manager
 
 # Infrastructure imports
-from infrastructure.config.app_constants import app_constants
-from infrastructure.config.security import security
-from infrastructure.config.settings import settings
+from domain.config.app_constants import app_constants
+from domain.config.security import security
+from domain.config.settings import settings
 from infrastructure.logging.config import configure_logging
 
 # Service imports for registration
@@ -30,13 +30,13 @@ from infrastructure.data.service import data_loader
 from infrastructure.rate_limiting.limit_service import rate_limiter_service
 from infrastructure.template.service import template_service
 from infrastructure.database.core import db_core
-from domain.ai.service import ai_service
+from infrastructure.ai.registry import provider_registry
 from infrastructure.spotify.service import spotify_search_service
 from domain.playlist.spotify import spotify_playlist_service
 from domain.playlist.generator import playlist_generator_service
 from domain.playlist.draft import playlist_draft_service
-from domain.personality.service import personality_service
-from infrastructure.auth.oauth_service import oauth_service
+from infrastructure.personality.service import personality_service
+from infrastructure.auth.service import oauth_service
 
 # Router imports
 from presentation.endpoints.auth import router as auth_router
@@ -67,7 +67,7 @@ async def lifespan(app: FastAPI):
         service_manager.register_service("data_service", data_loader)
         service_manager.register_service("rate_limiter_service", rate_limiter_service)
         service_manager.register_service("template_service", template_service)
-        service_manager.register_service("ai_service", ai_service)
+        service_manager.register_service("ai_service", provider_registry)
         service_manager.register_service("spotify_search_service", spotify_search_service)
         service_manager.register_service("spotify_playlist_service", spotify_playlist_service)
         service_manager.register_service("playlist_generator_service", playlist_generator_service)

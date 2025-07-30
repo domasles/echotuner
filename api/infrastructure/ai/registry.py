@@ -8,26 +8,51 @@ import importlib
 import logging
 import inspect
 
-from typing import Dict, Type, Optional, List
+from typing import Dict, Type, Optional, List, Any
 from pathlib import Path
 
-from infrastructure.config.settings import settings
+from infrastructure.singleton import SingletonServiceBase
+from domain.config.settings import settings
 
 from .custom_template import CustomProvider, AdvancedCustomProvider
 from .base import BaseAIProvider
 
 logger = logging.getLogger(__name__)
 
-class ProviderRegistry:
-    """Registry for AI providers."""
+class ProviderRegistry(SingletonServiceBase):
+    """Registry for AI providers with service capabilities."""
     
     def __init__(self):
+        super().__init__()
+
+    async def _setup_service(self):
+        """Initialize the provider registry."""
         self._providers: Dict[str, Type[BaseAIProvider]] = {}
         self._provider_instances: Dict[str, BaseAIProvider] = {}
         self._current_provider: str = ""
+        self._active_provider_instance: Optional[BaseAIProvider] = None
 
         self._auto_register_providers()
         self._setup_default_providers()
+        
+        # Initialize the current provider
+        if self._current_provider:
+            try:
+                self._active_provider_instance = self.get_provider()
+                await self._active_provider_instance.initialize()
+                logger.info(f"AI Provider Registry initialized with {self._active_provider_instance.name}")
+            except Exception as e:
+                logger.error(f"AI provider initialization failed: {e}")
+                raise RuntimeError(f"AI provider initialization failed: {e}")
+
+    async def cleanup(self):
+        """Async cleanup of all providers."""
+        if self._active_provider_instance:
+            await self._active_provider_instance.close()
+            self._active_provider_instance = None
+            
+        await self.close_all()
+        logger.info("AI provider registry cleaned up")
     
     def _auto_register_providers(self):
         """Automatically discover and register all provider classes."""
@@ -142,5 +167,36 @@ class ProviderRegistry:
                 logger.warning(f"Error closing provider {provider_id}: {e}")
         
         self._provider_instances.clear()
+
+    async def generate_text(self, prompt: str, provider_id: Optional[str] = None, **kwargs) -> str:
+        """
+        Generate text using the specified AI provider.
+        
+        Args:
+            prompt: Input prompt for text generation
+            provider_id: Optional provider ID (uses default if None)
+            **kwargs: Additional generation parameters
+
+        Returns:
+            Generated text response
+        """
+        from domain.shared.validation.validators import UniversalValidator
+
+        try:
+            if not self._active_provider_instance:
+                self._active_provider_instance = self.get_provider(provider_id)
+                await self._active_provider_instance.initialize()
+                
+            return await self._active_provider_instance.generate_text(prompt, **kwargs)
+
+        except Exception as e:
+            logger.error(f"Text generation failed: {e}")
+            sanitized_error = UniversalValidator.sanitize_error_message(str(e))
+            raise Exception(f"Text generation failed: {sanitized_error}")
+
+    def get_provider_info(self, provider_id: Optional[str] = None) -> Dict[str, Any]:
+        """Get information about a specific provider."""
+        provider = self.get_provider(provider_id)
+        return provider.get_info()
 
 provider_registry = ProviderRegistry()
