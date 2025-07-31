@@ -14,6 +14,9 @@ class UserAccount(Base):
     user_id = Column(String(255), primary_key=True)  # Format: spotify_{id} or google_{id}
     provider = Column(String(50), nullable=False)    # 'spotify' or 'google'
     provider_user_id = Column(String(255), nullable=False)  # Original ID from provider
+    display_name = Column(String(255), nullable=True)  # Display name from provider
+    email = Column(String(255), nullable=True)        # Email from provider
+    profile_picture_url = Column(Text, nullable=True)  # Profile picture URL from provider
     access_token = Column(Text, nullable=True)       # User's own tokens (Normal mode only)
     refresh_token = Column(Text, nullable=True)      # User's own tokens (Normal mode only)
     expires_at = Column(DateTime, nullable=True)

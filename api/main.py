@@ -45,6 +45,7 @@ from presentation.endpoints.personality import router as personality_router
 from presentation.endpoints.ai import router as ai_router
 from presentation.endpoints.config import router as config_router, root
 from presentation.endpoints.server import router as server_router
+from presentation.endpoints.user import router as user_router
 
 # Configure structured logging early
 configure_logging(
@@ -166,6 +167,7 @@ app.include_router(personality_router)
 app.include_router(ai_router)
 app.include_router(config_router)
 app.include_router(server_router)
+app.include_router(user_router)
 
 # Root endpoint - use the one from config.py
 app.get("/")(root)

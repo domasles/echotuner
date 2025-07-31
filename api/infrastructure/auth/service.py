@@ -208,6 +208,16 @@ class OAuthService(SingletonServiceBase):
                 "provider_user_id": user_data['provider_user_id']
             }
             
+            # Add user info if available
+            if user_data.get('user_info'):
+                user_info = user_data['user_info']
+                user_data_for_create["display_name"] = user_info.get('display_name')
+                user_data_for_create["email"] = user_info.get('email')
+                
+                # Get profile picture URL
+                if user_info.get('images') and len(user_info['images']) > 0:
+                    user_data_for_create["profile_picture_url"] = user_info['images'][0].get('url')
+            
             # Add tokens if storing them (Normal mode only)
             if store_tokens and user_data.get('access_token'):
                 user_data_for_create["access_token"] = user_data['access_token']
@@ -218,16 +228,28 @@ class OAuthService(SingletonServiceBase):
             
             await repository.create(UserAccount, user_data_for_create)
         else:
-            # Update existing user account if storing tokens
+            # Update existing user account
+            update_data = {}
+            
+            # Update user info if available
+            if user_data.get('user_info'):
+                user_info = user_data['user_info']
+                update_data["display_name"] = user_info.get('display_name')
+                update_data["email"] = user_info.get('email')
+                
+                # Get profile picture URL
+                if user_info.get('images') and len(user_info['images']) > 0:
+                    update_data["profile_picture_url"] = user_info['images'][0].get('url')
+            
+            # Update tokens if storing them
             if store_tokens and user_data.get('access_token'):
-                update_data = {
-                    "access_token": user_data['access_token'],
-                    "refresh_token": user_data.get('refresh_token')
-                }
+                update_data["access_token"] = user_data['access_token']
+                update_data["refresh_token"] = user_data.get('refresh_token')
                 
                 if user_data.get('expires_in'):
                     update_data["expires_at"] = datetime.utcnow() + timedelta(seconds=user_data['expires_in'])
-                
+            
+            if update_data:
                 await repository.update_by_conditions(UserAccount, {"user_id": user_id}, update_data)
     
     async def _update_auth_session(self, appid: str, user_id: str) -> None:

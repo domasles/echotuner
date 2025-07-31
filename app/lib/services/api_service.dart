@@ -243,7 +243,7 @@ class ApiService {
         }
 
         final response = await _client.get(
-            Uri.parse(AppConfig.apiUrl('/auth/rate-limit-status')),
+            Uri.parse(AppConfig.apiUrl('/user/rate-limit-status')),
             headers: {
                 'X-User-ID': userId,
             },
@@ -522,6 +522,37 @@ class ApiService {
 
         else {
             throw ApiException('Failed to update draft playlist. Please try again.');
+        }
+    }
+
+    Future<Map<String, dynamic>> getUserProfile() async {
+        final userId = _authService?.userId;
+        if (userId == null) {
+            throw ApiException('User not authenticated');
+        }
+
+        final response = await _client.get(
+            Uri.parse(AppConfig.apiUrl('/user/profile')),
+            headers: {
+                'X-User-ID': userId,
+            },
+        );
+
+        if (response.statusCode == 200) {
+            return jsonDecode(response.body);
+        }
+
+        else if (response.statusCode == 401) {
+            await _handle401();
+            throw ApiException('Authentication required');
+        }
+
+        else if (response.statusCode == 404) {
+            throw ApiException('User profile not found');
+        }
+
+        else {
+            throw ApiException('Failed to get user profile');
         }
     }
 

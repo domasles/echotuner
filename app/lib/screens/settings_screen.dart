@@ -7,6 +7,8 @@ import '../services/auth_service.dart';
 import '../config/app_constants.dart';
 import '../config/app_colors.dart';
 import '../utils/app_logger.dart';
+import 'profile_screen.dart';
+import 'about_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
     const SettingsScreen({super.key});
@@ -28,26 +30,8 @@ class SettingsScreen extends StatelessWidget {
                     SettingsTile(
                         icon: Icons.account_circle,
                         title: 'Profile',
-                        subtitle: 'Manage your profile settings',
-                    ),
-
-                    Consumer<AuthService>(
-                        builder: (context, authService, child) {
-                            return SettingsTile(
-                                icon: Icons.music_note,
-                                title: 'Spotify Connection',
-                                subtitle: authService.isAuthenticated ? 'Connected to Spotify' : 'Not connected',
-                            );
-                        },
-                    ),
-
-                    const SizedBox(height: 24),
-                    const SectionHeader(title: 'Preferences'),
-
-                    SettingsTile(
-                        icon: Icons.notifications,
-                        title: 'Notifications',
-                        subtitle: 'Manage notification settings',
+                        subtitle: 'View your profile information',
+                        onTap: () => _navigateToProfile(context),
                     ),
 
                     SizedBox(height: 24),
@@ -57,12 +41,7 @@ class SettingsScreen extends StatelessWidget {
                         icon: Icons.info,
                         title: 'About ${AppConstants.appName}',
                         subtitle: 'Version ${AppConstants.appVersion}',
-                    ),
-
-                    SettingsTile(
-                        icon: Icons.help,
-                        title: 'Help & Support',
-                        subtitle: 'Get help and contact support',
+                        onTap: () => _navigateToAbout(context),
                     ),
 
                     SettingsTile(
@@ -83,12 +62,6 @@ class SettingsScreen extends StatelessWidget {
                                 }
                             }
                         },
-                    ),
-
-                    const SettingsTile(
-                        icon: Icons.privacy_tip,
-                        title: 'Privacy Policy',
-                        subtitle: 'Read our privacy policy',
                     ),
 
                     const SizedBox(height: 32),
@@ -125,6 +98,22 @@ class SettingsScreen extends StatelessWidget {
 
                     const SizedBox(height: 32),
                 ],
+            ),
+        );
+    }
+
+    void _navigateToProfile(BuildContext context) {
+        Navigator.of(context).push(
+            MaterialPageRoute(
+                builder: (context) => const ProfileScreen(),
+            ),
+        );
+    }
+
+    void _navigateToAbout(BuildContext context) {
+        Navigator.of(context).push(
+            MaterialPageRoute(
+                builder: (context) => const AboutScreen(),
             ),
         );
     }
