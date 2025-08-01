@@ -21,8 +21,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String? _accountType;
     String? _provider;
     String? _displayName;
-    String? _email;
-    String? _profilePictureUrl;
 
     @override
     void initState() {
@@ -45,8 +43,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _accountType = profileData['account_type'] ?? 'Unknown';
             _provider = profileData['provider'] ?? 'Unknown';
             _displayName = profileData['display_name'];
-            _email = profileData['email'];
-            _profilePictureUrl = profileData['profile_picture_url'];
 
             // Get playlist counts
             final libraryResponse = await playlistProvider.getLibraryPlaylists();
@@ -116,78 +112,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                     const SizedBox(height: 32),
                     
-                    // Profile Picture
-                    CircleAvatar(
+                    // Profile Picture (simple icon for now)
+                    const CircleAvatar(
                         radius: 60,
                         backgroundColor: AppColors.surfaceVariant,
-                        backgroundImage: _profilePictureUrl != null && _profilePictureUrl!.isNotEmpty
-                            ? NetworkImage(_profilePictureUrl!)
-                            : null,
-                        child: _profilePictureUrl == null || _profilePictureUrl!.isEmpty
-                            ? const Icon(
-                                Icons.person,
-                                size: 80,
-                                color: AppColors.textSecondary,
-                            )
-                            : null,
+                        child: Icon(
+                            Icons.person,
+                            size: 80,
+                            color: AppColors.textSecondary,
+                        ),
                     ),
 
                     const SizedBox(height: 24),
 
                     // User Name
                     Text(
-                        _displayName ?? 'User',
+                        _displayName ?? 'Unknown',
                         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                         ),
                         textAlign: TextAlign.center,
                     ),
 
-                    const SizedBox(height: 8),
-
-                    // User Email
-                    if (_email != null && _email!.isNotEmpty)
-                        Text(
-                            _email!,
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: AppColors.textSecondary,
-                            ),
-                            textAlign: TextAlign.center,
-                        ),
-
                     const SizedBox(height: 24),
-
-                    // Coming Soon Notice
-                    Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                            color: AppColors.surfaceVariant.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: AppColors.surfaceVariant,
-                                width: 1,
-                            ),
-                        ),
-                        child: Row(
-                            children: [
-                                const Icon(
-                                    Icons.info_outline,
-                                    color: AppColors.textSecondary,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                    child: Text(
-                                        'Profile editing coming soon!',
-                                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                            color: AppColors.textSecondary,
-                                        ),
-                                    ),
-                                ),
-                            ],
-                        ),
-                    ),
-
-                    const SizedBox(height: 32),
 
                     // Profile Information Card
                     Card(
@@ -240,25 +187,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Additional Info Card
+                    // Coming Soon Card
                     Card(
                         child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                    Text(
-                                        'Coming Soon',
-                                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                        ),
+                                    Row(
+                                        children: [
+                                            const Icon(
+                                                Icons.construction,
+                                                color: AppColors.textSecondary,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                                'Coming Soon',
+                                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                                    fontWeight: FontWeight.bold,
+                                                ),
+                                            ),
+                                        ],
                                     ),
                                     const SizedBox(height: 12),
                                     Text(
-                                        '• Profile picture from Google/Spotify\n'
-                                        '• Display name and surname\n'
-                                        '• Detailed playlist statistics\n'
-                                        '• User preferences overview',
+                                        '• Profile Picture Management\n'
+                                        '• Account Information Editing\n'
+                                        '• Privacy Settings\n'
+                                        '• Data Export/Import',
                                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                             color: AppColors.textSecondary,
                                             height: 1.5,

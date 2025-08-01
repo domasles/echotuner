@@ -28,25 +28,14 @@ async def get_user_profile(request: Request, validated_user_id: str = None):
         provider = user_account.provider
         account_type = "shared" if provider == "google" else "normal"
         
-        # For now, return basic information
-        # In the future, this can be expanded to include:
-        # - Display name from Spotify/Google
-        # - Profile picture URL
-        # - Email (if available)
-        # - Additional user metadata
-        
-        profile_data = {
-            "user_id": validated_user_id,
-            "provider": provider,
-            "account_type": account_type,
+        return {
+            "user_id": user_account.user_id,
+            "provider": user_account.provider,
+            "account_type": f"{user_account.provider}",
+            "display_name": user_account.display_name or "Unknown",
             "created_at": user_account.created_at.isoformat() if user_account.created_at else None,
-            "last_used_at": user_account.last_used_at.isoformat() if user_account.last_used_at else None,
-            "display_name": user_account.display_name,
-            "email": user_account.email,
-            "profile_picture_url": user_account.profile_picture_url,
+            "last_used_at": user_account.last_used_at.isoformat() if user_account.last_used_at else None
         }
-        
-        return profile_data
         
     except HTTPException:
         raise
