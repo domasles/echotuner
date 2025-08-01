@@ -144,12 +144,24 @@ Requirements:
         """Parse AI response containing song suggestions"""
         
         try:
+            # Clean up the response text
+            response_text = response_text.strip()
+            
             # Find JSON array in response
             start_idx = response_text.find("[")
             end_idx = response_text.rfind("]") + 1
             
             if start_idx >= 0 and end_idx > start_idx:
                 json_str = response_text[start_idx:end_idx]
+                
+                # Clean up common JSON issues
+                json_str = json_str.replace('\n', ' ').replace('\r', ' ')
+                json_str = ' '.join(json_str.split())  # Remove extra whitespace
+                
+                # Try to fix common JSON formatting issues
+                # Remove trailing commas before closing brackets
+                json_str = json_str.replace(',]', ']').replace(',}', '}')
+                
                 songs_data = json.loads(json_str)
                 
                 # Validate structure
@@ -157,7 +169,13 @@ Requirements:
                     valid_songs = []
                     for song in songs_data:
                         if isinstance(song, dict) and "title" in song and "artist" in song:
-                            valid_songs.append(song)
+                            # Clean up song data
+                            clean_song = {
+                                "title": str(song["title"]).strip(),
+                                "artist": str(song["artist"]).strip()
+                            }
+                            if clean_song["title"] and clean_song["artist"]:
+                                valid_songs.append(clean_song)
                     
                     return valid_songs
             
@@ -165,6 +183,7 @@ Requirements:
             
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse AI song response: {e}")
+            logger.error(f"Response text: {response_text[:500]}...")  # Log first 500 chars for debugging
             return []
     
     async def _verify_songs_on_spotify(self, ai_songs: List[dict]) -> List[Song]:

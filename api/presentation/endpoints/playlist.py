@@ -155,6 +155,14 @@ async def generate_or_create_playlist(request: Request, playlist_request: Union[
                 user_id=user_id
             )
 
+            # Only proceed if we actually got songs
+            if not songs:
+                logger.warning("No songs generated for playlist request")
+                raise HTTPException(
+                    status_code=404, 
+                    detail="No songs could be generated for your request. Please try a different prompt or check your preferences."
+                )
+
             # For shared mode (Google SSO), save as draft like normal mode
             # All users get draft functionality in the unified system
             playlist_id = await playlist_draft_service.save_draft(
@@ -163,6 +171,7 @@ async def generate_or_create_playlist(request: Request, playlist_request: Union[
                 songs=songs
             )
 
+            # Only record the request if we successfully generated a playlist
             if settings.PLAYLIST_LIMIT_ENABLED:
                 await rate_limiter_service.record_request(user_id)
 

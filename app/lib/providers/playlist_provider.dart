@@ -84,7 +84,7 @@ class PlaylistProvider extends ChangeNotifier {
             AppLogger.info('Loaded API config: max songs=${_config?.playlists.maxSongsPerPlaylist}, max daily=${_config?.playlists.maxPlaylistsPerDay}');
             
             // If API is available and we got config, also try to load rate limit status
-            _ensureRateLimitStatusLoaded();
+            await _loadRateLimitStatus();
         } catch (e) {
             AppLogger.warning('Failed to load API config, using defaults: $e');
             // Fallback to default values if config loading fails
@@ -179,7 +179,8 @@ class PlaylistProvider extends ChangeNotifier {
             // Playlist generated successfully
             // (Local storage removed - all playlists are server-based now)
 
-            _ensureRateLimitStatusLoaded(); // Load rate limit status if not already loaded
+            // Refresh rate limit status after successful playlist generation
+            await _loadRateLimitStatus();
         }
 
         catch (e, stackTrace) {
@@ -299,13 +300,6 @@ class PlaylistProvider extends ChangeNotifier {
         }
     }
 
-    // Helper method to ensure rate limit status is loaded after any successful API call
-    Future<void> _ensureRateLimitStatusLoaded() async {
-        if (_rateLimitStatus == null && _authService.isAuthenticated) {
-            await _loadRateLimitStatus();
-        }
-    }
-
     Future<void> onAuthenticationChanged() async {
         if (_authService.isAuthenticated && _authService.userId != null) {
             await _loadRateLimitStatus();
@@ -358,7 +352,7 @@ class PlaylistProvider extends ChangeNotifier {
                 _isPlaylistAddedToSpotify = true;
 
                 // Playlist successfully added to Spotify (local storage removed)
-                _ensureRateLimitStatusLoaded(); // Ensure rate limit status is loaded after successful API call
+                await _loadRateLimitStatus(); // Ensure rate limit status is loaded after successful API call
 
                 return response.playlistUrl;
             }

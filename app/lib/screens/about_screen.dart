@@ -19,38 +19,44 @@ class AboutScreen extends StatelessWidget {
             body: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                         const SizedBox(height: 32),
                         
-                        // Logo
-                        SizedBox(
-                            width: 120,
-                            height: 120,
-                            child: SvgPicture.asset(
-                                'assets/logos/EchoTunerLogo.svg',
-                                fit: BoxFit.contain,
+                        // Logo (centered)
+                        Center(
+                            child: SizedBox(
+                                width: 120,
+                                height: 120,
+                                child: SvgPicture.asset(
+                                    'assets/logos/EchoTunerLogo.svg',
+                                    fit: BoxFit.contain,
+                                ),
                             ),
                         ),
 
                         const SizedBox(height: 24),
 
-                        // App Name
-                        Text(
-                            AppConstants.appName,
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                        // App Name (centered)
+                        Center(
+                            child: Text(
+                                AppConstants.appName,
+                                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                ),
                             ),
                         ),
 
                         const SizedBox(height: 8),
 
-                        // Version
-                        Text(
-                            'Version ${AppConstants.appVersion}',
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: AppColors.textSecondary,
+                        // Version (centered)
+                        Center(
+                            child: Text(
+                                'Version ${AppConstants.appVersion}',
+                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: AppColors.textSecondary,
+                                ),
                             ),
                         ),
 
@@ -159,8 +165,7 @@ class AboutScreen extends StatelessWidget {
                                     ],
                                 ),
                             ),
-                        ),
-
+						),
                         const SizedBox(height: 32),
                     ],
                 ),

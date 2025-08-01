@@ -18,7 +18,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String? _error;
     int _draftCount = 0;
     int _spotifyPlaylistCount = 0;
-    String? _accountType;
     String? _provider;
     String? _displayName;
 
@@ -40,7 +39,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             // Get profile information from API
             final profileData = await apiService.getUserProfile();
-            _accountType = profileData['account_type'] ?? 'Unknown';
             _provider = profileData['provider'] ?? 'Unknown';
             _displayName = profileData['display_name'];
 
@@ -152,14 +150,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     const SizedBox(height: 16),
                                     
                                     _buildInfoRow(
-                                        'Account Type',
-                                        _accountType ?? 'Unknown',
-                                        Icons.account_circle,
-                                    ),
-                                    
-                                    const Divider(height: 24),
-                                    
-                                    _buildInfoRow(
                                         'Login Provider',
                                         _provider?.toUpperCase() ?? 'Unknown',
                                         Icons.login,
@@ -213,8 +203,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     Text(
                                         '• Profile Picture Management\n'
                                         '• Account Information Editing\n'
-                                        '• Privacy Settings\n'
-                                        '• Data Export/Import',
+                                        '• Privacy Information',
                                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                             color: AppColors.textSecondary,
                                             height: 1.5,

@@ -24,14 +24,12 @@ async def get_user_profile(request: Request, validated_user_id: str = None):
         if not user_account:
             raise HTTPException(status_code=404, detail="User not found")
         
-        # Extract provider and account type
+        # Extract provider
         provider = user_account.provider
-        account_type = "shared" if provider == "google" else "normal"
         
         return {
             "user_id": user_account.user_id,
             "provider": user_account.provider,
-            "account_type": f"{user_account.provider}",
             "display_name": user_account.display_name or "Unknown",
             "created_at": user_account.created_at.isoformat() if user_account.created_at else None,
             "last_used_at": user_account.last_used_at.isoformat() if user_account.last_used_at else None
