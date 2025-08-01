@@ -309,29 +309,27 @@ async def get_playlists(request: Request, validated_user_id: str = None):
                         )
 
                         if echotuner_playlist_ids:
-                            all_playlists = await spotify_playlist_service.get_user_playlists(access_token)
+                            # Get playlists from our database instead of Spotify API
+                            all_playlists = await spotify_playlist_service.get_user_playlists_from_db(user_id)
                             spotify_playlists = []
 
                             for playlist in all_playlists:
-                                if playlist.get('id') in echotuner_playlist_ids:
-                                    try:
-                                        playlist_details = await spotify_playlist_service.get_playlist_details(access_token, playlist['id'])
-                                        tracks_count = playlist_details.get('tracks', {}).get('total', 0)
+                                # Get real track count from Spotify API
+                                try:
+                                    playlist_details = await spotify_playlist_service.get_playlist_details(access_token, playlist['id'])
+                                    tracks_count = playlist_details.get('tracks', {}).get('total', 0)
+                                except Exception as e:
+                                    logger.warning(f"Failed to get track count for playlist {playlist['id']}: {e}")
+                                    tracks_count = 0
 
-                                    except Exception as e:
-                                        logger.warning(f"Failed to get fresh track count for playlist {playlist['id']}: {e}")
-                                        tracks_count = playlist.get('tracks', {}).get('total', 0)
+                                spotify_playlist_info = SpotifyPlaylistInfo(
+                                    id=playlist['id'],
+                                    name=playlist.get('name', 'Unknown'),
+                                    tracks_count=tracks_count,
+                                    spotify_url=playlist.get('external_urls', {}).get('spotify')
+                                )
 
-                                    spotify_playlist_info = SpotifyPlaylistInfo(
-                                        id=playlist['id'],
-                                        name=playlist.get('name', 'Unknown'),
-                                        description=playlist.get('description'),
-                                        tracks_count=tracks_count,
-                                        spotify_url=playlist.get('external_urls', {}).get('spotify'),
-                                        images=playlist.get('images', [])
-                                    )
-
-                                    spotify_playlists.append(spotify_playlist_info)
+                                spotify_playlists.append(spotify_playlist_info)
 
                 except Exception as e:
                     logger.warning(f"Failed to fetch Spotify playlists: {e}")

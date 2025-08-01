@@ -33,7 +33,6 @@ class SpotifyPlaylistInfo(BaseModel):
     description: Optional[str] = None
     tracks_count: int
     spotify_url: Optional[str] = None
-    images: Optional[List[dict]] = []
 
 
 class SpotifyPlaylistTrackRemoveRequest(BaseModel):

@@ -262,6 +262,7 @@ class PlaylistDraftService(SingletonServiceBase):
                     'spotify_playlist_id': spotify_playlist_id,
                     'spotify_playlist_url': spotify_url,
                     'status': 'added_to_spotify',
+                    'songs_json': '',  # Clear song data - now in Spotify
                     'updated_at': datetime.now()
                 })
 

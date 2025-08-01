@@ -42,31 +42,35 @@ class SpotifyPlaylistService(SingletonServiceBase):
 
         return settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET
 
-    async def get_user_playlists(self, access_token: str) -> List[Dict[str, Any]]:
-        """Get user's Spotify playlists."""
 
+
+
+
+    async def get_user_playlists_from_db(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get user's Spotify playlists from database instead of Spotify API."""
+        
+        from infrastructure.database.repository import repository
+        from infrastructure.database.models.playlists import SpotifyPlaylist
+        
         try:
-            async with httpx.AsyncClient() as client:
-                headers = {'Authorization': f'Bearer {access_token}'}
-
-                url = 'https://api.spotify.com/v1/me/playlists'
-                params = {'limit': 50}
-
-                response = await client.get(url, headers=headers, params=params)
+            # Use generic repository method instead of domain-specific
+            spotify_playlists = await repository.list_by_field(SpotifyPlaylist, 'user_id', user_id)
+            
+            # Convert to the expected format
+            playlists = []
+            for playlist in spotify_playlists:
+                playlists.append({
+                    'id': playlist.spotify_playlist_id,
+                    'name': playlist.playlist_name,
+                    'tracks': {'total': 0},  # Will be updated by get_playlist_details 
+                    'external_urls': {'spotify': f'https://open.spotify.com/playlist/{playlist.spotify_playlist_id}'}
+                })
+            
+            return playlists
                 
-                if response.status_code == 200:
-                    data = response.json()
-                    return data.get('items', [])
-
-                elif response.status_code == 401:
-                    raise Exception("Invalid or expired access token")
-
-                else:
-                    raise Exception(f"Failed to fetch playlists: {response.status_code}")
-
         except Exception as e:
-            logger.error(f"Failed to get user playlists: {e}")
-            raise
+            logger.error(f"Failed to get user playlists from DB: {e}")
+            return []
 
     async def get_playlist_tracks(self, access_token: str, playlist_id: str) -> List[Dict[str, Any]]:
         """Get tracks from a specific Spotify playlist."""
@@ -220,32 +224,7 @@ class SpotifyPlaylistService(SingletonServiceBase):
         else:
             raise Exception(f"Failed to get playlist tracks: {response.status_code}")
 
-    async def get_playlist_details(self, access_token: str, playlist_id: str) -> Dict[str, Any]:
-        """Get detailed information about a specific Spotify playlist including current track count."""
 
-        try:
-            async with httpx.AsyncClient() as client:
-                headers = {'Authorization': f'Bearer {access_token}'}
-                url = f'https://api.spotify.com/v1/playlists/{playlist_id}'
-                params = {'fields': 'id,name,description,tracks.total,external_urls,images'}
-
-                response = await client.get(url, headers=headers, params=params)
-                
-                if response.status_code == 200:
-                    return response.json()
-
-                elif response.status_code == 401:
-                    raise Exception("Invalid or expired access token")
-
-                elif response.status_code == 404:
-                    raise Exception("Playlist not found")
-
-                else:
-                    raise Exception(f"Failed to fetch playlist details: {response.status_code}")
-
-        except Exception as e:
-            logger.error(f"Failed to get playlist details for {playlist_id}: {e}")
-            raise
 
     async def remove_track_from_playlist(self, access_token: str, playlist_id: str, track_uri: str) -> bool:
         """Remove a track from a Spotify playlist."""
@@ -275,5 +254,32 @@ class SpotifyPlaylistService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Error removing track from playlist: {e}")
             return False
+
+    async def get_playlist_details(self, access_token: str, playlist_id: str) -> Dict[str, Any]:
+        """Get detailed information about a specific Spotify playlist including current track count."""
+
+        try:
+            async with httpx.AsyncClient() as client:
+                headers = {'Authorization': f'Bearer {access_token}'}
+                url = f'https://api.spotify.com/v1/playlists/{playlist_id}'
+                params = {'fields': 'id,name,description,tracks.total,external_urls'}
+
+                response = await client.get(url, headers=headers, params=params)
+                
+                if response.status_code == 200:
+                    return response.json()
+
+                elif response.status_code == 401:
+                    raise Exception("Invalid or expired access token")
+
+                elif response.status_code == 404:
+                    raise Exception("Playlist not found")
+
+                else:
+                    raise Exception(f"Failed to fetch playlist details: {response.status_code}")
+
+        except Exception as e:
+            logger.error(f"Failed to get playlist details for {playlist_id}: {e}")
+            raise
 
 spotify_playlist_service = SpotifyPlaylistService()
