@@ -4,7 +4,7 @@ Base AI Provider for EchoTuner API.
 This module defines the base interface that all AI providers must implement.
 """
 
-import aiohttp
+import httpx
 import logging
 
 from typing import Dict, Any, Optional, List
@@ -27,20 +27,20 @@ class BaseAIProvider(ABC):
         self.max_tokens = settings.AI_MAX_TOKENS
         self.temperature = settings.AI_TEMPERATURE
         self.timeout = settings.AI_TIMEOUT
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._client: Optional[httpx.AsyncClient] = None
 
     async def initialize(self) -> None:
-        """Initialize the provider (create session, test connectivity, etc.)."""
+        """Initialize the provider (create client, test connectivity, etc.)."""
 
-        if self._session is None:
-            self._session = aiohttp.ClientSession()
+        if self._client is None:
+            self._client = httpx.AsyncClient(timeout=self.timeout)
 
     async def close(self) -> None:
         """Close the provider and cleanup resources."""
 
-        if self._session:
-            await self._session.close()
-            self._session = None
+        if self._client:
+            await self._client.aclose()
+            self._client = None
 
     @abstractmethod
     async def test_availability(self) -> bool:

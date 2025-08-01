@@ -37,13 +37,13 @@ class GoogleProvider(BaseAIProvider):
                 "generationConfig": {"maxOutputTokens": 1}
             }
 
-            async with self._session.post(
+            response = await self._client.post(
                 f"{self.endpoint}/v1beta/models/{self.generation_model}:generateContent",
                 headers=headers,
                 json=test_payload,
                 timeout=5
-            ) as response:
-                return response.status == 200
+            )
+            return response.status_code == 200
 
         except Exception as e:
             logger.debug(f"Google availability test failed: {e}")
@@ -63,15 +63,15 @@ class GoogleProvider(BaseAIProvider):
             }
         }
 
-        async with self._session.post(
+        response = await self._client.post(
             f"{self.endpoint}/v1beta/models/{self.generation_model}:generateContent",
             headers=headers,
             json=payload,
             timeout=self.timeout
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"Google request failed: {error_text}")
+        )
+        
+        if response.status_code != 200:
+            raise Exception(f"Google request failed: {response.text}")
 
-            result = await response.json()
-            return result["candidates"][0]["content"]["parts"][0]["text"]
+        result = response.json()
+        return result["candidates"][0]["content"]["parts"][0]["text"]

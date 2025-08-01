@@ -46,8 +46,8 @@ class CustomProvider(BaseAIProvider):
 
         try:
             # Example: make a simple GET request to test connectivity
-            async with self._session.get(f"{self.endpoint}/health") as response:
-                return response.status == 200
+            response = await self._client.get(f"{self.endpoint}/health")
+            return response.status_code == 200
 
         except Exception as e:
             logger.debug(f"Custom provider availability test failed: {e}")
@@ -73,18 +73,18 @@ class CustomProvider(BaseAIProvider):
             "temperature": kwargs.get("temperature", self.temperature)
         }
 
-        async with self._session.post(
+        response = await self._client.post(
             f"{self.endpoint}/v1/generate",  # Replace with your API endpoint
             headers=self.headers,
             json=payload,
             timeout=self.timeout
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"Custom provider request failed: {error_text}")
+        )
+        
+        if response.status_code != 200:
+            raise Exception(f"Custom provider request failed: {response.text}")
 
-            result = await response.json()
-            return result.get("text", "")  # Adjust based on your API response format
+        result = response.json()
+        return result.get("text", "")  # Adjust based on your API response format
 
 # Additional helper methods you might want to implement:
 

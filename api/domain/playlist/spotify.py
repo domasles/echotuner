@@ -3,7 +3,7 @@ Spotify Playlist Service.
 Spotify playlist creation service for EchoTuner.
 """
 
-import aiohttp
+import httpx
 import asyncio
 import logging
 
@@ -46,22 +46,23 @@ class SpotifyPlaylistService(SingletonServiceBase):
         """Get user's Spotify playlists."""
 
         try:
-            async with aiohttp.ClientSession() as session:
+            async with httpx.AsyncClient() as client:
                 headers = {'Authorization': f'Bearer {access_token}'}
 
                 url = 'https://api.spotify.com/v1/me/playlists'
                 params = {'limit': 50}
 
-                async with session.get(url, headers=headers, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return data.get('items', [])
+                response = await client.get(url, headers=headers, params=params)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    return data.get('items', [])
 
-                    elif response.status == 401:
-                        raise Exception("Invalid or expired access token")
+                elif response.status_code == 401:
+                    raise Exception("Invalid or expired access token")
 
-                    else:
-                        raise Exception(f"Failed to fetch playlists: {response.status}")
+                else:
+                    raise Exception(f"Failed to fetch playlists: {response.status_code}")
 
         except Exception as e:
             logger.error(f"Failed to get user playlists: {e}")
@@ -71,7 +72,7 @@ class SpotifyPlaylistService(SingletonServiceBase):
         """Get tracks from a specific Spotify playlist."""
 
         try:
-            async with aiohttp.ClientSession() as session:
+            async with httpx.AsyncClient() as client:
                 headers = {'Authorization': f'Bearer {access_token}'}
 
                 url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
@@ -80,18 +81,19 @@ class SpotifyPlaylistService(SingletonServiceBase):
                 tracks = []
 
                 while url:
-                    async with session.get(url, headers=headers, params=params) as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            tracks.extend(data.get('items', []))
-                            url = data.get('next')
-                            params = {}
+                    response = await client.get(url, headers=headers, params=params)
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        tracks.extend(data.get('items', []))
+                        url = data.get('next')
+                        params = {}
 
-                        elif response.status == 401:
-                            raise Exception("Invalid or expired access token")
+                    elif response.status_code == 401:
+                        raise Exception("Invalid or expired access token")
 
-                        else:
-                            raise Exception(f"Failed to fetch playlist tracks: {response.status}")
+                    else:
+                        raise Exception(f"Failed to fetch playlist tracks: {response.status_code}")
 
                 return tracks
 
@@ -103,13 +105,13 @@ class SpotifyPlaylistService(SingletonServiceBase):
         """Create a new Spotify playlist with the given songs."""
 
         try:
-            async with aiohttp.ClientSession() as session:
+            async with httpx.AsyncClient() as client:
                 headers = {
                     'Authorization': f'Bearer {access_token}',
                     'Content-Type': 'application/json'
                 }
 
-                user_id = await self._get_user_id(session, headers)
+                user_id = await self._get_user_id(client, headers)
 
                 playlist_data = {
                     'name': playlist_name,
@@ -119,17 +121,18 @@ class SpotifyPlaylistService(SingletonServiceBase):
 
                 url = f'https://api.spotify.com/v1/users/{user_id}/playlists'
 
-                async with session.post(url, headers=headers, json=playlist_data) as response:
-                    if response.status == 201:
-                        playlist_info = await response.json()
-                        playlist_id = playlist_info['id']
-                        playlist_url = playlist_info['external_urls']['spotify']
+                response = await client.post(url, headers=headers, json=playlist_data)
+                
+                if response.status_code == 201:
+                    playlist_info = response.json()
+                    playlist_id = playlist_info['id']
+                    playlist_url = playlist_info['external_urls']['spotify']
 
-                    elif response.status == 401:
-                        raise Exception("Invalid or expired access token")
+                elif response.status_code == 401:
+                    raise Exception("Invalid or expired access token")
 
-                    else:
-                        raise Exception(f"Failed to create playlist: {response.status}")
+                else:
+                    raise Exception(f"Failed to create playlist: {response.status_code}")
 
                 track_uris = []
 
@@ -138,7 +141,7 @@ class SpotifyPlaylistService(SingletonServiceBase):
                         track_uris.append(f'spotify:track:{song.spotify_id}')
 
                 if track_uris:
-                    await self._add_tracks_to_playlist(session, headers, playlist_id, track_uris)
+                    await self._add_tracks_to_playlist(client, headers, playlist_id, track_uris)
 
                 logger.debug(f"Created Spotify playlist {playlist_id} with {len(track_uris)} tracks")
                 return playlist_id, playlist_url
@@ -147,23 +150,24 @@ class SpotifyPlaylistService(SingletonServiceBase):
             logger.error(f"Failed to create Spotify playlist: {e}")
             raise
 
-    async def _get_user_id(self, session: aiohttp.ClientSession, headers: Dict[str, str]) -> str:
+    async def _get_user_id(self, client: httpx.AsyncClient, headers: Dict[str, str]) -> str:
         """Get the current user's Spotify ID."""
 
         url = 'https://api.spotify.com/v1/me'
 
-        async with session.get(url, headers=headers) as response:
-            if response.status == 200:
-                user_data = await response.json()
-                return user_data['id']
+        response = await client.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            user_data = response.json()
+            return user_data['id']
 
-            elif response.status == 401:
-                raise Exception("Invalid or expired access token")
+        elif response.status_code == 401:
+            raise Exception("Invalid or expired access token")
 
-            else:
-                raise Exception(f"Failed to get user ID: {response.status}")
+        else:
+            raise Exception(f"Failed to get user ID: {response.status_code}")
 
-    async def _add_tracks_to_playlist(self, session: aiohttp.ClientSession, headers: Dict[str, str], playlist_id: str, track_uris: List[str]):
+    async def _add_tracks_to_playlist(self, client: httpx.AsyncClient, headers: Dict[str, str], playlist_id: str, track_uris: List[str]):
         """Add tracks to a Spotify playlist."""
 
         batch_size = 100
@@ -174,67 +178,70 @@ class SpotifyPlaylistService(SingletonServiceBase):
             url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
             data = {'uris': batch}
 
-            async with session.post(url, headers=headers, json=data) as response:
-                if response.status not in [200, 201]:
+            response = await client.post(url, headers=headers, json=data)
+            if response.status_code not in [200, 201]:
                     raise Exception(f"Failed to add tracks to playlist: {response.status}")
 
             if i + batch_size < len(track_uris):
                 await asyncio.sleep(0.1)
 
-    async def _clear_playlist_tracks(self, session: aiohttp.ClientSession, headers: Dict[str, str], playlist_id: str):
+    async def _clear_playlist_tracks(self, client: httpx.AsyncClient, headers: Dict[str, str], playlist_id: str):
         """Remove all tracks from a Spotify playlist."""
 
         url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
 
-        async with session.get(url, headers=headers) as response:
-            if response.status == 200:
-                data = await response.json()
-                tracks = data.get('items', [])
+        response = await client.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            data = response.json()
+            tracks = data.get('items', [])
 
-                if tracks:
-                    batch_size = 100
-                    track_uris = [{'uri': track['track']['uri']} for track in tracks if track.get('track')]
+            if tracks:
+                batch_size = 100
+                track_uris = [{'uri': track['track']['uri']} for track in tracks if track.get('track')]
 
-                    for i in range(0, len(track_uris), batch_size):
-                        batch = track_uris[i:i + batch_size]
+                for i in range(0, len(track_uris), batch_size):
+                    batch = track_uris[i:i + batch_size]
 
-                        delete_url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
-                        delete_data = {'tracks': batch}
+                    delete_url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
+                    delete_data = {'tracks': batch}
 
-                        async with session.delete(delete_url, headers=headers, json=delete_data) as delete_response:
-                            if delete_response.status not in [200, 201]:
-                                raise Exception(f"Failed to clear playlist tracks: {delete_response.status}")
+                    delete_response = await client.delete(delete_url, headers=headers, json=delete_data)
+                    
+                    if delete_response.status_code not in [200, 201]:
+                        raise Exception(f"Failed to clear playlist tracks: {delete_response.status_code}")
 
-                        if i + batch_size < len(track_uris):
-                            await asyncio.sleep(0.1)
+                    if i + batch_size < len(track_uris):
+                        await asyncio.sleep(0.1)
 
-            elif response.status == 401:
-                raise Exception("Invalid or expired access token")
+        elif response.status_code == 401:
+            raise Exception("Invalid or expired access token")
 
-            else:
-                raise Exception(f"Failed to get playlist tracks: {response.status}")
+        else:
+            raise Exception(f"Failed to get playlist tracks: {response.status_code}")
 
     async def get_playlist_details(self, access_token: str, playlist_id: str) -> Dict[str, Any]:
         """Get detailed information about a specific Spotify playlist including current track count."""
 
         try:
-            async with aiohttp.ClientSession() as session:
+            async with httpx.AsyncClient() as client:
                 headers = {'Authorization': f'Bearer {access_token}'}
                 url = f'https://api.spotify.com/v1/playlists/{playlist_id}'
                 params = {'fields': 'id,name,description,tracks.total,external_urls,images'}
 
-                async with session.get(url, headers=headers, params=params) as response:
-                    if response.status == 200:
-                        return await response.json()
+                response = await client.get(url, headers=headers, params=params)
+                
+                if response.status_code == 200:
+                    return response.json()
 
-                    elif response.status == 401:
-                        raise Exception("Invalid or expired access token")
+                elif response.status_code == 401:
+                    raise Exception("Invalid or expired access token")
 
-                    elif response.status == 404:
-                        raise Exception("Playlist not found")
+                elif response.status_code == 404:
+                    raise Exception("Playlist not found")
 
-                    else:
-                        raise Exception(f"Failed to fetch playlist details: {response.status}")
+                else:
+                    raise Exception(f"Failed to fetch playlist details: {response.status_code}")
 
         except Exception as e:
             logger.error(f"Failed to get playlist details for {playlist_id}: {e}")
@@ -244,7 +251,7 @@ class SpotifyPlaylistService(SingletonServiceBase):
         """Remove a track from a Spotify playlist."""
 
         try:
-            async with aiohttp.ClientSession() as session:
+            async with httpx.AsyncClient() as client:
                 headers = {
                     'Authorization': f'Bearer {access_token}',
                     'Content-Type': 'application/json'
@@ -255,14 +262,15 @@ class SpotifyPlaylistService(SingletonServiceBase):
                     'tracks': [{'uri': track_uri}]
                 }
 
-                async with session.delete(url, headers=headers, json=data) as response:
-                    if response.status in [200, 201]:
-                        logger.debug(f"Successfully removed track from playlist {playlist_id}")
-                        return True
+                response = await client.delete(url, headers=headers, json=data)
+                
+                if response.status_code in [200, 201]:
+                    logger.debug(f"Successfully removed track from playlist {playlist_id}")
+                    return True
 
-                    else:
-                        logger.error(f"Failed to remove track: {response.status}")
-                        return False
+                else:
+                    logger.error(f"Failed to remove track: {response.status_code}")
+                    return False
 
         except Exception as e:
             logger.error(f"Error removing track from playlist: {e}")

@@ -25,8 +25,8 @@ class OllamaProvider(BaseAIProvider):
         """Test if Ollama is available."""
 
         try:
-            async with self._session.get(f"{self.endpoint}/api/tags") as response:
-                return response.status == 200
+            response = await self._client.get(f"{self.endpoint}/api/tags")
+            return response.status_code == 200
 
         except Exception as e:
             logger.debug(f"Ollama availability test failed: {e}")
@@ -45,14 +45,14 @@ class OllamaProvider(BaseAIProvider):
             }
         }
 
-        async with self._session.post(
+        response = await self._client.post(
             f"{self.endpoint}/api/generate",
             json=payload,
             timeout=self.timeout
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"Ollama request failed: {error_text}")
+        )
+        
+        if response.status_code != 200:
+            raise Exception(f"Ollama request failed: {response.text}")
 
-            result = await response.json()
-            return result.get("response", "")
+        result = response.json()
+        return result.get("response", "")

@@ -38,13 +38,13 @@ class OpenAIProvider(BaseAIProvider):
                 "max_tokens": 5
             }
 
-            async with self._session.post(
+            response = await self._client.post(
                 f"{self.endpoint}/v1/chat/completions",
                 headers=headers,
                 json=test_payload,
                 timeout=10
-            ) as response:
-                return response.status == 200
+            )
+            return response.status_code == 200
 
         except Exception as e:
             logger.debug(f"OpenAI availability test failed: {e}")
@@ -63,15 +63,15 @@ class OpenAIProvider(BaseAIProvider):
             "temperature": kwargs.get("temperature", self.temperature)
         }
 
-        async with self._session.post(
+        response = await self._client.post(
             f"{self.endpoint}/v1/chat/completions",
             headers=headers,
             json=payload,
             timeout=self.timeout
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"OpenAI request failed: {error_text}")
+        )
+        
+        if response.status_code != 200:
+            raise Exception(f"OpenAI request failed: {response.text}")
 
-            result = await response.json()
-            return result["choices"][0]["message"]["content"]
+        result = response.json()
+        return result["choices"][0]["message"]["content"]

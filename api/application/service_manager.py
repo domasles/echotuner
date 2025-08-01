@@ -43,27 +43,20 @@ class ServiceManager(SingletonServiceBase):
         logger.info(f"Service initialization complete. Success: {len(successful_services)}/{len(self.services)}")
 
     async def shutdown_all(self) -> Dict[str, bool]:
-        """Shutdown all registered services in reverse order"""
+        """Shutdown all registered services"""
 
         logger.info("Starting managed service shutdown...")
         results = {}
-        shutdown_order = list(reversed(self.initialization_order))
         
-        for service_name in shutdown_order:
-            if service_name not in self.services:
-                continue
-                
+        for service_name, service in self.services.items():
             try:
-                service = self.services[service_name]
-                
                 if hasattr(service, 'close'):
                     logger.info(f"Shutting down {service_name}...")
                     await service.close()
                     results[service_name] = True
-                    logger.info(f"{service_name} shutdown successfully")
+                    logger.info(f"{service_name} shut down successfully")
                 else:
-                    logger.debug(f"Service {service_name} requires no shutdown")
-                    results[service_name] = True
+                    results[service_name] = True  # No cleanup needed
                     
             except Exception as e:
                 logger.error(f"Failed to shutdown {service_name}: {e}")
