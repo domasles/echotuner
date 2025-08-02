@@ -11,9 +11,9 @@ class AuthSession(Base):
     
     __tablename__ = "auth_sessions"
     
-    appid = Column(String(36), primary_key=True)  # UUID4 from app
-    userid = Column(String(255), nullable=True)   # {provider}_{id} format, initially NULL
+    app_id = Column(String(36), primary_key=True)  # UUID4 from app
+    user_id = Column(String(255), nullable=True)   # {provider}_{id} format, initially NULL
     created_at = Column(DateTime, default=func.now())
     
     def __repr__(self):
-        return f"<AuthSession(appid='{self.appid}', userid='{self.userid}')>"
+        return f"<AuthSession(app_id='{self.app_id}', user_id='{self.user_id}')>"

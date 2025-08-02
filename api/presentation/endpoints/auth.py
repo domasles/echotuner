@@ -19,22 +19,22 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
 @router.post("/init")
-async def auth_init(request: Request, appid: str = Header(None, alias="X-Session-UUID")):
+async def auth_init(request: Request, app_id: str = Header(None, alias="X-Session-UUID")):
     """Initialize authentication flow based on mode and app UUID."""
     
     try:
-        # Require appid from header for security
-        if not appid:
+        # Require app_id from header for security
+        if not app_id:
             raise HTTPException(status_code=400, detail="X-Session-UUID header is required")
         
-        # Validate appid format
+        # Validate app_id format
         try:
-            uuid.UUID(appid)  # Validate UUID format
+            uuid.UUID(app_id)  # Validate UUID format
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid X-Session-UUID format")
         
         # Create auth session for polling
-        await oauth_service.create_auth_session(appid)
+        await oauth_service.create_auth_session(app_id)
         
         # Determine mode from environment
         if settings.SHARED:
@@ -45,23 +45,23 @@ async def auth_init(request: Request, appid: str = Header(None, alias="X-Session
                 # No owner credentials - redirect to setup
                 return JSONResponse({
                     "auth_url": f"{request.base_url}auth/setup",
-                    "session_uuid": appid,
+                    "session_uuid": app_id,
                     "action": "setup_required",
                     "message": "Owner setup required. An external browser window will open to complete the setup process."
                 })
             else:
                 # Owner credentials exist - return Google OAuth URL  
-                auth_url = oauth_service.get_auth_url('google', appid)
+                auth_url = oauth_service.get_auth_url('google', app_id)
                 return JSONResponse({
                     "auth_url": auth_url,
-                    "session_uuid": appid
+                    "session_uuid": app_id
                 })
         else:
             # Normal mode - return Spotify OAuth URL
-            auth_url = oauth_service.get_auth_url('spotify', appid)
+            auth_url = oauth_service.get_auth_url('spotify', app_id)
             return JSONResponse({
                 "auth_url": auth_url,
-                "session_uuid": appid
+                "session_uuid": app_id
             })
             
     except Exception as e:
@@ -80,7 +80,7 @@ async def setup_page(request: Request):
     if owner_creds:
         return JSONResponse({"message": "Setup already completed"})
     
-    # Redirect to Spotify OAuth for owner setup (no appid)
+    # Redirect to Spotify OAuth for owner setup (no app_id)
     auth_url = oauth_service.get_auth_url('spotify')
     return RedirectResponse(url=auth_url)
 
@@ -100,7 +100,7 @@ async def spotify_callback(code: str, state: str = None, error: str = None):
     
     try:
         if settings.SHARED and not state:
-            # Owner setup callback (no appid/state) - just process and show success
+            # Owner setup callback (no app_id/state) - just process and show success
             await oauth_service.store_owner_credentials(code)
             # Render success template without exposing data
             html_content = template_service.render_template("html/auth_success.html")
@@ -154,19 +154,19 @@ async def google_callback(code: str, state: str = None, error: str = None):
         return HTMLResponse(content=html_content, status_code=500)
 
 @router.get("/status")
-async def auth_status(appid: str = Header(None, alias="X-Session-UUID")):
+async def auth_status(app_id: str = Header(None, alias="X-Session-UUID")):
     """Check authentication session status for polling."""
     
-    if not appid:
+    if not app_id:
         raise HTTPException(status_code=400, detail="X-Session-UUID header required")
     
     try:
-        uuid.UUID(appid)  # Validate UUID format
+        uuid.UUID(app_id)  # Validate UUID format
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid X-Session-UUID format")
     
     try:
-        user_id = await oauth_service.check_auth_session(appid)
+        user_id = await oauth_service.check_auth_session(app_id)
         
         if user_id:
             return JSONResponse({"status": "completed", "user_id": user_id})

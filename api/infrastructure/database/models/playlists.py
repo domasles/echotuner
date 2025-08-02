@@ -16,8 +16,6 @@ class PlaylistDraft(Base):
     user_id = Column(String(255), ForeignKey("user_accounts.user_id"), nullable=False)
     prompt = Column(Text, nullable=False)
     songs_json = Column(Text, nullable=False)
-    songs = Column(Text)
-    is_draft = Column(Boolean, default=True)
     status = Column(String, default='draft')
     spotify_playlist_id = Column(String)
     spotify_playlist_url = Column(String)

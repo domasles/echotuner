@@ -15,7 +15,6 @@ from domain.config.settings import settings
 from domain.config.app_constants import app_constants
 
 from infrastructure.spotify.service import spotify_search_service
-from infrastructure.data.service import data_loader
 from infrastructure.ai.registry import provider_registry
 from infrastructure.personality.service import personality_service
 
@@ -104,22 +103,24 @@ class PlaylistGeneratorService(SingletonServiceBase):
                 instruction = "Mix popular classics with some hidden gems and lesser-known tracks."
 
             ai_prompt = f"""
-{chr(10).join(context_parts)}
+                {chr(10).join(context_parts)}
 
-{instruction}
+                {instruction}
 
-Please provide {count} real songs that match this request. Return ONLY a JSON array of songs in this exact format:
-[
-  {{"title": "Song Title", "artist": "Artist Name"}},
-  {{"title": "Song Title", "artist": "Artist Name"}}
-]
+                Please provide {count} real songs that match this request. Return ONLY a JSON array of songs in this exact format:
+                [
+                    {{"title": "Song Title", "artist": "Artist Name"}},
+                    {{"title": "Song Title", "artist": "Artist Name"}}
+                ]
 
-Requirements:
-- All songs must be REAL songs that exist
-- Match the user's mood and preferences
-- Include variety across the preferred genres and decades
-- No explanations, just the JSON array
-"""
+                Requirements:
+                - All songs must be REAL songs that exist
+                - Never include fictional songs or artists
+                - Never return duplicate songs
+                - Match the user's mood and preferences
+                - Include variety across the preferred genres and decades
+                - No explanations, just the JSON array
+            """
 
             response_text = await self._call_ai_model(ai_prompt)
             
@@ -133,7 +134,7 @@ Requirements:
             # Verify songs exist on Spotify and get full metadata
             verified_songs = await self._verify_songs_on_spotify(songs)
             
-            logger.info(f"AI suggested {len(songs)} songs, {len(verified_songs)} verified on Spotify")
+            logger.debug(f"AI suggested {len(songs)} songs, {len(verified_songs)} verified on Spotify")
             return verified_songs
             
         except Exception as e:

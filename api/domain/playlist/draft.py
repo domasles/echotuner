@@ -84,7 +84,6 @@ class PlaylistDraftService(SingletonServiceBase):
                 'user_id': user_id,
                 'prompt': prompt,
                 'songs_json': songs_json,
-                'is_draft': True,
                 'status': 'draft',
                 'created_at': datetime.now(),
                 'updated_at': datetime.now(),
@@ -95,7 +94,7 @@ class PlaylistDraftService(SingletonServiceBase):
             # Save to database using repository
             saved_draft = await self.repository.create(PlaylistDraftModel, draft_data)
             if saved_draft:
-                logger.info(f"Updated playlist draft {draft_id}")
+                logger.debug(f"Updated playlist draft {draft_id}")
                 return draft_id  # Return the draft ID, not True
             else:
                 return None  # Return None on failure, not False
@@ -108,7 +107,7 @@ class PlaylistDraftService(SingletonServiceBase):
         """Get a playlist draft by ID using database service."""
 
         try:
-            logger.info(f"Getting draft for ID: {draft_id}")
+            logger.debug(f"Getting draft for ID: {draft_id}")
             # Get draft from database using repository
             draft_model = await self.repository.get_by_id(PlaylistDraftModel, draft_id)
             
@@ -207,7 +206,7 @@ class PlaylistDraftService(SingletonServiceBase):
             # Update in database using repository
             success = await self.repository.update(PlaylistDraftModel, draft_id, update_data)
             if success:
-                logger.info(f"Updated playlist draft {draft_id}")
+                logger.debug(f"Updated playlist draft {draft_id}")
                 return draft_id  # Return the draft ID on success
             else:
                 return None  # Return None on failure
@@ -226,7 +225,7 @@ class PlaylistDraftService(SingletonServiceBase):
                 for draft in drafts:
                     await self.delete_draft(draft.id)
                 
-                logger.info(f"Cleaned up data for user {user_id}")
+                logger.debug(f"Cleaned up data for user {user_id}")
 
         except Exception as e:
             logger.error(f"Failed to cleanup user data: {e}")

@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../config/app_constants.dart';
 import '../config/app_colors.dart';
 import '../services/message_service.dart';
+import '../config/settings.dart';
 
 class AboutScreen extends StatelessWidget {
     const AboutScreen({super.key});
@@ -118,9 +119,9 @@ class AboutScreen extends StatelessWidget {
                                         _buildLinkTile(
                                             context,
                                             'EchoTuner API',
-                                            'API Documentation',
+                                            'API Link',
                                             Icons.api,
-                                            '${AppConstants.githubRepositoryUrl}/tree/main/docs/api',
+                                            AppConfig.apiBaseUrl,
                                         ),
                                     ],
                                 ),

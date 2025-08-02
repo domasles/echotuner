@@ -14,7 +14,7 @@ class UserPersonality(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String(255), ForeignKey("user_accounts.user_id"), nullable=False, unique=True)
-    user_context = Column(Text, nullable=False)  # JSON string
+    user_context = Column(Text, nullable=False)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 

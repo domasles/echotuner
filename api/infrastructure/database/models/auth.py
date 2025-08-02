@@ -24,27 +24,14 @@ class UserAccount(Base):
     def __repr__(self):
         return f"<UserAccount(user_id='{self.user_id}', provider='{self.provider}')>"
 
-class AuthAttempt(Base):
-    """Rate limiting for authentication attempts per IP."""
-
-    __tablename__ = "auth_attempts"
-
-    ip_address = Column(String(45), primary_key=True)  # Support IPv6
-    attempt_count = Column(Integer, default=0)
-    window_start = Column(Integer, nullable=False)
-    last_attempt = Column(Integer, nullable=False)
-
-    def __repr__(self):
-        return f"<AuthAttempt(ip='{self.ip_address}', count={self.attempt_count})>"
-
 class AuthState(Base):
     """OAuth state storage for CSRF protection."""
 
     __tablename__ = "auth_states"
 
     state = Column(String(255), primary_key=True)  # OAuth state parameter
-    appid = Column(String(36), nullable=True)      # App ID for linking to auth session
-    platform = Column(String(50), nullable=False)  # 'spotify' or 'google'
+    app_id = Column(String(36), nullable=True)      # App ID for linking to auth session
+    platfsorm = Column(String(50), nullable=False)  # 'spotify' or 'google'
     created_at = Column(Integer, nullable=False)    # Unix timestamp
     expires_at = Column(Integer, nullable=False)    # Unix timestamp
 

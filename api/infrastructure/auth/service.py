@@ -40,13 +40,13 @@ class OAuthService(SingletonServiceBase):
             redirect_uri=settings.GOOGLE_REDIRECT_URI
         )
     
-    def get_auth_url(self, provider: str, appid: str = None) -> str:
+    def get_auth_url(self, provider: str, app_id: str = None) -> str:
         """Get OAuth authorization URL for the specified provider."""
         
         if provider == 'spotify':
-            return self.spotify_provider.get_auth_url(state=appid)
+            return self.spotify_provider.get_auth_url(state=app_id)
         elif provider == 'google':
-            return self.google_provider.get_auth_url(state=appid)
+            return self.google_provider.get_auth_url(state=app_id)
         else:
             raise ValueError(f"Unknown provider: {provider}")
     
@@ -61,7 +61,7 @@ class OAuthService(SingletonServiceBase):
         # Store/update user account
         await self._store_user_account(user_id, user_data)
         
-        # Update auth session if appid provided
+        # Update auth session if app_id provided
         if state:
             await self._update_auth_session(state, user_id)
         
@@ -78,7 +78,7 @@ class OAuthService(SingletonServiceBase):
         # Store/update user account (no tokens in shared mode)
         await self._store_user_account(user_id, user_data, store_tokens=False)
         
-        # Update auth session if appid provided
+        # Update auth session if app_id provided
         if state:
             await self._update_auth_session(state, user_id)
         
@@ -173,24 +173,24 @@ class OAuthService(SingletonServiceBase):
         
         return None
     
-    async def create_auth_session(self, appid: str) -> None:
+    async def create_auth_session(self, app_id: str) -> None:
         """Create new auth session for polling."""
         
-        session_data = {"appid": appid}
+        session_data = {"app_id": app_id}
         await repository.create(AuthSession, session_data)
     
-    async def check_auth_session(self, appid: str) -> Optional[str]:
+    async def check_auth_session(self, app_id: str) -> Optional[str]:
         """Check auth session status and return user_id if completed."""
         
-        session = await repository.get_by_field(AuthSession, 'appid', appid)
+        session = await repository.get_by_field(AuthSession, 'app_id', app_id)
         
         if not session:
             return None
         
-        if session.userid:
+        if session.user_id:
             # Authentication completed, cleanup session
-            await repository.delete_by_conditions(AuthSession, {"appid": session.appid})
-            return session.userid
+            await repository.delete_by_conditions(AuthSession, {"app_id": session.app_id})
+            return session.user_id
         
         return None  # Still waiting
     
@@ -247,16 +247,16 @@ class OAuthService(SingletonServiceBase):
             if update_data:
                 await repository.update_by_conditions(UserAccount, {"user_id": user_id}, update_data)
     
-    async def _update_auth_session(self, appid: str, user_id: str) -> None:
+    async def _update_auth_session(self, app_id: str, user_id: str) -> None:
         """Update auth session with user_id."""
         
-        session = await repository.get_by_field(AuthSession, 'appid', appid)
+        session = await repository.get_by_field(AuthSession, 'app_id', app_id)
         
         if session:
-            update_data = {"userid": user_id}
-            await repository.update_by_conditions(AuthSession, {"appid": appid}, update_data)
+            update_data = {"user_id": user_id}
+            await repository.update_by_conditions(AuthSession, {"app_id": app_id}, update_data)
     
-    async def store_auth_state(self, state: str, appid: str, platform: str) -> bool:
+    async def store_auth_state(self, state: str, app_id: str, platform: str) -> bool:
         """Store auth state for validation."""
         try:
             expires_at = datetime.utcnow() + timedelta(minutes=10)
@@ -268,7 +268,7 @@ class OAuthService(SingletonServiceBase):
             
             auth_state_data = {
                 'state': state,
-                'appid': appid,
+                'app_id': app_id,
                 'platform': platform,
                 'created_at': int(datetime.utcnow().timestamp()),
                 'expires_at': int(expires_at.timestamp())
@@ -299,7 +299,7 @@ class OAuthService(SingletonServiceBase):
             await repository.delete(AuthState, auth_state.state, 'state')
             
             return {
-                'appid': auth_state.appid,
+                'app_id': auth_state.app_id,
                 'platform': auth_state.platform
             }
             

@@ -20,18 +20,3 @@ class RateLimit(Base):
 
     def __repr__(self):
         return f"<RateLimit(user_id='{self.user_id}', count={self.requests_count})>"
-
-class IPAttempt(Base):
-    """IP attempt tracking table for IP-based rate limiting."""
-    
-    __tablename__ = "ip_attempts"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    ip_hash = Column(String, nullable=False)
-    attempt_type = Column(String, nullable=False, default='auth')
-    attempted_at = Column(Integer, nullable=False)
-    blocked_until = Column(Integer)
-    created_at = Column(DateTime, default=func.now())
-
-    def __repr__(self):
-        return f"<IPAttempt(ip_hash='{self.ip_hash}', type='{self.attempt_type}')>"

@@ -23,9 +23,6 @@ class FilesystemService(SingletonServiceBase):
         """Initialize the filesystem service."""
 
         self.required_directories = AppConstants.REQUIRED_DIRECTORIES
-
-    async def initialize(self):
-        """Initialize filesystem by ensuring all required directories exist."""
         
         try:
             await self._ensure_required_directories()

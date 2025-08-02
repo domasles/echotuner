@@ -262,7 +262,7 @@ class SpotifyPlaylistService(SingletonServiceBase):
             async with httpx.AsyncClient() as client:
                 headers = {'Authorization': f'Bearer {access_token}'}
                 url = f'https://api.spotify.com/v1/playlists/{playlist_id}'
-                params = {'fields': 'id,name,description,tracks.total,external_urls'}
+                params = {'fields': 'name,tracks.total'}
 
                 response = await client.get(url, headers=headers, params=params)
                 

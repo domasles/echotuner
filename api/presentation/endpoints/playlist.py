@@ -314,7 +314,6 @@ async def get_playlists(request: Request, validated_user_id: str = None):
                             spotify_playlists = []
 
                             for playlist in all_playlists:
-                                # Get real track count from Spotify API
                                 try:
                                     playlist_details = await spotify_playlist_service.get_playlist_details(access_token, playlist['id'])
                                     tracks_count = playlist_details.get('tracks', {}).get('total', 0)
