@@ -109,7 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 12),
                 Text(
-                    'Connect your Spotify account to create personalized playlists with AI',
+                    'Log in to create personalized playlists with the help of AI',
                     textAlign: TextAlign.center,
 
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
