@@ -34,16 +34,18 @@ class Settings:
 
     SPOTIFY_CLIENT_ID: Optional[str] = os.getenv("SPOTIFY_CLIENT_ID")
     SPOTIFY_CLIENT_SECRET: Optional[str] = os.getenv("SPOTIFY_CLIENT_SECRET")
-    SPOTIFY_REDIRECT_URI: str = os.getenv("SPOTIFY_REDIRECT_URI", f"http://{API_HOST}:{API_PORT}/auth/spotify/callback")
- 
+    SPOTIFY_REDIRECT_URI: str = os.getenv("SPOTIFY_REDIRECT_URI", f"http://127.0.0.1:{API_PORT}/auth/spotify/callback")
+
     GOOGLE_CLIENT_ID: Optional[str] = os.getenv("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET: Optional[str] = os.getenv("GOOGLE_CLIENT_SECRET")
-    GOOGLE_REDIRECT_URI: str = os.getenv("GOOGLE_REDIRECT_URI", f"http://{API_HOST}:{API_PORT}/auth/google/callback")
+    GOOGLE_REDIRECT_URI: str = os.getenv("GOOGLE_REDIRECT_URI", f"http://127.0.0.1:{API_PORT}/auth/google/callback")
 
     AUTH_REQUIRED: bool = os.getenv("AUTH_REQUIRED", "true").lower() == "true"
+    SECURE_HEADERS: bool = os.getenv("SECURE_HEADERS", "true").lower() == "true"
+
+    CORS_ORIGINS: list[str] = loads(os.getenv("CORS_ORIGINS", '["*"]'))
 
     PLAYLIST_LIMIT_ENABLED: bool = os.getenv("PLAYLIST_LIMIT_ENABLED", "false").lower() == "true"
-
     MAX_PLAYLISTS_PER_DAY: int = int(os.getenv("MAX_PLAYLISTS_PER_DAY", 3))
     MAX_SONGS_PER_PLAYLIST: int = int(os.getenv("MAX_SONGS_PER_PLAYLIST", 30))
 
@@ -51,10 +53,6 @@ class Settings:
     MAX_DISLIKED_ARTISTS: int = int(os.getenv("MAX_DISLIKED_ARTISTS", 20))
     MAX_FAVORITE_GENRES: int = int(os.getenv("MAX_FAVORITE_GENRES", 10))
     MAX_PREFERRED_DECADES: int = int(os.getenv("MAX_PREFERRED_DECADES", 5))
-
-    SECURE_HEADERS: bool = os.getenv("SECURE_HEADERS", "true").lower() == "true"
-
-    CORS_ORIGINS: list[str] = loads(os.getenv("CORS_ORIGINS", '["*"]'))
 
     MAX_PROMPT_LENGTH: int = int(os.getenv("MAX_PROMPT_LENGTH", 128))
     MAX_PLAYLIST_NAME_LENGTH: int = int(os.getenv("MAX_PLAYLIST_NAME_LENGTH", 100))

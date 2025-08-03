@@ -177,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: FilledButton(
                 onPressed: _isLoading ? null : _handleLogin,
                 style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF1DB954),
+                    backgroundColor: const Color(0xFF8B5CF6),
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: const Color(0xFF1A1625),
                     disabledForegroundColor: Colors.white54,
@@ -213,14 +213,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                         SvgPicture.asset(
-                            'assets/logos/SpotifyLogo.svg',
+                            'assets/logos/EchoTunerLogo.svg',
                             width: 32,
                             height: 32,
+                            colorFilter: const ColorFilter.mode(
+                                Colors.white,
+                                BlendMode.srcIn,
+                            ),
                         ),
 
                         const SizedBox(width: 8),
                         const Text(
-                            'Connect with Spotify',
+                            'Log into EchoTuner',
                             style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
