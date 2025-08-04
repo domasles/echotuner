@@ -14,7 +14,9 @@ RUN dart run build_runner build --delete-conflicting-outputs
 RUN dart run flutter_launcher_icons
 
 RUN flutter build web --release
+
 RUN sed -i '/<head>/a <script src="env-config.js"></script>' /app/build/web/index.html
+RUN sed -i 's|<meta name="description" content="A new Flutter project.">|<meta name="description" content="AI-powered Spotify playlist generator">|' /app/build/web/index.html
 
 # Production stage with Nginx
 FROM nginx:1.27-alpine
