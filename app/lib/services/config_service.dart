@@ -1,14 +1,24 @@
+import '../providers/playlist_provider.dart';
 import '../models/app_config.dart';
 
 import 'api_service.dart';
 
 class ConfigService {
     final ApiService _apiService;
+    PlaylistProvider? _playlistProvider;
 
     AppConfigData? _cachedConfig;
     ConfigService(this._apiService);
 
+    void setPlaylistProvider(PlaylistProvider provider) {
+        _playlistProvider = provider;
+    }
+
     Future<AppConfigData> getConfig({bool forceRefresh = false}) async {
+        if (_playlistProvider?.config != null && !forceRefresh) {
+            return _playlistProvider!.config!;
+        }
+        
         if (_cachedConfig != null && !forceRefresh) {
             return _cachedConfig!;
         }

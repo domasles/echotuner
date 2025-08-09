@@ -435,10 +435,14 @@ class _AuthWrapperState extends State<AuthWrapper> {
         super.initState();
 
         WidgetsBinding.instance.addPostFrameCallback((_) async {
+            final configService = context.read<ConfigService>();
+            final playlistProvider = context.read<PlaylistProvider>();
+
+            configService.setPlaylistProvider(playlistProvider);
+
             await context.read<AuthService>().initialize();
 
             if (mounted) {
-                final playlistProvider = context.read<PlaylistProvider>();
                 await playlistProvider.loadConfigBlocking();
                 
                 if (mounted) {

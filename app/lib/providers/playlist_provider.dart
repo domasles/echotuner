@@ -35,12 +35,7 @@ class PlaylistProvider extends ChangeNotifier {
     final List<InfoMessage> _infoMessages = [];
 
     PlaylistProvider(this._apiService, this._authService) {
-        _loadConfig();
         _authService.addListener(_onAuthStateChanged);
-
-        Future.delayed(const Duration(milliseconds: 100), () {
-            if (_authService.isAuthenticated) _loadRateLimitStatus();
-        });
     }
 
     @override
@@ -50,23 +45,15 @@ class PlaylistProvider extends ChangeNotifier {
     }
 
     void _onAuthStateChanged() {
-        if (_authService.isAuthenticated && _authService.userId != null) {
-            Future.delayed(const Duration(milliseconds: 500), () {
-                if (_authService.isAuthenticated && _authService.userId != null) _loadRateLimitStatus();
-            });
-        }
+        _rateLimitStatus = null;
+        _currentPlaylist = [];
+        _currentPlaylistId = null;
+        _spotifyPlaylistInfo = null;
+        _isPlaylistAddedToSpotify = false;
+        _userContext = null;
+        _error = null;
 
-        else {
-            _rateLimitStatus = null;
-            _currentPlaylist = [];
-            _currentPlaylistId = null;
-            _spotifyPlaylistInfo = null;
-            _isPlaylistAddedToSpotify = false;
-            _userContext = null;
-            _error = null;
-
-            notifyListeners();
-        }
+        notifyListeners();
     }
 
     List<Song> get currentPlaylist => _currentPlaylist;
@@ -83,8 +70,7 @@ class PlaylistProvider extends ChangeNotifier {
             _config = await _apiService.getConfig();
             AppLogger.info('Loaded API config: max songs=${_config?.playlists.maxSongsPerPlaylist}, max daily=${_config?.playlists.maxPlaylistsPerDay}');
             
-            // If API is available and we got config, also try to load rate limit status
-            await _loadRateLimitStatus();
+            // Don't load rate limit status during config load - will be loaded when needed
         } catch (e) {
             AppLogger.warning('Failed to load API config, using defaults: $e');
             // Fallback to default values if config loading fails

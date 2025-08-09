@@ -26,6 +26,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Di
     bool _hasText = false;
     Key _libraryKey = UniqueKey();
 
+    bool _isHomeTabActive = true;
+    bool _isAppActive = true;
+    bool _rateLimitLoadedThisSession = false;
+
     final List<String> _quickPrompts = [
         "I'm feeling happy and energetic",
         "Something chill and relaxing",
@@ -47,8 +51,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Di
         _promptController.addListener(_onTextChanged);
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
-            _refreshDailyLimit();
             initializeDiscovery();
+            _checkAndLoadRateLimit();
+        });
+    }
+
+    void _checkAndLoadRateLimit() {
+        if (_isHomeTabActive && _isAppActive && !_rateLimitLoadedThisSession) {
+            _rateLimitLoadedThisSession = true;
+            _refreshDailyLimit();
+        }
+    }
+
+    void _onTabChanged(int index) {
+        setState(() {
+            _selectedIndex = index;
+            _isHomeTabActive = (index == 0);
+            
+            if (index == 0) {
+                _rateLimitLoadedThisSession = false;
+                _checkAndLoadRateLimit();
+            } else if (index == 2) {
+                _libraryKey = UniqueKey();
+            }
         });
     }
 
@@ -76,15 +101,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Di
     @override
     void didChangeAppLifecycleState(AppLifecycleState state) {
         super.didChangeAppLifecycleState(state);
+        
+        final wasActive = _isAppActive;
+        _isAppActive = state == AppLifecycleState.resumed;
+        
+        // If app became active and we're on home tab, load rate limit
+        if (!wasActive && _isAppActive) {
+            _rateLimitLoadedThisSession = false; // Reset for new session
+            _checkAndLoadRateLimit();
+        }
 
-        if (state == AppLifecycleState.resumed) {
-            _refreshDailyLimit();
-
-            if (_selectedIndex == 2) {
-                setState(() {
-                    _libraryKey = UniqueKey();
-                });
-            }
+        // Refresh library if on library tab
+        if (state == AppLifecycleState.resumed && _selectedIndex == 2) {
+            setState(() {
+                _libraryKey = UniqueKey();
+            });
         }
     }
 
@@ -442,17 +473,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Di
         return BottomNavigationBar(
             currentIndex: _selectedIndex,
             onTap: (index) {
-                setState(() {
-                    _selectedIndex = index;
-                });
-
-                if (index == 0) _refreshDailyLimit();
-
-                if (index == 2) {
-                    setState(() {
-                        _libraryKey = UniqueKey();
-                    });
-                }
+                _onTabChanged(index);
             },
 
             items: const [
