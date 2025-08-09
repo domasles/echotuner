@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 
 import '../systems/universal_screen_focus_api_system.dart';
 import '../systems/library_management_system.dart';
-import '../systems/tab_management_system.dart';
 import '../models/playlist_draft_models.dart';
 import '../providers/playlist_provider.dart';
 import '../services/message_service.dart';
@@ -22,10 +21,11 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMixin, WidgetsBindingObserver, UniversalScreenFocusApiMixin {
-    final TabManagementSystem _tabSystem = TabManagementSystem();
     final LibraryManagementSystem _librarySystem = LibraryManagementSystem();
+    late TabController _tabController;
+    static int _lastSelectedTabIndex = 0; // Remember last selected tab (default to drafts - index 0)
 
-    TabController? get tabController => _tabSystem.tabController;
+    TabController get tabController => _tabController;
 
     List<PlaylistDraft> get drafts => _librarySystem.drafts;
     List<SpotifyPlaylistInfo> get spotifyPlaylists => _librarySystem.spotifyPlaylists;
@@ -35,13 +35,19 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
     @override
     void initState() {
         super.initState();
+        WidgetsBinding.instance.addObserver(this);
+        
+        _tabController = TabController(length: 2, vsync: this, initialIndex: _lastSelectedTabIndex);
 
-        _tabSystem.initialize(
-            tabCount: 2,
-            vsync: this,
-            onTabChanged: () => silentRefreshLibrary(), // Add direct refresh for sub-tabs
-            showTabsDuringLoading: true,
-        );
+        _tabController.addListener(() {
+            if (!mounted) return;
+
+            if (!_tabController.indexIsChanging) {
+                // Save current tab index and refresh library
+                _lastSelectedTabIndex = _tabController.index;
+                silentRefreshLibrary();
+            }
+        });
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
             initializeScreenFocusApiSystem(isActiveTab: true);
@@ -71,7 +77,8 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
     @override
     void dispose() {
-        _tabSystem.dispose();
+        WidgetsBinding.instance.removeObserver(this);
+        _tabController.dispose();
         super.dispose();
     }
 
@@ -200,9 +207,9 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
 
                         Tab(
                             icon: AnimatedBuilder(
-                                animation: tabController!,
+                                animation: tabController,
                                 builder: (context, child) {
-                                    final isSpotifyTabSelected = tabController!.index == 1;
+                                    final isSpotifyTabSelected = tabController.index == 1;
                                     final iconColor = isSpotifyTabSelected ? AppColors.primary : Colors.white70;
 
                                     return ColorFiltered(
