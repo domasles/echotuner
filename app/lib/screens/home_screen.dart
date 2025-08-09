@@ -6,6 +6,7 @@ import '../widgets/info_message_widget.dart';
 import '../config/app_constants.dart';
 import '../config/app_colors.dart';
 import '../systems/discovery_system.dart';
+import '../systems/universal_screen_focus_api_system.dart';
 
 import 'playlist_screen.dart';
 import 'settings_screen.dart';
@@ -19,7 +20,7 @@ class HomeScreen extends StatefulWidget {
     State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, DiscoveryMixin {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, DiscoveryMixin, UniversalScreenFocusApiMixin {
     final TextEditingController _promptController = TextEditingController();
 
     int _selectedIndex = 0;
@@ -27,8 +28,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Di
     Key _libraryKey = UniqueKey();
 
     bool _isHomeTabActive = true;
-    bool _isAppActive = true;
-    bool _rateLimitLoadedThisSession = false;
 
     final List<String> _quickPrompts = [
         "I'm feeling happy and energetic",
@@ -52,15 +51,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Di
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
             initializeDiscovery();
-            _checkAndLoadRateLimit();
+            initializeScreenFocusApiSystem(isActiveTab: _isHomeTabActive);
         });
-    }
-
-    void _checkAndLoadRateLimit() {
-        if (_isHomeTabActive && _isAppActive && !_rateLimitLoadedThisSession) {
-            _rateLimitLoadedThisSession = true;
-            _refreshDailyLimit();
-        }
     }
 
     void _onTabChanged(int index) {
@@ -68,18 +60,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Di
             _selectedIndex = index;
             _isHomeTabActive = (index == 0);
             
-            if (index == 0) {
-                _rateLimitLoadedThisSession = false;
-                _checkAndLoadRateLimit();
-            } else if (index == 2) {
+            // Use the universal screen focus API system
+            onScreenFocusTabChanged(_isHomeTabActive);
+            
+            if (index == 2) {
                 _libraryKey = UniqueKey();
             }
         });
     }
 
-    void _refreshDailyLimit() async {
-        final playlistProvider = context.read<PlaylistProvider>();
-        await playlistProvider.refreshRateLimitStatus();
+    @override
+    void registerScreenFocusApiCalls() {
+        // Register rate limit refresh API call (same behavior as before)
+        screenFocusApiSystem.registerApiCall(ScreenFocusApiCall(
+            name: 'rate_limit_refresh',
+            apiCall: (context) async {
+                final playlistProvider = context.read<PlaylistProvider>();
+                await playlistProvider.refreshRateLimitStatus();
+            },
+            runOnScreenEnter: true,
+            runOnAppResume: true,
+            oncePerSession: true,
+        ));
+
+        // Can register more API calls here if needed in the future
+        // screenFocusApiSystem.registerApiCall(ScreenFocusApiCall(...));
     }
 
     void _onTextChanged() {
@@ -101,15 +106,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Di
     @override
     void didChangeAppLifecycleState(AppLifecycleState state) {
         super.didChangeAppLifecycleState(state);
-        
-        final wasActive = _isAppActive;
-        _isAppActive = state == AppLifecycleState.resumed;
-        
-        // If app became active and we're on home tab, load rate limit
-        if (!wasActive && _isAppActive) {
-            _rateLimitLoadedThisSession = false; // Reset for new session
-            _checkAndLoadRateLimit();
-        }
 
         // Refresh library if on library tab
         if (state == AppLifecycleState.resumed && _selectedIndex == 2) {
