@@ -51,8 +51,8 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
 
             if (!_tabController.indexIsChanging) {
                 AppLogger.personality('Tab changed to index: ${_tabController.index}');
-                // Use direct refresh for sub-tab changes
-                _silentRefreshPersonalityData();
+                // Refresh only personality context on tab changes (not artists)
+                _refreshPersonalityContext();
             }
         });
         
@@ -77,7 +77,7 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
         ));
     }
 
-    Future<void> _silentRefreshPersonalityData() async {
+    Future<void> _refreshPersonalityContext() async {
         if (!mounted) return;
         
         try {
@@ -88,8 +88,6 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
                 _userContext = existingContext;
                 _populateFormFromContext(existingContext);
 
-                await _loadFollowedArtists();
-
                 if (mounted) {
                     setState(() {});
                 }
@@ -97,7 +95,7 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
         }
 
         catch (e) {
-            AppLogger.personality('Silent refresh failed: $e', error: e);
+            AppLogger.personality('Context refresh failed: $e', error: e);
         }
     }
 
@@ -160,9 +158,14 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
             _followedArtists = await personalityService.fetchFollowedArtists(userId: authService.userId);
 
             if (_userContext == null) {
-                final defaultContext = await personalityService.getDefaultPersonalityContext(userId: authService.userId);
-                _userContext = defaultContext;
-                _populateFormFromContext(defaultContext);
+                // Create default context using already loaded followed artists
+                _userContext = UserContext(
+                    favoriteArtists: _followedArtists.map((artist) => artist.name).toList(),
+                    favoriteGenres: [],
+                    dislikedArtists: [],
+                    musicDiscoveryPreference: null,
+                );
+                _populateFormFromContext(_userContext!);
             }
 
             await personalityService.markArtistsSynced();
