@@ -2,6 +2,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
+import '../systems/universal_screen_focus_api_system.dart';
 import '../providers/playlist_provider.dart';
 import '../services/message_service.dart';
 import '../services/auth_service.dart';
@@ -16,7 +17,41 @@ class PlaylistScreen extends StatefulWidget {
     State<PlaylistScreen> createState() => _PlaylistScreenState();
 }
 
-class _PlaylistScreenState extends State<PlaylistScreen> {
+class _PlaylistScreenState extends State<PlaylistScreen> with WidgetsBindingObserver, UniversalScreenFocusApiMixin {
+
+    @override
+    void initState() {
+        super.initState();
+        WidgetsBinding.instance.addObserver(this);
+        
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+            initializeScreenFocusApiSystem(isActiveTab: true);
+        });
+    }
+
+    @override
+    void dispose() {
+        WidgetsBinding.instance.removeObserver(this);
+        super.dispose();
+    }
+
+    @override
+    void registerScreenFocusApiCalls() {
+        // Register playlist refresh call
+        screenFocusApiSystem.registerApiCall(ScreenFocusApiCall(
+            name: 'playlist_refresh',
+            apiCall: (context) async {
+                // Refresh playlist data if needed
+                final playlistProvider = context.read<PlaylistProvider>();
+                if (playlistProvider.currentPlaylist.isNotEmpty) {
+                    AppLogger.info('Playlist screen focused - data already available');
+                }
+            },
+            runOnScreenEnter: true,
+            runOnAppResume: true,
+            oncePerSession: false, // Allow refresh each time
+        ));
+    }
 
     Future<void> _openSpotifyTrack(String spotifyId) async {
         final spotifyUrl = 'https://open.spotify.com/track/$spotifyId';

@@ -1,6 +1,7 @@
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
+import '../systems/universal_screen_focus_api_system.dart';
 import '../services/api_service.dart';
 import '../providers/playlist_provider.dart';
 import '../config/app_colors.dart';
@@ -13,7 +14,7 @@ class ProfileScreen extends StatefulWidget {
     State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserver, UniversalScreenFocusApiMixin {
     bool _isLoading = true;
     String? _error;
     int _draftCount = 0;
@@ -24,7 +25,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
     @override
     void initState() {
         super.initState();
-        _loadProfileData();
+        WidgetsBinding.instance.addObserver(this);
+        
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+            initializeScreenFocusApiSystem(isActiveTab: true);
+        });
+        
+        // Removed _loadProfileData() - now handled by Universal API system
+    }
+
+    @override
+    void dispose() {
+        WidgetsBinding.instance.removeObserver(this);
+        super.dispose();
+    }
+
+    @override
+    void registerScreenFocusApiCalls() {
+        // Register profile data refresh
+        screenFocusApiSystem.registerApiCall(ScreenFocusApiCall(
+            name: 'profile_data_refresh',
+            apiCall: (context) async {
+                await _loadProfileData();
+            },
+            runOnScreenEnter: true,
+            runOnAppResume: true,
+            oncePerSession: false, // Refresh every time for fresh data
+        ));
     }
 
     Future<void> _loadProfileData() async {

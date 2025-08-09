@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../systems/ui_components/advanced_settings_widget.dart';
 import '../systems/advanced_settings_system.dart';
+import '../systems/universal_screen_focus_api_system.dart';
 import '../services/personality_service.dart';
 import '../providers/playlist_provider.dart';
 import '../services/message_service.dart';
@@ -19,7 +20,7 @@ class PersonalityScreen extends StatefulWidget {
     State<PersonalityScreen> createState() => _PersonalityScreenState();
 }
 
-class _PersonalityScreenState extends State<PersonalityScreen> with TickerProviderStateMixin, AdvancedSettingsMixin implements PersonalityResetCallback {
+class _PersonalityScreenState extends State<PersonalityScreen> with TickerProviderStateMixin, WidgetsBindingObserver, AdvancedSettingsMixin, UniversalScreenFocusApiMixin implements PersonalityResetCallback {
     late TabController _tabController;
     
     UserContext? _userContext;
@@ -41,6 +42,8 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
     @override
     void initState() {
         super.initState();
+        WidgetsBinding.instance.addObserver(this);
+        
         _tabController = TabController(length: 3, vsync: this);
 
         _tabController.addListener(() {
@@ -48,11 +51,30 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
 
             if (!_tabController.indexIsChanging) {
                 AppLogger.personality('Tab changed to index: ${_tabController.index}');
+                // Use direct refresh for sub-tab changes
                 _silentRefreshPersonalityData();
             }
         });
         
-        _loadPersonalityData();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+            initializeScreenFocusApiSystem(isActiveTab: true);
+        });
+        
+        // Removed _loadPersonalityData() - now handled by Universal API system
+    }
+
+    @override
+    void registerScreenFocusApiCalls() {
+        // Register user context refresh for personality screen
+        screenFocusApiSystem.registerApiCall(ScreenFocusApiCall(
+            name: 'personality_user_context_refresh',
+            apiCall: (context) async {
+                await _loadPersonalityData(); // Use full load for screen enter/app resume
+            },
+            runOnScreenEnter: true,
+            runOnAppResume: true,
+            oncePerSession: true, // Once per session for main screen focus
+        ));
     }
 
     Future<void> _silentRefreshPersonalityData() async {
@@ -81,6 +103,7 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
 
     @override
     void dispose() {
+        WidgetsBinding.instance.removeObserver(this);
         _tabController.dispose();
         super.dispose();
     }

@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
+import '../systems/universal_screen_focus_api_system.dart';
 import '../systems/library_management_system.dart';
 import '../systems/tab_management_system.dart';
 import '../models/playlist_draft_models.dart';
@@ -20,7 +21,7 @@ class LibraryScreen extends StatefulWidget {
     State<LibraryScreen> createState() => _LibraryScreenState();
 }
 
-class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
+class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMixin, WidgetsBindingObserver, UniversalScreenFocusApiMixin {
     final TabManagementSystem _tabSystem = TabManagementSystem();
     final LibraryManagementSystem _librarySystem = LibraryManagementSystem();
 
@@ -38,11 +39,29 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
         _tabSystem.initialize(
             tabCount: 2,
             vsync: this,
-            onTabChanged: _silentRefreshCurrentTab,
+            onTabChanged: () => silentRefreshLibrary(), // Add direct refresh for sub-tabs
             showTabsDuringLoading: true,
         );
 
-        loadLibraryData();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+            initializeScreenFocusApiSystem(isActiveTab: true);
+        });
+
+        // Removed loadLibraryData() - now handled by Universal API system
+    }
+
+    @override
+    void registerScreenFocusApiCalls() {
+        // Register library data refresh
+        screenFocusApiSystem.registerApiCall(ScreenFocusApiCall(
+            name: 'library_data_refresh',
+            apiCall: (context) async {
+                await loadLibraryData(); // Use full load for screen enter/app resume
+            },
+            runOnScreenEnter: true,
+            runOnAppResume: true,
+            oncePerSession: true, // Once per session for main screen focus
+        ));
     }
 
     @override
