@@ -428,12 +428,25 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
+    bool _configLoaded = false;
+
     @override
     void initState() {
         super.initState();
 
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-            context.read<AuthService>().initialize();
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+            await context.read<AuthService>().initialize();
+
+            if (mounted) {
+                final playlistProvider = context.read<PlaylistProvider>();
+                await playlistProvider.loadConfigBlocking();
+                
+                if (mounted) {
+                    setState(() {
+                        _configLoaded = true;
+                    });
+                }
+            }
         });
     }
 
@@ -441,7 +454,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     Widget build(BuildContext context) {
         return Consumer<AuthService>(
             builder: (context, authService, child) {
-                if (authService.isLoading) {
+                if (authService.isLoading || !_configLoaded) {
                     return const Scaffold(
                         backgroundColor: Color(0xFF0F0A1A),
                         body: Center(

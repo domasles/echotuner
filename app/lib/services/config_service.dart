@@ -39,6 +39,8 @@ class ConfigService {
             playlists: PlaylistConfig(
                 maxSongsPerPlaylist: 30,
                 maxPlaylistsPerDay: 3,
+                maxPromptLength: 128,
+                maxPlaylistNameLength: 100,
             ),
 
             features: FeatureConfig(

@@ -51,9 +51,17 @@ class PlaylistConfig {
     @JsonKey(name: 'max_playlists_per_day')
     final int maxPlaylistsPerDay;
 
+    @JsonKey(name: 'max_prompt_length')
+    final int maxPromptLength;
+
+    @JsonKey(name: 'max_playlist_name_length')
+    final int maxPlaylistNameLength;
+
     const PlaylistConfig({
         required this.maxSongsPerPlaylist,
         required this.maxPlaylistsPerDay,
+        required this.maxPromptLength,
+        required this.maxPlaylistNameLength,
     });
 
     factory PlaylistConfig.fromJson(Map<String, dynamic> json) => _$PlaylistConfigFromJson(json);

@@ -243,9 +243,45 @@ class _LoginScreenState extends State<LoginScreen> {
 
         try {
             final authService = context.read<AuthService>();
-            final authResponse = await authService.initiateAuth();
+            
+            // Get prefetched auth URL for synchronous login
+            final authUrl = authService.getSynchronousAuthUrl();
+            
+            if (authUrl == null) {
+                // Fallback to async method if no prefetched URL
+                final authResponse = await authService.initiateAuth();
+                await _handleBrowserAuth(authResponse);
+                return;
+            }
 
-            await _handleBrowserAuth(authResponse);
+            // Use prefetched URL for synchronous login
+            final uri = Uri.parse(authUrl);
+            if (!await canLaunchUrl(uri)) {
+                throw Exception('No application available to handle this URL');
+            }
+
+            await launchUrl(
+                uri,
+                mode: LaunchMode.externalApplication,
+            );
+
+            // Start polling for auth completion
+            try {
+                await authService.completeNormalAuth();
+            } catch (e, stackTrace) {
+                if (mounted) {
+                    AppLogger.error('Browser auth error', error: e, stackTrace: stackTrace);
+                    String errorMessage = 'Authentication failed or timed out.';
+
+                    if (e.toString().contains('timeout')) {
+                        errorMessage = 'Authentication timed out. Please try again.';
+                    } else if (e.toString().contains('cancelled')) {
+                        errorMessage = 'Authentication was cancelled.';
+                    }
+
+                    _showErrorDialog(errorMessage);
+                }
+            }
         }
 
         catch (e, stackTrace) {

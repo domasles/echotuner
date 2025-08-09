@@ -42,7 +42,10 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
         }
 
         String playlistName = '';
-        String description = '';
+        
+        // Get config for input limits
+        final config = provider.config?.playlists;
+        final maxNameLength = config?.maxPlaylistNameLength;
 
         return showDialog<void>(
             context: context,
@@ -59,26 +62,13 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
                         children: [
                             TextField(
                                 autofocus: true,
+                                maxLength: maxNameLength,
                                 decoration: const InputDecoration(
                                     hintText: 'Playlist name',
                                     border: OutlineInputBorder(),
                                 ),
 
                                 onChanged: (value) => playlistName = value,
-                            ),
-
-                            const SizedBox(height: AppConstants.mediumSpacing),
-                            TextField(
-                                maxLines: 2,
-                                textAlignVertical: TextAlignVertical.top,
-
-                                decoration: const InputDecoration(
-                                    hintText: 'Description (optional)',
-                                    border: OutlineInputBorder(),
-                                    alignLabelWithHint: true,
-                                ),
-
-                                onChanged: (value) => description = value,
                             ),
                         ],
                     ),
@@ -99,7 +89,6 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
 
                                         await provider.addToSpotify(
                                             playlistName: playlistName.trim(),
-                                            description: description.trim().isEmpty ? null : description.trim(),
                                         );
 
                                         if (context.mounted) {
@@ -117,7 +106,7 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
                                 }
                             },
 
-                            child: Text('Add to Spotify'),
+                            child: const Text('Add to Spotify'),
                         ),
                     ],
                 );
@@ -130,8 +119,7 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
             final spotifyInfo = provider.spotifyPlaylistInfo!;
 
             await provider.addToSpotify(
-                playlistName: spotifyInfo.name, 
-                description: spotifyInfo.description,
+                playlistName: spotifyInfo.name,
             );
 
             if (context.mounted) {

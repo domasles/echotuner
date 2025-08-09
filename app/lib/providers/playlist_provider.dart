@@ -91,8 +91,14 @@ class PlaylistProvider extends ChangeNotifier {
         }
     }
 
+    Future<void> loadConfigBlocking() async {
+        await _loadConfig();
+    }
+
     int get maxSongsPerPlaylist => _config?.playlists.maxSongsPerPlaylist ?? 20;
     int get maxPlaylistsPerDay => _config?.playlists.maxPlaylistsPerDay ?? 20;
+
+    AppConfigData? get config => _config;
 
     bool get isPlaylistAddedToSpotify => _isPlaylistAddedToSpotify;
 
@@ -315,7 +321,7 @@ class PlaylistProvider extends ChangeNotifier {
         await _loadRateLimitStatus();
     }
 
-    Future<String> addToSpotify({required String playlistName, String? description}) async {
+    Future<String> addToSpotify({required String playlistName}) async {
         if (_currentPlaylistId == null) {
             if (_currentPlaylist.isEmpty) throw Exception('No playlist to add to Spotify');
 
@@ -341,7 +347,7 @@ class PlaylistProvider extends ChangeNotifier {
 
             final request = SpotifyPlaylistRequest(
                 name: playlistName,
-                description: description,
+                description: null, // No description needed
                 public: false,
                 songs: _currentPlaylist, // Always include songs for new system
             );

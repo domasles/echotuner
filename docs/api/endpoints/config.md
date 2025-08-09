@@ -76,6 +76,8 @@ Get client configuration values and API information.
     "playlists": {
         "max_songs_per_playlist": 50,
         "max_playlists_per_day": 5,
+        "max_prompt_length": 128,
+        "max_playlist_name_length": 100,
         "max_refinements_per_playlist": 3
     },
     "features": {

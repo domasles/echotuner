@@ -41,6 +41,8 @@ async def get_config():
         "playlists": {
             "max_songs_per_playlist": settings.MAX_SONGS_PER_PLAYLIST,
             "max_playlists_per_day": settings.MAX_PLAYLISTS_PER_DAY,
+            "max_prompt_length": settings.MAX_PROMPT_LENGTH,
+            "max_playlist_name_length": settings.MAX_PLAYLIST_NAME_LENGTH,
         },
         "features": {
             "auth_required": settings.AUTH_REQUIRED,

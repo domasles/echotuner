@@ -15,12 +15,14 @@ class AuthService extends ChangeNotifier {
 
     String? _userId;
     String? _tempSessionUuid;
+    String? _authUrl; // Cache auth URL for synchronous login
 
     bool _isAuthenticated = false;
     bool _isLoading = false;
 
     String? get userId => _userId;
     String? get sessionUuid => _tempSessionUuid;
+    String? get authUrl => _authUrl; // Cached auth URL for synchronous login
     bool get isAuthenticated => _isAuthenticated;
     bool get isLoading => _isLoading;
 
@@ -38,6 +40,16 @@ class AuthService extends ChangeNotifier {
             if (_userId != null) {
                 _isAuthenticated = await validateUserOnStartup();
             }
+            
+            // If not authenticated, prefetch auth URL for synchronous login
+            if (!_isAuthenticated) {
+                try {
+                    await _prefetchAuthUrl();
+                } catch (e) {
+                    AppLogger.debug('Failed to prefetch auth URL: $e');
+                    // Continue even if prefetch fails
+                }
+            }
         }
 
         catch (e, stackTrace) {
@@ -52,6 +64,42 @@ class AuthService extends ChangeNotifier {
 
         _isLoading = false;
         notifyListeners();
+    }
+
+    Future<void> _prefetchAuthUrl() async {
+        // Generate UUID for session
+        const uuid = Uuid();
+        _tempSessionUuid = uuid.v4();
+        
+        // Save temporary session UUID
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_tempSessionUuidKey, _tempSessionUuid!);
+
+        final request = AuthInitRequest(
+            platform: _getPlatform(),
+        );
+
+        final response = await http.post(
+            Uri.parse(AppConfig.apiUrl('/auth/init')),
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-UUID': _tempSessionUuid!,
+            },
+            body: jsonEncode(request.toJson()),
+        );
+
+        if (response.statusCode == 200) {
+            final authResponse = AuthInitResponse.fromJson(jsonDecode(response.body));
+            _authUrl = authResponse.authUrl;
+            AppLogger.debug('Auth URL prefetched successfully');
+        } else {
+            throw Exception('Failed to prefetch auth URL: ${response.body}');
+        }
+    }
+
+    // Synchronous login method that uses prefetched auth URL
+    String? getSynchronousAuthUrl() {
+        return _authUrl;
     }
 
     Future<AuthInitResponse> initiateAuth() async {

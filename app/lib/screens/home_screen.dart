@@ -200,6 +200,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Di
     }
 
     Widget _buildPromptInput(PlaylistProvider provider) {
+        final config = provider.config?.playlists;
+        final maxPromptLength = config?.maxPromptLength;
+        
         return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -207,6 +210,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Di
                     controller: _promptController,
                     maxLines: null,
                     minLines: 3,
+                    maxLength: maxPromptLength,
                     style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
 
                     decoration: InputDecoration(
