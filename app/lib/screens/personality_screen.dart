@@ -21,6 +21,8 @@ class PersonalityScreen extends StatefulWidget {
 }
 
 class _PersonalityScreenState extends State<PersonalityScreen> with TickerProviderStateMixin, WidgetsBindingObserver, AdvancedSettingsMixin, UniversalScreenFocusApiMixin implements PersonalityResetCallback {
+    static int _lastSelectedTabIndex = 0; // Save tab position across screen changes
+    
     late TabController _tabController;
     
     UserContext? _userContext;
@@ -44,13 +46,18 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
         super.initState();
         WidgetsBinding.instance.addObserver(this);
         
-        _tabController = TabController(length: 3, vsync: this);
+        _tabController = TabController(
+            length: 3, 
+            vsync: this,
+            initialIndex: _lastSelectedTabIndex, // Use saved tab index
+        );
 
         _tabController.addListener(() {
             if (!mounted) return;
 
             if (!_tabController.indexIsChanging) {
                 AppLogger.personality('Tab changed to index: ${_tabController.index}');
+                _lastSelectedTabIndex = _tabController.index; // Save current tab index
                 // Refresh only personality context on tab changes (not artists)
                 _refreshPersonalityContext();
             }
