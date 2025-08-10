@@ -160,6 +160,21 @@ app.add_middleware(
     max_age=600,
 )
 
+# FOR DEBUG PURPOSES ONLY - log all requests
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    if settings.DEBUG:
+        print(f"Incoming request: {request.method} {request.url}")
+
+        for k, v in request.headers.items():
+            print(f"Header: {k} = {v}")
+
+        body = await request.body()
+        print(f"Body: {body.decode('utf-8') if body else '<empty>'}")
+        
+        response = await call_next(request)
+        return response
+
 # Include all routers
 app.include_router(auth_router)
 app.include_router(playlist_router)
