@@ -44,6 +44,19 @@ services:
 
     restart: unless-stopped
 
+  docs:
+    build:
+      context: ./docs
+      dockerfile: Dockerfile
+
+    image: ghcr.io/domasles/echotuner/echotuner-docs:latest
+    container_name: docs
+
+    ports:
+      - "0.0.0.0:8080:80"
+
+    restart: unless-stopped
+
   # Full Stack (launches both services)
   full:
     image: hello-world
