@@ -15,26 +15,23 @@ In fact, the "you have to run it yourself" part? That’s kind of the point. It 
 A self-contained music analysis tool you own completely? That's a win.
 
 ## Demo
-There’s going to be a demo too - just not in the traditional sense. To comply with Spotify’s public app limitations, the demo strips out cross-device functionality like real-time playlist syncing across devices and user-specific storage. Instead, all data is saved locally in-session, and playlists are generated under a shared public sandbox account (not your real Spotify). Think of it as a staging area: playlists you create there are public and fully claimable with one click into your actual Spotify account.
+
+The demo is finally available [here](https://echotuner.domax.lt)!
+
+To comply with Spotify’s public app limitations, the demo strips out cross-device functionality like real-time playlist syncing across devices and user-specific storage. Instead, all data is saved locally in-session, and playlists are generated under a shared public sandbox account (not your real Spotify). Think of it as a staging area: playlists you create there are public and fully claimable with one click into your actual Spotify account.
 
 So, whether you’re running it locally or poking around the demo, EchoTuner is here for curious developers who just want to understand their playlists - without needing a startup, a legal team, or a bunch of users.
 
 ## Documentation
 
-Complete setup and usage documentation is available in the `docs/` directory:
-
-**[Documentation Hub](docs/README.md)**
-
-- **[API Documentation](docs/api/)** - Backend setup, configuration, and API reference
-- **[App Documentation](docs/app/)** - Flutter app development and deployment  
-- **[Quick Start Guides](docs/README.md)** - Get running in minutes
-
-
-For detailed setup instructions, see the [Getting Started guide](docs/README.md).
+- **[Documentation Hub](https://echotuner-docs.domax.lt)**
+- **[API Documentation](https://echotuner-docs.domax.lt/categories/api-documentation)** - Backend setup, configuration, and API reference
 
 ## Project Philosophy
 
-EchoTuner embraces the "run it yourself" philosophy. Instead of fighting Spotify's restrictive API quotas and review processes, we lean into local deployment. This approach gives you:
+EchoTuner embraces the "run it yourself" philosophy. However, using the [demo](https://echotuner.domax.lt) you can support me in making EchoTuner.
+
+Instead of fighting Spotify's restrictive API quotas and review processes, we lean into local deployment. This approach gives you:
 
 - **No Rate Limits** - Your Spotify developer credentials, your rules
 - **Complete Privacy** - Your music data never leaves your infrastructure

@@ -63,25 +63,22 @@ EchoTuner consists of three main components:
 ## Getting Started
 
 ### For Users
-- **[Mobile App Setup](/categories/mobile-app/)**: Download and configure the mobile app
-- **[Web App Access](https://app.echotuner.app)**: Use EchoTuner in your browser
-- **[Account Setup](/posts/api_docs/authentication/)**: Connect your Spotify account
+- **[Web App Access](https://echotuner.domax.lt)**: Use EchoTuner in your browser
 
 ### For Developers
 - **[API Documentation](/categories/api-documentation/)**: Complete API reference
-- **[Authentication Guide](/posts/api_docs/authentication/)**: OAuth implementation
-- **[Integration Examples](/posts/api_docs/examples/)**: Code samples and SDKs
+- **[Authentication Guide](/posts/api-authentication/)**: OAuth implementation
 
 ## API Documentation
 
 Comprehensive documentation for developers and integrators:
 
-- **[Authentication](/posts/api_docs/authentication/)** - OAuth flows and security
-- **[Playlist Generation](/posts/api_docs/playlists/)** - Core playlist creation endpoints
-- **[Spotify Integration](/posts/api_docs/spotify/)** - Spotify Web API integration
-- **[User Management](/posts/api_docs/users/)** - User profiles and preferences
-- **[AI Services](/posts/api_docs/ai/)** - AI and personality features
-- **[Server Configuration](/posts/api_docs/configuration/)** - Server setup and management
+- **[Authentication](/posts/api-authentication/)** - OAuth flows and security
+- **[Playlist Generation](/posts/api-playlists/)** - Core playlist creation endpoints
+- **[Spotify Integration](/posts/api-spotify/)** - Spotify Web API integration
+- **[User Management](/posts/api-users/)** - User profiles and preferences
+- **[AI Services](/posts/api-personality/)** - AI and personality features
+- **[Server Configuration](/posts/api-config/)** - Server setup and management
 
 ## Technology Stack
 
@@ -119,12 +116,6 @@ EchoTuner supports multiple authentication modes to fit different use cases:
 - Good for organizations or shared environments
 - Moderate rate limits with full generation features
 
-### 3. Anonymous Mode
-- No account required for basic functionality
-- Limited playlist generation (view-only)
-- No playlist saving to Spotify
-- Lowest rate limits for demo purposes
-
 ## Privacy and Security
 
 - **Data Minimization**: We only collect necessary data for functionality
@@ -142,16 +133,9 @@ EchoTuner supports multiple authentication modes to fit different use cases:
 
 ## Roadmap
 
-### Coming Soon
-- **Voice Commands**: Generate playlists using voice prompts
-- **Social Features**: Share and collaborate on playlists
-- **Smart Recommendations**: AI-powered music discovery
-- **Advanced Analytics**: Detailed listening insights
-
 ### Future Plans
 - **Additional Streaming Services**: Apple Music, YouTube Music support
 - **Desktop Applications**: Native desktop apps for Windows, macOS, Linux
-- **API Partnerships**: Integration with other music services
 - **Machine Learning**: Improved AI models for better recommendations
 
 ## License
@@ -160,4 +144,4 @@ EchoTuner is open-source software licensed under the MIT License. See the [LICEN
 
 ---
 
-Ready to start generating amazing playlists? Check out our [API Documentation](/categories/api-documentation/) or download the mobile app to get started!
+Ready to start generating amazing playlists? Check out our [API Documentation](/categories/api-documentation/) or use the web app to get started!
