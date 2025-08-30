@@ -1,9 +1,12 @@
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../systems/universal_screen_focus_api_system.dart';
-import '../services/api_service.dart';
 import '../providers/playlist_provider.dart';
+import '../services/message_service.dart';
+import '../services/auth_service.dart';
+import '../services/api_service.dart';
 import '../config/app_colors.dart';
 import '../utils/app_logger.dart';
 
@@ -204,6 +207,49 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
 
                     const SizedBox(height: 24),
 
+                    // API Developer Info Card
+                    Consumer<AuthService>(
+                        builder: (context, authService, child) {
+                            if (!authService.isAuthenticated || authService.userId == null) {
+                                return const SizedBox.shrink();
+                            }
+
+                            return Card(
+                                child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                            Text(
+                                                'API Developer Info',
+                                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                                    fontWeight: FontWeight.bold,
+                                                ),
+                                            ),
+
+                                            const SizedBox(height: 16),                                            
+                                            _buildInfoRow(
+                                                'Login Provider',
+                                                _provider?.toUpperCase() ?? 'Unknown',
+                                                Icons.login,
+                                            ),
+                                            
+                                            const Divider(height: 24),
+                                            _buildCopyableInfoRow(
+                                                'API Token (User ID)',
+                                                authService.userId!,
+                                                Icons.key,
+                                                context,
+                                            ),
+                                        ],
+                                    ),
+                                ),
+                            );
+                        },
+                    ),
+
+                    const SizedBox(height: 24),
+
                     // Coming Soon Card
                     Card(
                         child: Padding(
@@ -272,5 +318,56 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                 ),
             ],
         );
+    }
+
+    Widget _buildCopyableInfoRow(String label, String value, IconData icon, BuildContext context) {
+        return Row(
+            children: [
+                Icon(
+                    icon,
+                    size: 20,
+                    color: AppColors.textSecondary,
+                ),
+
+                const SizedBox(width: 12),
+                Expanded(
+                    child: Text(
+                        label,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                        ),
+                    ),
+                ),
+
+                const SizedBox(width: 8),
+                IconButton(
+                    onPressed: () => _copyToClipboard(context, value),
+                    icon: const Icon(Icons.copy),
+                    iconSize: 16,
+                    tooltip: 'Copy token',
+                    style: IconButton.styleFrom(
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                        foregroundColor: AppColors.primary,
+                        minimumSize: const Size(32, 32),
+                    ),
+                ),
+            ],
+        );
+    }
+
+    void _copyToClipboard(BuildContext context, String text) async {
+        try {
+            await Clipboard.setData(ClipboardData(text: text));
+
+            if (context.mounted) {
+                MessageService.showSuccess(context, 'Token copied to clipboard');
+            }
+        }
+
+		catch (e) {
+            if (context.mounted) {
+                MessageService.showError(context, 'Failed to copy token: $e');
+            }
+        }
     }
 }
