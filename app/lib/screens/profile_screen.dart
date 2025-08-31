@@ -33,8 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
         WidgetsBinding.instance.addPostFrameCallback((_) {
             initializeScreenFocusApiSystem(isActiveTab: true);
         });
-        
-        // Removed _loadProfileData() - now handled by Universal API system
+
     }
 
     @override
@@ -45,15 +44,12 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
 
     @override
     void registerScreenFocusApiCalls() {
-        // Register profile data refresh
         screenFocusApiSystem.registerApiCall(ScreenFocusApiCall(
             name: 'profile_data_refresh',
-            apiCall: (context) async {
-                await _loadProfileData();
-            },
+            apiCall: (context) async { await _loadProfileData(); },
             runOnScreenEnter: true,
             runOnAppResume: true,
-            oncePerSession: false, // Refresh every time for fresh data
+            oncePerSession: false,
         ));
     }
 
@@ -66,21 +62,24 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
         try {
             final playlistProvider = context.read<PlaylistProvider>();
             final apiService = context.read<ApiService>();
-
-            // Get profile information from API
             final profileData = await apiService.getUserProfile();
+
             _provider = profileData['provider'] ?? 'Unknown';
             _displayName = profileData['display_name'];
 
-            // Get playlist counts
             final libraryResponse = await playlistProvider.getLibraryPlaylists();
+
             _draftCount = libraryResponse.drafts.length;
             _spotifyPlaylistCount = libraryResponse.spotifyPlaylists.length;
 
-        } catch (e) {
+        }
+
+        catch (e) {
             AppLogger.error('Failed to load profile data: $e');
             _error = 'Failed to load profile information';
-        } finally {
+        }
+
+        finally {
             if (mounted) {
                 setState(() {
                     _isLoading = false;
@@ -96,11 +95,11 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                 title: const Text('Profile'),
                 centerTitle: true,
             ),
-            body: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? _buildErrorState()
-                    : _buildProfileContent(),
+
+        body: _isLoading ? const Center(child: CircularProgressIndicator()) :
+            _error != null
+            ? _buildErrorState()
+            : _buildProfileContent(),
         );
     }
 
@@ -114,14 +113,14 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                         size: 64,
                         color: Colors.red,
                     ),
+
                     const SizedBox(height: 16),
                     Text(
                         _error!,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: AppColors.textSecondary,
-                        ),
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
                         textAlign: TextAlign.center,
                     ),
+
                     const SizedBox(height: 16),
                     ElevatedButton(
                         onPressed: _loadProfileData,
@@ -153,18 +152,13 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
 
                     const SizedBox(height: 24),
 
-                    // User Name
                     Text(
                         _displayName ?? 'Unknown',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
                     ),
 
                     const SizedBox(height: 24),
-
-                    // Profile Information Card
                     Card(
                         child: Padding(
                             padding: const EdgeInsets.all(16),
@@ -177,16 +171,8 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                                             fontWeight: FontWeight.bold,
                                         ),
                                     ),
+
                                     const SizedBox(height: 16),
-                                    
-                                    _buildInfoRow(
-                                        'Login Provider',
-                                        _provider?.toUpperCase() ?? 'Unknown',
-                                        Icons.login,
-                                    ),
-                                    
-                                    const Divider(height: 24),
-                                    
                                     _buildInfoRow(
                                         'Playlist Drafts',
                                         _draftCount.toString(),
@@ -194,7 +180,6 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                                     ),
                                     
                                     const Divider(height: 24),
-                                    
                                     _buildInfoRow(
                                         'Spotify Playlists',
                                         _spotifyPlaylistCount.toString(),
@@ -207,7 +192,6 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
 
                     const SizedBox(height: 24),
 
-                    // API Developer Info Card
                     Consumer<AuthService>(
                         builder: (context, authService, child) {
                             if (!authService.isAuthenticated || authService.userId == null) {
@@ -250,7 +234,6 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
 
                     const SizedBox(height: 24),
 
-                    // Coming Soon Card
                     Card(
                         child: Padding(
                             padding: const EdgeInsets.all(16),
@@ -263,20 +246,21 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                                                 Icons.construction,
                                                 color: AppColors.textSecondary,
                                             ),
+
                                             const SizedBox(width: 8),
                                             Text(
                                                 'Coming Soon',
-                                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                                    fontWeight: FontWeight.bold,
-                                                ),
+                                                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                                             ),
                                         ],
                                     ),
+
                                     const SizedBox(height: 12),
                                     Text(
                                         '• Profile Picture Management\n'
                                         '• Account Information Editing\n'
                                         '• Privacy Information',
+
                                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                             color: AppColors.textSecondary,
                                             height: 1.5,
@@ -301,6 +285,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                     size: 20,
                     color: AppColors.textSecondary,
                 ),
+
                 const SizedBox(width: 12),
                 Expanded(
                     child: Text(
@@ -310,6 +295,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                         ),
                     ),
                 ),
+
                 Text(
                     value,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -364,7 +350,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
             }
         }
 
-		catch (e) {
+        catch (e) {
             if (context.mounted) {
                 MessageService.showError(context, 'Failed to copy token: $e');
             }

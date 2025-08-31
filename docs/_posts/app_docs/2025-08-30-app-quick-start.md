@@ -91,6 +91,23 @@ flutter run -d windows   # or macos, linux
 
 ---
 
+## Common issues
+
+- **Dependencies**: If you encounter dependency issues, run:
+    ```bash
+    flutter clean
+    flutter pub get
+    ```
+
+- **App not starting or freezing**: Try uncommenting `.env` in `pubspec.yaml`:
+    ```yaml
+    assets:
+        # Uncomment the following line if you want to build locally
+        - .env
+    ```
+
+---
+
 ## Docker Deployment
 
 EchoTuner provides two deployment approaches:
