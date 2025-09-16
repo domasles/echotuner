@@ -86,17 +86,15 @@ Generate a new AI playlist (draft) or create a Spotify playlist from an existing
 
 ```json
 {
-  "success": true,
   "spotify_playlist_id": "37i9dQZF1DX0XUsuxWHRQd",
-  "playlist_url": "https://open.spotify.com/playlist/37i9dQZF1DX0XUsuxWHRQd",
-  "message": "Playlist created successfully"
+  "playlist_url": "https://open.spotify.com/playlist/37i9dQZF1DX0XUsuxWHRQd"
 }
 ```
 
 #### Example (Draft Generation)
 
 ```bash
-curl -X POST "https://api.echotuner.app/playlists?status=draft" \
+curl -X POST "https://echotuner-api.domax.lt/playlists?status=draft" \
   -H "X-User-ID: user_12345" \
   -H "Content-Type: application/json" \
   -d '{
@@ -108,7 +106,7 @@ curl -X POST "https://api.echotuner.app/playlists?status=draft" \
 #### Example (Spotify Creation)
 
 ```bash
-curl -X POST "https://api.echotuner.app/playlists?status=spotify" \
+curl -X POST "https://echotuner-api.domax.lt/playlists?status=spotify" \
   -H "X-User-ID: user_12345" \
   -H "X-Playlist-ID: playlist_12345" \
   -H "Content-Type: application/json" \
@@ -239,7 +237,6 @@ Delete a draft playlist (does not delete Spotify playlists).
 
 ```json
 {
-  "success": true,
   "message": "Playlist deleted successfully"
 }
 ```
@@ -339,14 +336,14 @@ Playlist generation is subject to rate limiting:
 - Include specific artists or songs as reference
 
 ### Good Examples
-- ✅ "Upbeat pop songs for morning workout, similar to Dua Lipa"
-- ✅ "Mellow acoustic guitar music for reading, indie folk style"
-- ✅ "90s hip-hop classics with strong beats for driving"
+- "Upbeat pop songs for morning workout, similar to Dua Lipa"
+- "Mellow acoustic guitar music for reading, indie folk style"
+- "90s hip-hop classics with strong beats for driving"
 
 ### Poor Examples
-- ❌ "Good music" (too vague)
-- ❌ "Songs" (no context)
-- ❌ "Music I like" (no specific criteria)
+- "Good music" (too vague)
+- "Songs" (no context)
+- "Music I like" (no specific criteria)
 
 ## Next Steps
 

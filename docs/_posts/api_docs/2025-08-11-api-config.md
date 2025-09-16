@@ -26,22 +26,14 @@ Check the overall health and status of the EchoTuner API.
 ```json
 {
   "status": "healthy",
-  "version": "2.1.0",
-  "timestamp": "2025-08-11T14:30:00Z",
-  "services": {
-    "database": "healthy",
-    "spotify_api": "healthy",
-    "ai_service": "healthy",
-    "rate_limiter": "healthy"
-  },
-  "uptime": "7d 12h 34m"
+  "version": "2.0.2-beta"
 }
 ```
 
 #### Example
 
 ```bash
-curl -X GET "https://api.echotuner.app/config/health"
+curl -X GET "https://echotuner-api.domax.lt/config/health"
 ```
 
 ---
@@ -81,7 +73,7 @@ Retrieve client configuration settings, limits, and feature flags.
     "spotify",
     "google"
   ],
-  "api_version": "2.1.0",
+  "api_version": "2.0.2-beta",
   "server_mode": "shared"
 }
 ```
@@ -89,7 +81,7 @@ Retrieve client configuration settings, limits, and feature flags.
 #### Example
 
 ```bash
-curl -X GET "https://api.echotuner.app/config"
+curl -X GET "https://echotuner-api.domax.lt/config"
 ```
 
 ---
@@ -220,7 +212,7 @@ Determine the current server operational mode.
 #### Example
 
 ```bash
-curl -X GET "https://api.echotuner.app/server/mode"
+curl -X GET "https://echotuner-api.domax.lt/server/mode"
 ```
 
 ## Base Path: `/ai`
@@ -287,7 +279,6 @@ Test AI model functionality with a simple prompt (development/debug environments
 
 ```json
 {
-  "success": true,
   "model_used": {
     "name": "OpenAI GPT-4",
     "provider": "openai"
@@ -434,7 +425,7 @@ class EchoTunerClient {
 }
 
 // Usage
-const client = new EchoTunerClient('https://api.echotuner.app');
+const client = new EchoTunerClient('https://echotuner-api.domax.lt');
 await client.initialize();
 
 console.log('Max playlists per day:', client.getPlaylistLimits().max_playlists_per_day);
@@ -480,20 +471,20 @@ const monitorHealth = async () => {
     const health = await response.json();
 
     if (health.status === 'healthy') {
-      console.log('✅ All services operational');
+      console.log('All services operational');
     } else {
-      console.warn('⚠️ Some services degraded:', health.services);
+      console.warn('Some services degraded:', health.services);
     }
 
     // Check specific services
     Object.entries(health.services).forEach(([service, status]) => {
       if (status !== 'healthy') {
-        console.error(`❌ ${service} is ${status}`);
+        console.error(`${service} is ${status}`);
       }
     });
 
   } catch (error) {
-    console.error('❌ Health check failed:', error);
+    console.error('Health check failed:', error);
   }
 };
 

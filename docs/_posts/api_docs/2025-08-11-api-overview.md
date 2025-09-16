@@ -13,7 +13,7 @@ The EchoTuner API is a comprehensive REST API that powers both the web and mobil
 ## Base URL
 
 ```
-https://api.echotuner.app
+https://echotuner-api.domax.lt
 ```
 
 ## Authentication
@@ -25,48 +25,48 @@ The API uses OAuth 2.0 for authentication with support for both Spotify and Goog
 
 ## API Categories
 
-### 🔐 Authentication (`/auth`)
+### Authentication (`/auth`)
 Handle user authentication and OAuth flows
 - OAuth initialization and callbacks
 - Session management
 - Multi-provider support (Spotify, Google)
 
-### 🎵 Playlists (`/playlists`)
+### Playlists (`/playlists`)
 Core playlist functionality
 - AI-powered playlist generation
 - Draft management
 - Spotify playlist creation
 
-### 🎧 Spotify Integration (`/spotify`)
+### Spotify Integration (`/spotify`)
 Direct Spotify API integration
 - Create playlists on Spotify
 - Manage existing playlists
 - Track operations
 
-### 👤 User Management (`/user`)
+### User Management (`/user`)
 User profile and account management
 - Profile information
 - Rate limiting status
 - Account settings
 
-### 🧠 Personality & Preferences (`/personality`)
+### Personality & Preferences (`/personality`)
 User music preferences and personality data
 - Save/retrieve music preferences
 - Artist search and management
 - Genre preferences
 
-### 🤖 AI Services (`/ai`)
+### AI Services (`/ai`)
 AI model information and testing
 - Available models
 - Model testing (debug only)
 
-### ⚙️ Configuration (`/config`)
+### Configuration (`/config`)
 Application configuration and health
 - Health checks
 - Client configuration
 - Feature flags
 
-### 🖥️ Server Information (`/server`)
+### Server Information (`/server`)
 Server mode and status
 - Server mode detection
 - System information
@@ -81,23 +81,21 @@ The API implements rate limiting to ensure fair usage:
 
 ## Response Format
 
-All API responses follow a consistent JSON format:
+All API responses follow a consistent JSON format with direct data objects:
 
 ```json
 {
-  "success": true,
-  "data": {...},
-  "message": "Operation completed successfully"
+  "user_id": "user_12345",
+  "provider": "spotify",
+  "display_name": "John Doe"
 }
 ```
 
-Error responses include:
+Error responses use a consistent format:
 
 ```json
 {
-  "success": false,
-  "error": "Error description",
-  "details": "Additional error information"
+  "detail": "Error description with specific details"
 }
 ```
 
@@ -137,7 +135,7 @@ EchoTuner supports two operational modes:
 Check the API health and status:
 
 ```bash
-curl https://api.echotuner.app/config/health
+curl https://echotuner-api.domax.lt/config/health
 ```
 
 For detailed endpoint documentation, explore the specific API category guides linked above.

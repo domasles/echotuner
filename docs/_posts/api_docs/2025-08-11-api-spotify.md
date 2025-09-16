@@ -46,17 +46,15 @@ Create a new playlist on Spotify from a draft playlist or provided song list.
 
 ```json
 {
-  "success": true,
   "spotify_playlist_id": "37i9dQZF1DX0XUsuxWHRQd",
-  "playlist_url": "https://open.spotify.com/playlist/37i9dQZF1DX0XUsuxWHRQd",
-  "message": "Playlist created successfully"
+  "playlist_url": "https://open.spotify.com/playlist/37i9dQZF1DX0XUsuxWHRQd"
 }
 ```
 
 #### Example
 
 ```bash
-curl -X POST "https://api.echotuner.app/spotify/playlists" \
+curl -X POST "https://echotuner-api.domax.lt/spotify/playlists" \
   -H "X-User-ID: user_12345" \
   -H "X-Playlist-ID: playlist_67890" \
   -H "Content-Type: application/json" \
@@ -99,16 +97,14 @@ Remove specific tracks from a Spotify playlist.
 
 ```json
 {
-  "success": true,
-  "removed_count": 2,
-  "message": "Tracks removed successfully"
+  "removed_count": 2
 }
 ```
 
 #### Example
 
 ```bash
-curl -X DELETE "https://api.echotuner.app/spotify/playlists/37i9dQZF1DX0XUsuxWHRQd/tracks" \
+curl -X DELETE "https://echotuner-api.domax.lt/spotify/playlists/37i9dQZF1DX0XUsuxWHRQd/tracks" \
   -H "X-User-ID: user_12345" \
   -H "Content-Type: application/json" \
   -d '{

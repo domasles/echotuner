@@ -16,12 +16,7 @@
         <h1 class="auth-title error">Authentication Failed</h1>
         {{error_detail}}
         <p class="auth-message">{{error_message}}</p>
-        <p class="auth-footer">This window will close automatically in a few seconds.</p>
+        <p class="auth-footer">We suggest you try again. If you think this is an issue, submit a GitHub issue <a href="https://github.com/domasles/echotuner/issues">here</a></p>
     </div>
-    <script nonce="{{nonce}}">
-        setTimeout(() => {
-            window.close();
-        }, 3000);
-    </script>
 </body>
 </html>

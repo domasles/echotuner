@@ -77,15 +77,14 @@ Save or update user's music personality and preferences.
   "personality_saved": true,
   "artists_count": 4,
   "genres_count": 4,
-  "preferences_updated": "2025-08-11T14:15:00Z",
-  "message": "Personality preferences saved successfully"
+  "preferences_updated": "2025-08-11T14:15:00Z"
 }
 ```
 
 #### Example
 
 ```bash
-curl -X PUT "https://api.echotuner.app/personality" \
+curl -X PUT "https://echotuner-api.domax.lt/personality" \
   -H "X-User-ID: user_12345" \
   -H "Content-Type: application/json" \
   -d '{
@@ -203,7 +202,7 @@ Search for artists to add to preferences.
 #### Example
 
 ```bash
-curl -X POST "https://api.echotuner.app/personality/artists/search" \
+curl -X POST "https://echotuner-api.domax.lt/personality/artists/search" \
   -H "X-User-ID: user_12345" \
   -H "Content-Type: application/json" \
   -d '{
@@ -265,7 +264,6 @@ Delete all personality data for the user.
 
 ```json
 {
-  "success": true,
   "message": "Personality data deleted successfully"
 }
 ```

@@ -37,7 +37,7 @@ Initialize the authentication flow based on server mode and session UUID.
 #### Shared Mode Response (Owner Setup Required)
 ```json
 {
-  "auth_url": "https://api.echotuner.app/auth/setup",
+  "auth_url": "https://echotuner-api.domax.lt/auth/setup",
   "session_uuid": "550e8400-e29b-41d4-a716-446655440000",
   "action": "setup_required",
   "message": "Owner setup required. An external browser window will open to complete the setup process."
@@ -46,7 +46,7 @@ Initialize the authentication flow based on server mode and session UUID.
 
 #### Example
 ```bash
-curl -X POST "https://api.echotuner.app/auth/init" \
+curl -X POST "https://echotuner-api.domax.lt/auth/init" \
   -H "X-Session-UUID: 550e8400-e29b-41d4-a716-446655440000" \
   -H "Content-Type: application/json"
 ```
@@ -135,7 +135,7 @@ or
 
 #### Example
 ```bash
-curl -X GET "https://api.echotuner.app/auth/status" \
+curl -X GET "https://echotuner-api.domax.lt/auth/status" \
   -H "X-Session-UUID: 550e8400-e29b-41d4-a716-446655440000"
 ```
 

@@ -14,18 +14,8 @@
             </svg>
         </div>
         <h1 class="auth-title success">Success!</h1>
-        <p class="auth-message">You've successfully connected your Spotify account.</p>
+        <p class="auth-message">You've successfully logged into EchoTuner!</p>
         <p class="auth-footer">You can now close this window and return to the app.</p>
     </div>
-    <script nonce="{{nonce}}">
-        // Just notify success and close - no data sharing through callback
-        if (window.opener) {
-            window.opener.postMessage({
-                type: 'SPOTIFY_AUTH_SUCCESS'
-            }, '*');
-        }
-
-        setTimeout(() => {window.close();}, 3000);
-    </script>
 </body>
 </html>
