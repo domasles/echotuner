@@ -25,7 +25,6 @@ from infrastructure.template.service import template_service
 from infrastructure.logging.config import configure_logging
 from infrastructure.ai.registry import provider_registry
 from infrastructure.auth.service import oauth_service
-from infrastructure.data.service import data_loader
 from infrastructure.database.core import db_core
 
 from domain.playlist.generator import playlist_generator_service
@@ -56,7 +55,6 @@ async def lifespan(app: FastAPI):
     
     try:
         service_manager.register_service("filesystem_service", filesystem_service)
-        service_manager.register_service("data_service", data_loader)
         service_manager.register_service("rate_limiter_service", rate_limiter_service)
         service_manager.register_service("template_service", template_service)
         service_manager.register_service("ai_service", provider_registry)
@@ -69,7 +67,6 @@ async def lifespan(app: FastAPI):
         service_manager.register_service("database_core", db_core)
 
         await service_manager.initialize_all_services()
-        asyncio.create_task(preload_data_cache())
         logger.info("All services initialized successfully")
         
     except Exception as e:
@@ -86,25 +83,6 @@ async def lifespan(app: FastAPI):
 
     except Exception as e:
         logger.warning(f"Error during shutdown: {e}")
-
-async def preload_data_cache():
-    """Pre-load frequently used data in background"""
-
-    try:
-        loop = asyncio.get_event_loop()
-
-        preload_tasks = [
-            loop.run_in_executor(None, data_loader.get_mood_patterns),
-            loop.run_in_executor(None, data_loader.get_genre_patterns),
-            loop.run_in_executor(None, data_loader.get_activity_patterns),
-            loop.run_in_executor(None, data_loader.get_energy_trigger_words),
-        ]
-
-        await asyncio.gather(*preload_tasks, return_exceptions=True)
-        logger.info("Data cache preloaded successfully")
-
-    except Exception as e:
-        logger.warning(f"Cache preloading failed (non-critical): {e}")
 
 app = FastAPI(
     title=app_constants.API_TITLE,

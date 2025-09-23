@@ -4,8 +4,6 @@ import logging
 
 from fastapi import HTTPException, APIRouter
 
-from infrastructure.data.service import data_loader
-
 from domain.shared.validation.validators import UniversalValidator
 from domain.config.app_constants import app_constants
 from domain.auth.decorators import debug_only
@@ -46,26 +44,6 @@ async def get_config():
         },
         "shared_mode": settings.SHARED
     }
-
-@router.post("/reload")
-@debug_only
-async def reload_config():
-    """Reload JSON configuration files without restarting the server"""
-
-    try:
-        data_loader.reload_cache()
-        logger.info("Configuration files reloaded successfully")
-
-        return {
-            "message": "Configuration reloaded successfully",
-            "status": "success"
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to reload configuration: {e}")
-        sanitized_error = UniversalValidator.sanitize_error_message(str(e))
-
-        raise HTTPException(status_code=500, detail=f"Failed to reload configuration: {sanitized_error}")
 
 async def root():
     """API root endpoint with welcome message and endpoint list"""
