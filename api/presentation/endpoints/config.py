@@ -4,18 +4,14 @@ import logging
 
 from fastapi import HTTPException, APIRouter
 
-from domain.config.app_constants import app_constants
-from domain.config.settings import settings
-
 from infrastructure.data.service import data_loader
 
-from domain.auth.decorators import debug_only
-
 from domain.shared.validation.validators import UniversalValidator
+from domain.config.app_constants import app_constants
+from domain.auth.decorators import debug_only
+from domain.config.settings import settings
 
 logger = logging.getLogger(__name__)
-
-# Create FastAPI router
 router = APIRouter(prefix="/config", tags=["config"])
 
 @router.get("/health")
@@ -55,6 +51,7 @@ async def get_config():
 @debug_only
 async def reload_config():
     """Reload JSON configuration files without restarting the server"""
+
     try:
         data_loader.reload_cache()
         logger.info("Configuration files reloaded successfully")
@@ -72,6 +69,7 @@ async def reload_config():
 
 async def root():
     """API root endpoint with welcome message and endpoint list"""
+
     return {
         "message": app_constants.API_WELCOME_MESSAGE,
         "description": "AI-powered playlist generation with real-time song search",

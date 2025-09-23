@@ -1,17 +1,16 @@
 """Server-related endpoint implementations"""
 
 import logging
-from fastapi import APIRouter
-from domain.auth.decorators import debug_only
 
-from domain.config.settings import settings
-from application.service_manager import service_manager
+from domain.auth.decorators import debug_only
+from fastapi import APIRouter
 
 from domain.config.app_constants import app_constants
+from domain.config.settings import settings
+
+from application.service_manager import service_manager
 
 logger = logging.getLogger(__name__)
-
-# Create FastAPI router
 router = APIRouter(prefix="/server", tags=["server"])
 
 @router.get("/mode")

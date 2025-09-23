@@ -6,7 +6,6 @@ from fastapi import HTTPException, APIRouter
 
 from domain.shared.validation.validators import UniversalValidator
 from domain.auth.decorators import debug_only
-
 from domain.config.security import security
 
 from infrastructure.ai.registry import provider_registry

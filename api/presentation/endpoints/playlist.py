@@ -3,31 +3,28 @@
 import logging
 import uuid
 
+from fastapi import HTTPException, APIRouter, Request
 from datetime import datetime
 from typing import Union
-from fastapi import HTTPException, APIRouter, Request
 
-from domain.auth.decorators import debug_only
-from domain.shared.validation.validators import UniversalValidator
 from domain.shared.validation.decorators import validate_request_data, validate_request_headers
-
-from application import PlaylistRequest, PlaylistResponse, LibraryPlaylistsResponse, SpotifyPlaylistInfo, SpotifyPlaylistRequest, SpotifyPlaylistResponse
-
-from domain.config import app_constants
-from domain.config.settings import settings
-from infrastructure.database.repository import repository
-from infrastructure.database.models import UserAccount
-
+from domain.shared.validation.validators import UniversalValidator
 from domain.playlist.generator import playlist_generator_service
 from domain.playlist.spotify import spotify_playlist_service
 from domain.playlist.draft import playlist_draft_service
-from infrastructure.auth.service import oauth_service
+from domain.auth.decorators import debug_only
+from domain.config.settings import settings
+from domain.config import app_constants
+
+from application import PlaylistRequest, PlaylistResponse, LibraryPlaylistsResponse, SpotifyPlaylistInfo, SpotifyPlaylistRequest, SpotifyPlaylistResponse
+
 from infrastructure.rate_limiting.limit_service import rate_limiter_service
 from infrastructure.personality.service import personality_service
+from infrastructure.database.repository import repository
+from infrastructure.database.models import UserAccount
+from infrastructure.auth.service import oauth_service
 
 logger = logging.getLogger(__name__)
-
-# Create FastAPI router
 router = APIRouter(prefix="/playlists", tags=["playlists"])
 
 @router.post("", response_model=Union[PlaylistResponse, SpotifyPlaylistResponse])

@@ -4,31 +4,30 @@ import logging
 
 from fastapi import HTTPException, APIRouter, Request
 
-from domain.auth.decorators import debug_only
 from domain.shared.validation.validators import validate_request_data, validate_request_headers
+from domain.playlist.spotify import spotify_playlist_service
+from domain.playlist.draft import playlist_draft_service
+from domain.auth.decorators import debug_only
+from domain.config.settings import settings
 
 from application import SpotifyPlaylistRequest, SpotifyPlaylistResponse, SpotifyPlaylistTrackRemoveRequest
 
-from domain.playlist.spotify import spotify_playlist_service
-from domain.playlist.draft import playlist_draft_service
-from infrastructure.auth.service import oauth_service
 from infrastructure.database.repository import repository
 from infrastructure.database.models import UserAccount
-from domain.config.settings import settings
+from infrastructure.auth.service import oauth_service
 
 logger = logging.getLogger(__name__)
-
-# Create FastAPI router
 router = APIRouter(prefix="/spotify", tags=["spotify"])
 
 async def require_auth(user_id: str):
     """Validate user authentication with new unified system."""
+
     if not settings.AUTH_REQUIRED:
         return None
 
     try:
-        # Validate the user exists in our database
         user_account = await repository.get_by_field(UserAccount, "user_id", user_id)
+
         if not user_account:
             raise HTTPException(status_code=401, detail="Invalid user ID. Please authenticate first.")
         
@@ -39,6 +38,7 @@ async def require_auth(user_id: str):
 
     except HTTPException:
         raise
+
     except Exception as e:
         logger.error(f"Authentication error: {e}")
         raise HTTPException(status_code=401, detail="Authentication failed")
@@ -54,20 +54,19 @@ async def create_spotify_playlist(request: Request, spotify_request: SpotifyPlay
         if not spotify_playlist_service.is_ready():
             raise HTTPException(status_code=503, detail="Spotify playlist service not available")
 
-        # Get playlist ID from headers
         playlist_id = request.headers.get('X-Playlist-ID') or request.headers.get('x-playlist-id')
+
         if not playlist_id:
             raise HTTPException(status_code=400, detail="X-Playlist-ID header is required")
 
-        # In shared mode (Google SSO), require songs list since there's no Spotify OAuth
         if settings.SHARED:
             if not spotify_request.songs:
                 raise HTTPException(status_code=400, detail="Songs list required for shared mode")
+
             songs = spotify_request.songs
-            # Still get the draft so we can mark it as added to Spotify
             draft = await playlist_draft_service.get_draft(playlist_id)
+
         else:
-            # Normal mode - get draft playlist
             draft = await playlist_draft_service.get_draft(playlist_id)
 
             if not draft:
@@ -78,12 +77,12 @@ async def create_spotify_playlist(request: Request, spotify_request: SpotifyPlay
 
             songs = draft.songs
 
-        # Get access token (owner's token in shared mode, user's token in normal mode)
         access_token = await oauth_service.get_access_token_by_user_id(validated_user_id)
 
         if not access_token:
             if settings.SHARED:
                 raise HTTPException(status_code=401, detail="No valid Spotify credentials for shared account")
+
             else:
                 raise HTTPException(status_code=401, detail="No valid Spotify access token")
 
@@ -131,12 +130,11 @@ async def get_spotify_playlist_tracks(request: Request, validated_user_id: str =
         if not spotify_playlist_service.is_ready():
             raise HTTPException(status_code=503, detail="Spotify playlist service not available")
 
-        # Only available in normal mode
         if settings.SHARED:
             raise HTTPException(status_code=400, detail="Spotify playlist access not available in shared mode")
 
-        # Get Spotify playlist ID from headers
         spotify_playlist_id = request.headers.get('X-Spotify-Playlist-ID') or request.headers.get('x-spotify-playlist-id')
+
         if not spotify_playlist_id:
             raise HTTPException(status_code=400, detail="X-Spotify-Playlist-ID header is required")
 
@@ -146,7 +144,6 @@ async def get_spotify_playlist_tracks(request: Request, validated_user_id: str =
             raise HTTPException(status_code=401, detail="No valid Spotify access token")
 
         tracks = await spotify_playlist_service.get_playlist_tracks(access_token, spotify_playlist_id)
-
         return {"tracks": tracks}
 
     except HTTPException:
@@ -167,8 +164,8 @@ async def remove_track_from_spotify_playlist(request: Request, track_remove_requ
         if settings.SHARED:
             raise HTTPException(status_code=400, detail="Spotify playlist modification not available in shared mode")
 
-        # Get Spotify playlist ID from headers
         spotify_playlist_id = request.headers.get('X-Spotify-Playlist-ID') or request.headers.get('x-spotify-playlist-id')
+
         if not spotify_playlist_id:
             raise HTTPException(status_code=400, detail="X-Spotify-Playlist-ID header is required")
 
