@@ -10,8 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, Request
 
-from application.service_manager import service_manager
 from application import *
+from application.service_manager import service_manager
 
 from domain.config.app_constants import app_constants
 from domain.config.security import security
