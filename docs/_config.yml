@@ -58,7 +58,7 @@ toc: true
 comments:
   provider: disqus
   disqus:
-    shortname: EchoTuner
+    shortname: echotuner
   utterances:
     repo:
     issue_term:
