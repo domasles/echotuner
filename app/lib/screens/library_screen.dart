@@ -462,9 +462,9 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
                     ),
                 ),
 
-                subtitle: Text(
-                    '${playlist.tracksCount} tracks',
-                    style: const TextStyle(color: Colors.white70),
+                subtitle: const Text(
+                    'View in Spotify!',
+                    style: TextStyle(color: Colors.white70),
                 ),
 
                 trailing: Row(

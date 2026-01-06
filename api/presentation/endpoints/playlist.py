@@ -307,28 +307,16 @@ async def get_playlists(request: Request, validated_user_id: str = None):
                         )
 
                         if echotuner_playlist_ids:
-                            # Get playlists from our database instead of Spotify API
                             all_playlists = await spotify_playlist_service.get_user_playlists_from_db(user_id)
 
-                            # Fetch all playlist details in parallel for better performance
-                            async def get_playlist_with_details(playlist):
-                                try:
-                                    playlist_details = await spotify_playlist_service.get_playlist_details(access_token, playlist['id'])
-                                    tracks_count = playlist_details.get('tracks', {}).get('total', 0)
-                                except Exception as e:
-                                    logger.warning(f"Failed to get track count for playlist {playlist['id']}: {e}")
-                                    tracks_count = 0
-
-                                return SpotifyPlaylistInfo(
+                            spotify_playlists = [
+                                SpotifyPlaylistInfo(
                                     id=playlist['id'],
                                     name=playlist.get('name', 'Unknown'),
-                                    tracks_count=tracks_count,
                                     spotify_url=playlist.get('external_urls', {}).get('spotify')
                                 )
-
-                            spotify_playlists = await asyncio.gather(
-                                *[get_playlist_with_details(p) for p in all_playlists]
-                            )
+                                for playlist in all_playlists
+                            ]
 
                 except Exception as e:
                     logger.warning(f"Failed to fetch Spotify playlists: {e}")

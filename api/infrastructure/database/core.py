@@ -37,8 +37,17 @@ class DatabaseCore(SingletonServiceBase):
                 echo=False,
                 future=True,
                 pool_pre_ping=True,
-                connect_args={"check_same_thread": False}
+                connect_args={
+                    "check_same_thread": False,
+                    "timeout": 30
+                }
             )
+            
+            # Enable WAL mode for better concurrent read/write performance
+            async with self.engine.connect() as conn:
+                await conn.execute(text("PRAGMA journal_mode=WAL"))
+                await conn.execute(text("PRAGMA synchronous=NORMAL"))
+                await conn.commit()
 
             self.async_session_factory = async_sessionmaker(
                 bind=self.engine,

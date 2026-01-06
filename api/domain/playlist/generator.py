@@ -103,24 +103,20 @@ class PlaylistGeneratorService(SingletonServiceBase):
                 instruction = "Mix popular classics with some hidden gems and lesser-known tracks."
 
             ai_prompt = f"""
-                {chr(10).join(context_parts)}
+{chr(10).join(context_parts)}
 
-                {instruction}
+{instruction}
 
-                Please provide {count} real songs that match this request. Return ONLY a JSON array of songs in this exact format:
-                [
-                    {{"title": "Song Title", "artist": "Artist Name"}},
-                    {{"title": "Song Title", "artist": "Artist Name"}}
-                ]
+Return exactly {count} REAL songs as a JSON array in this format:
+[{{"title": "Song Title", "artist": "Artist Name"}}]
 
-                Requirements:
-                - All songs must be REAL songs that exist
-                - Never include fictional songs or artists
-                - Never return duplicate songs
-                - Match the user's mood and preferences
-                - Include variety across the preferred genres and decades
-                - No explanations, just the JSON array
-            """
+Constraints:
+- All songs must exist in the real world
+- No duplicate songs
+- Match the user's mood and preferences
+- Ensure variety across genres and decades
+- Output JSON ONLY, no text before or after
+"""
 
             response_text = await self._call_ai_model(ai_prompt)
             

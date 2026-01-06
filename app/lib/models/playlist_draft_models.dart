@@ -121,9 +121,6 @@ class SpotifyPlaylistInfo {
     final String name;
     final String? description;
 
-    @JsonKey(name: 'tracks_count')
-    final int tracksCount;
-
     @JsonKey(name: 'spotify_url')
     final String? spotifyUrl;
 
@@ -134,8 +131,6 @@ class SpotifyPlaylistInfo {
         required this.name,
 
         this.description,
-
-        required this.tracksCount,
 
         this.spotifyUrl,
         this.images,

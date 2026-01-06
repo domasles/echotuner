@@ -31,7 +31,6 @@ class SpotifyPlaylistInfo(BaseModel):
     id: str
     name: str
     description: Optional[str] = None
-    tracks_count: int
     spotify_url: Optional[str] = None
 
 

@@ -58,11 +58,20 @@ class PlaylistDraftService(SingletonServiceBase):
 
         try:
             cutoff_time = datetime.now() - timedelta(hours=24)
-            cutoff_timestamp = cutoff_time.isoformat()
-            
-            # Use database service for cleanup
-            # Note: This would need a specific method in database service for cleaning old drafts
-            logger.debug("Cleaned up expired drafts")
+
+            all_drafts = await self.repository.list_all(PlaylistDraftModel)
+            deleted_count = 0
+
+            for draft in all_drafts:
+                if draft.status == 'draft' and draft.created_at < cutoff_time:
+                    await self.repository.delete(PlaylistDraftModel, draft.id)
+                    deleted_count += 1
+
+            if deleted_count > 0:
+                logger.info(f"Cleaned up {deleted_count} expired draft(s)")
+
+            else:
+                logger.debug("No expired drafts to clean up")
 
         except Exception as e:
             logger.error(f"Failed to cleanup expired drafts: {e}")
