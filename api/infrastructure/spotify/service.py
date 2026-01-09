@@ -81,6 +81,12 @@ class SpotifySearchService(SingletonServiceBase):
 
         try:
             results = self.spotify.search(q=query, type="track", limit=limit)
+
+            # Add null safety checks to prevent NoneType errors
+            if not results or not results.get("tracks") or not results["tracks"].get("items"):
+                logger.warning(f"Spotify search returned no results for query: {query}")
+                return []
+            
             songs = []
 
             for track in results["tracks"]["items"]:

@@ -27,6 +27,14 @@ class ServiceManager(SingletonServiceBase):
         
         logger.info("Starting managed service initialization...")
         successful_services = []
+        failed_services = []
+
+        # Define critical services that must initialize successfully
+        critical_services = {
+            'spotify_search_service',
+            'database_core',
+            'ai_service'
+        }
 
         for service_name, service in self.services.items(): 
             try:
@@ -39,6 +47,15 @@ class ServiceManager(SingletonServiceBase):
                     
             except Exception as e:
                 logger.error(f"Failed to initialize {service_name}: {e}")
+                failed_services.append(service_name)
+        
+        # Check if any critical services failed
+        failed_critical = [name for name in failed_services if name in critical_services]
+
+        if failed_critical:
+            error_msg = f"Critical services failed to initialize: {', '.join(failed_critical)}"
+            logger.critical(error_msg)
+            raise RuntimeError(error_msg)
 
         logger.info(f"Service initialization complete. Success: {len(successful_services)}/{len(self.services)}")
 
