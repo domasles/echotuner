@@ -27,11 +27,11 @@ COPY docker/env-config.js.template /usr/share/nginx/html/env-config.js.template
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker/entrypoint.sh /entrypoint.sh
 
-# Expose the web app port
-EXPOSE 80
-
 # Make entrypoint script executable
 RUN chmod +x /entrypoint.sh
+
+# Expose the web app port
+EXPOSE 80
 
 # Run the web app
 ENTRYPOINT ["/entrypoint.sh"]
