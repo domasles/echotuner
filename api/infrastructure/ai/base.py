@@ -5,6 +5,7 @@ This module defines the base interface that all AI providers must implement.
 """
 
 import httpx
+import asyncio
 import logging
 
 from typing import Dict, Any, Optional, List
@@ -13,6 +14,10 @@ from abc import ABC, abstractmethod
 from domain.config.settings import settings
 
 logger = logging.getLogger(__name__)
+
+# Shared global httpx client for all AI providers (connection pooling)
+_shared_ai_client: Optional[httpx.AsyncClient] = None
+_client_lock = asyncio.Lock()  # Prevent race condition on client creation
 
 class BaseAIProvider(ABC):
     """Abstract base class for AI providers."""
@@ -30,17 +35,23 @@ class BaseAIProvider(ABC):
         self._client: Optional[httpx.AsyncClient] = None
 
     async def initialize(self) -> None:
-        """Initialize the provider (create client, test connectivity, etc.)."""
-
-        if self._client is None:
-            self._client = httpx.AsyncClient(timeout=self.timeout)
-
-    async def close(self) -> None:
-        """Close the provider and cleanup resources."""
-
-        if self._client:
-            await self._client.aclose()
-            self._client = None
+        """Initialize the provider (uses shared client for connection pooling)."""
+        global _shared_ai_client
+        
+        async with _client_lock:  # Prevent race condition
+            if _shared_ai_client is None:
+                # Create shared client with connection pooling (100 max connections)
+                _shared_ai_client = httpx.AsyncClient(
+                    timeout=httpx.Timeout(self.timeout),
+                    limits=httpx.Limits(
+                        max_connections=100,
+                        max_keepalive_connections=20
+                    )
+                )
+                logger.debug("Created shared httpx client for AI providers")
+        
+        # All providers use the shared client
+        self._client = _shared_ai_client
 
     @abstractmethod
     async def test_availability(self) -> bool:
@@ -74,3 +85,12 @@ class BaseAIProvider(ABC):
             "temperature": self.temperature,
             "timeout": self.timeout
         }
+
+async def cleanup_shared_ai_client():
+    """Cleanup the shared httpx client on application shutdown."""
+    global _shared_ai_client
+    
+    if _shared_ai_client:
+        await _shared_ai_client.aclose()
+        _shared_ai_client = None
+        logger.debug("Closed shared httpx client for AI providers")

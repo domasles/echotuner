@@ -24,14 +24,25 @@ class SpotifyPlaylistService(SingletonServiceBase):
 
     def __init__(self):
         super().__init__()
+        self._httpx_client: Optional[httpx.AsyncClient] = None
 
     async def _setup_service(self):
-        """Initialize the SpotifyPlaylistService."""
+        """Initialize the SpotifyPlaylistService with persistent httpx client."""
 
         try:
             if not settings.SPOTIFY_CLIENT_ID or not settings.SPOTIFY_CLIENT_SECRET:
                 logger.warning("Spotify credentials not configured - playlist creation disabled")
                 return
+            
+            # Create persistent httpx client for connection pooling
+            self._httpx_client = httpx.AsyncClient(
+                timeout=httpx.Timeout(30.0),
+                limits=httpx.Limits(
+                    max_connections=100,
+                    max_keepalive_connections=20
+                )
+            )
+            logger.debug("Created persistent httpx client for Spotify service")
 
         except Exception as e:
             logger.error(f"Failed to initialize Spotify playlist service: {e}")
@@ -40,7 +51,7 @@ class SpotifyPlaylistService(SingletonServiceBase):
     def is_ready(self) -> bool:
         """Check if the service is ready."""
 
-        return settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET
+        return settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET and self._httpx_client is not None
 
 
 
@@ -76,30 +87,36 @@ class SpotifyPlaylistService(SingletonServiceBase):
         """Get tracks from a specific Spotify playlist."""
 
         try:
-            async with httpx.AsyncClient() as client:
-                headers = {'Authorization': f'Bearer {access_token}'}
+            if not self._httpx_client:
+                # Try to reinitialize if client wasn't created
+                await self._setup_service()
+                
+                if not self._httpx_client:
+                    raise Exception("Spotify service not initialized - check credentials")
+            
+            headers = {'Authorization': f'Bearer {access_token}'}
 
-                url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
-                params = {'limit': 100}
+            url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
+            params = {'limit': 100}
 
-                tracks = []
+            tracks = []
 
-                while url:
-                    response = await client.get(url, headers=headers, params=params)
-                    
-                    if response.status_code == 200:
-                        data = response.json()
-                        tracks.extend(data.get('items', []))
-                        url = data.get('next')
-                        params = {}
+            while url:
+                response = await self._httpx_client.get(url, headers=headers, params=params)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    tracks.extend(data.get('items', []))
+                    url = data.get('next')
+                    params = {}
 
-                    elif response.status_code == 401:
-                        raise Exception("Invalid or expired access token")
+                elif response.status_code == 401:
+                    raise Exception("Invalid or expired access token")
 
-                    else:
-                        raise Exception(f"Failed to fetch playlist tracks: {response.status_code}")
+                else:
+                    raise Exception(f"Failed to fetch playlist tracks: {response.status_code}")
 
-                return tracks
+            return tracks
 
         except Exception as e:
             logger.error(f"Failed to get playlist tracks: {e}")
@@ -109,46 +126,52 @@ class SpotifyPlaylistService(SingletonServiceBase):
         """Create a new Spotify playlist with the given songs."""
 
         try:
-            async with httpx.AsyncClient() as client:
-                headers = {
-                    'Authorization': f'Bearer {access_token}',
-                    'Content-Type': 'application/json'
-                }
-
-                user_id = await self._get_user_id(client, headers)
-
-                playlist_data = {
-                    'name': playlist_name,
-                    'description': description if description else AppConstants.DEFAULT_PLAYLIST_DESCRIPTION,
-                    'public': public
-                }
-
-                url = f'https://api.spotify.com/v1/users/{user_id}/playlists'
-
-                response = await client.post(url, headers=headers, json=playlist_data)
+            if not self._httpx_client:
+                # Try to reinitialize if client wasn't created
+                await self._setup_service()
                 
-                if response.status_code == 201:
-                    playlist_info = response.json()
-                    playlist_id = playlist_info['id']
-                    playlist_url = playlist_info['external_urls']['spotify']
+                if not self._httpx_client:
+                    raise Exception("Spotify service not initialized - check credentials")
+            
+            headers = {
+                'Authorization': f'Bearer {access_token}',
+                'Content-Type': 'application/json'
+            }
 
-                elif response.status_code == 401:
-                    raise Exception("Invalid or expired access token")
+            user_id = await self._get_user_id(self._httpx_client, headers)
 
-                else:
-                    raise Exception(f"Failed to create playlist: {response.status_code}")
+            playlist_data = {
+                'name': playlist_name,
+                'description': description if description else AppConstants.DEFAULT_PLAYLIST_DESCRIPTION,
+                'public': public
+            }
 
-                track_uris = []
+            url = f'https://api.spotify.com/v1/users/{user_id}/playlists'
 
-                for song in songs:
-                    if song.spotify_id:
-                        track_uris.append(f'spotify:track:{song.spotify_id}')
+            response = await self._httpx_client.post(url, headers=headers, json=playlist_data)
+                
+            if response.status_code == 201:
+                playlist_info = response.json()
+                playlist_id = playlist_info['id']
+                playlist_url = playlist_info['external_urls']['spotify']
 
-                if track_uris:
-                    await self._add_tracks_to_playlist(client, headers, playlist_id, track_uris)
+            elif response.status_code == 401:
+                raise Exception("Invalid or expired access token")
 
-                logger.debug(f"Created Spotify playlist {playlist_id} with {len(track_uris)} tracks")
-                return playlist_id, playlist_url
+            else:
+                raise Exception(f"Failed to create playlist: {response.status_code}")
+
+            track_uris = []
+
+            for song in songs:
+                if song.spotify_id:
+                    track_uris.append(f'spotify:track:{song.spotify_id}')
+
+            if track_uris:
+                await self._add_tracks_to_playlist(self._httpx_client, headers, playlist_id, track_uris)
+
+            logger.debug(f"Created Spotify playlist {playlist_id} with {len(track_uris)} tracks")
+            return playlist_id, playlist_url
 
         except Exception as e:
             logger.error(f"Failed to create Spotify playlist: {e}")
@@ -186,8 +209,8 @@ class SpotifyPlaylistService(SingletonServiceBase):
             if response.status_code not in [200, 201]:
                     raise Exception(f"Failed to add tracks to playlist: {response.status}")
 
-            if i + batch_size < len(track_uris):
-                await asyncio.sleep(0.1)
+            # No sleep needed - Spotify rate limit is per-user, not global
+            # await asyncio.sleep(0.1)
 
     async def _clear_playlist_tracks(self, client: httpx.AsyncClient, headers: Dict[str, str], playlist_id: str):
         """Remove all tracks from a Spotify playlist."""
@@ -215,8 +238,8 @@ class SpotifyPlaylistService(SingletonServiceBase):
                     if delete_response.status_code not in [200, 201]:
                         raise Exception(f"Failed to clear playlist tracks: {delete_response.status_code}")
 
-                    if i + batch_size < len(track_uris):
-                        await asyncio.sleep(0.1)
+                    # No sleep needed - Spotify rate limit is per-user, not global
+                    # await asyncio.sleep(0.1)
 
         elif response.status_code == 401:
             raise Exception("Invalid or expired access token")
@@ -230,24 +253,30 @@ class SpotifyPlaylistService(SingletonServiceBase):
         """Remove a track from a Spotify playlist."""
 
         try:
-            async with httpx.AsyncClient() as client:
-                headers = {
-                    'Authorization': f'Bearer {access_token}',
-                    'Content-Type': 'application/json'
-                }
-
-                url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
-                data = {
-                    'tracks': [{'uri': track_uri}]
-                }
-
-                response = await client.delete(url, headers=headers, json=data)
+            if not self._httpx_client:
+                # Try to reinitialize if client wasn't created
+                await self._setup_service()
                 
-                if response.status_code in [200, 201]:
-                    logger.debug(f"Successfully removed track from playlist {playlist_id}")
-                    return True
+                if not self._httpx_client:
+                    raise Exception("Spotify service not initialized - check credentials")
+            
+            headers = {
+                'Authorization': f'Bearer {access_token}',
+                'Content-Type': 'application/json'
+            }
 
-                else:
+            url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
+            data = {
+                'tracks': [{'uri': track_uri}]
+            }
+
+            response = await self._httpx_client.delete(url, headers=headers, json=data)
+            
+            if response.status_code in [200, 201]:
+                logger.debug(f"Successfully removed track from playlist {playlist_id}")
+                return True
+
+            else:
                     logger.error(f"Failed to remove track: {response.status_code}")
                     return False
 

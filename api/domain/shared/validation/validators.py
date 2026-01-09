@@ -38,17 +38,21 @@ class UniversalValidator:
     ]
 
     @classmethod
-    def sanitize_error_message(cls, error_message: str) -> str:
-        """Sanitize error messages to prevent information disclosure."""
+    def sanitize_error_message(cls, error_message: str, preserve_api_urls: bool = True) -> str:
+        """Sanitize error messages while preserving useful debugging info."""
         if not isinstance(error_message, str):
             return "Internal error occurred"
-            
-        sanitized = re.sub(r'/[a-zA-Z0-9_/.-]+', '[PATH]', error_message)
-        sanitized = re.sub(r'[A-Za-z]:[\\a-zA-Z0-9_\\.-]+', '[PATH]', sanitized)
-        sanitized = re.sub(r'line \d+', 'line [NUM]', sanitized)
-        sanitized = re.sub(r'function \w+', 'function [NAME]', sanitized)
-        sanitized = re.sub(r'<[^>]+>', '[INTERNAL]', sanitized)
         
+        # Only sanitize local file paths, preserve API endpoints and error details
+        sanitized = error_message
+        
+        if not preserve_api_urls:
+            # Sanitize local file paths only
+            sanitized = re.sub(r'/Users/[a-zA-Z0-9_/.-]+', '[LOCAL_PATH]', sanitized)
+            sanitized = re.sub(r'C:\\\\Users\\\\[a-zA-Z0-9_\\\\.-]+', '[LOCAL_PATH]', sanitized)
+            sanitized = re.sub(r'/home/[a-zA-Z0-9_/.-]+', '[LOCAL_PATH]', sanitized)
+        
+        # Don't strip HTTPS URLs, line numbers, or function names - they're useful!
         return sanitized
 
     @classmethod

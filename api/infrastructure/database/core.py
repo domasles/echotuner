@@ -36,6 +36,8 @@ class DatabaseCore(SingletonServiceBase):
                 self.database_url,
                 echo=False,
                 future=True,
+                pool_size=20,           # Max persistent connections
+                max_overflow=10,        # Extra connections under load
                 pool_pre_ping=True,
                 connect_args={
                     "check_same_thread": False,

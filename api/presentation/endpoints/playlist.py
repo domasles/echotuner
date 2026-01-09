@@ -11,7 +11,7 @@ from typing import Union
 from domain.shared.validation.decorators import validate_request_headers
 from domain.shared.validation.validators import UniversalValidator
 from domain.playlist.generator import playlist_generator_service
-from domain.playlist.spotify import spotify_playlist_service
+from infrastructure.spotify.playlist_service import spotify_playlist_service
 from domain.playlist.draft import playlist_draft_service
 from domain.auth.decorators import debug_only
 from domain.config.settings import settings

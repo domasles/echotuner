@@ -28,7 +28,7 @@ from infrastructure.auth.service import oauth_service
 from infrastructure.database.core import db_core
 
 from domain.playlist.generator import playlist_generator_service
-from domain.playlist.spotify import spotify_playlist_service
+from infrastructure.spotify.playlist_service import spotify_playlist_service
 from domain.playlist.draft import playlist_draft_service
 
 from presentation.endpoints.personality import router as personality_router

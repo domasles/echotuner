@@ -191,8 +191,8 @@ class ProviderRegistry(SingletonServiceBase):
 
         except Exception as e:
             logger.error(f"Text generation failed: {e}")
-            sanitized_error = UniversalValidator.sanitize_error_message(str(e))
-            raise Exception(f"Text generation failed: {sanitized_error}")
+            logger.error("Full traceback:", exc_info=True)
+            raise Exception(f"Text generation failed: {str(e)}")
 
     def get_provider_info(self, provider_id: Optional[str] = None) -> Dict[str, Any]:
         """Get information about a specific provider."""
