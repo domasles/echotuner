@@ -19,7 +19,7 @@ from domain.config.settings import settings
 
 from infrastructure.rate_limiting.limit_service import rate_limiter_service
 from infrastructure.personality.service import personality_service
-from infrastructure.spotify.service import spotify_search_service
+from infrastructure.spotify.search_service import spotify_search_service
 from infrastructure.filesystem.service import filesystem_service
 from infrastructure.template.service import template_service
 from infrastructure.logging.config import configure_logging
@@ -39,11 +39,7 @@ from presentation.endpoints.user import router as user_router
 from presentation.endpoints.auth import router as auth_router
 from presentation.endpoints.ai import router as ai_router
 
-# Configure structured logging early
-configure_logging(
-    level=settings.LOG_LEVEL,
-    structured=settings.STRUCTURED_LOGGING
-)
+configure_logging(level=settings.LOG_LEVEL)
 
 logger = logging.getLogger(__name__)
 

@@ -20,15 +20,14 @@ class Settings:
     SHARED: bool = os.getenv("SHARED", "false").lower() == "true"
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-    STRUCTURED_LOGGING: bool = os.getenv("STRUCTURED_LOGGING", "false").lower() == "true"
 
     AI_PROVIDER: str = os.getenv("AI_PROVIDER", "ollama")
 
     AI_ENDPOINT: str = os.getenv("AI_ENDPOINT", "http://localhost:11434")
     AI_GENERATION_MODEL: str = os.getenv("AI_GENERATION_MODEL", "phi3:mini")
-    AI_MAX_TOKENS: Optional[int] = int(os.getenv("AI_MAX_TOKENS", 2000))
+    AI_MAX_TOKENS: Optional[int] = int(os.getenv("AI_MAX_TOKENS", 65535))
     AI_TEMPERATURE: Optional[float] = float(os.getenv("AI_TEMPERATURE", 0.7))
-    AI_TIMEOUT: int = int(os.getenv("AI_TIMEOUT", 30))
+    AI_TIMEOUT: int = int(os.getenv("AI_TIMEOUT", 60))
 
     CLOUD_API_KEY: Optional[str] = os.getenv("CLOUD_API_KEY")
 

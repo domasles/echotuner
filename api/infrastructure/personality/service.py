@@ -14,7 +14,7 @@ from infrastructure.singleton import SingletonServiceBase
 
 from domain.config.settings import settings
 
-from infrastructure.spotify.service import spotify_search_service
+from infrastructure.spotify.search_service import spotify_search_service
 from infrastructure.database.repository import repository
 from infrastructure.database.models.users import UserPersonality
 from infrastructure.auth.service import oauth_service

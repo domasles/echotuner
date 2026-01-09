@@ -18,7 +18,7 @@ ollama==0.5.1
 numpy==2.3.1
 
 # Spotify integration
-spotipy==2.25.1
+async-spotify==0.4.4
 
 # Security and auth
 python-jose[cryptography]==3.5.0

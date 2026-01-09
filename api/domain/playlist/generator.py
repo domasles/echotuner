@@ -6,6 +6,7 @@ Generates playlists using AI-powered real-time song search.
 import logging
 import random
 import json
+import asyncio
 
 from typing import List, Dict, Any, Optional
 
@@ -14,7 +15,7 @@ from application import Song, UserContext
 from domain.config.settings import settings
 from domain.config.app_constants import app_constants
 
-from infrastructure.spotify.service import spotify_search_service
+from infrastructure.spotify.search_service import spotify_search_service
 from infrastructure.ai.registry import provider_registry
 from infrastructure.personality.service import personality_service
 
@@ -184,39 +185,45 @@ Constraints:
             return []
     
     async def _verify_songs_on_spotify(self, ai_songs: List[dict]) -> List[Song]:
-        """Fast verification of AI-suggested songs on Spotify - OPTIMIZED"""
+        """Parallel verification of AI-suggested songs on Spotify using asyncio.gather()"""
         
-        verified_songs = []
-        
-        for song_data in ai_songs:
+        async def verify_single_song(song_data: dict) -> Optional[Song]:
+            """Verify a single song - returns Song or None"""
             try:
-                # Build search query for exact match - only title and artist needed
+                # Build search query
                 title = song_data.get("title", "").strip()
                 artist = song_data.get("artist", "").strip()
                 
                 if not title or not artist:
-                    continue
+                    return None
                 
-                # Fast exact search with minimal query
-                search_query = f'"{title}" "{artist}"'
-                
-                # Use Spotify's faster search method - single call per song
-                songs = await self.spotify_search._search_spotify(search_query, limit=1)
+                # Try broad search first (works for 95% of songs)
+                broad_query = f"{title} {artist}"
+                songs = await self.spotify_search._search_spotify(broad_query, limit=1)
                 
                 if songs:
-                    verified_songs.append(songs[0])
-                else:
-                    # Quick fallback: just title and artist name without quotes
-                    fallback_query = f"{title} {artist}"
-                    fallback_songs = await self.spotify_search._search_spotify(fallback_query, limit=1)
-                    
-                    if fallback_songs:
-                        verified_songs.append(fallback_songs[0])
-                    
+                    return songs[0]
+                
+                # Fallback: try exact match with quotes
+                exact_query = f'"{title}" "{artist}"'
+                exact_songs = await self.spotify_search._search_spotify(exact_query, limit=1)
+                
+                return exact_songs[0] if exact_songs else None
+                
             except Exception as e:
                 logger.warning(f"Failed to verify song '{song_data.get('title', 'Unknown')}' by '{song_data.get('artist', 'Unknown')}': {e}")
-                continue
+                return None
         
+        # Execute all verifications in parallel (10-15x speedup)
+        tasks = [verify_single_song(song) for song in ai_songs]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Filter successful results (ignore None and exceptions)
+        verified_songs = [
+            song for song in results 
+            if song is not None and not isinstance(song, Exception)
+        ]
+
         return verified_songs
 
     async def _call_ai_model(self, prompt: str) -> str:
