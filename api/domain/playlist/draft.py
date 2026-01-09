@@ -16,7 +16,6 @@ from infrastructure.singleton import SingletonServiceBase
 from application import PlaylistDraft, Song
 from domain.config.app_constants import AppConstants
 from domain.config.settings import settings
-from domain.shared.exceptions import handle_service_errors, raise_playlist_error, ErrorCode
 
 from infrastructure.database.repository import repository
 from infrastructure.database.models.playlists import PlaylistDraft as PlaylistDraftModel, SpotifyPlaylist
@@ -39,7 +38,7 @@ class PlaylistDraftService(SingletonServiceBase):
         try:
             asyncio.create_task(self._cleanup_expired_drafts_loop())
         except Exception as e:
-            raise_playlist_error(f"Failed to initialize playlist draft service: {e}", ErrorCode.INTERNAL_ERROR)
+            raise RuntimeError(f"Failed to initialize playlist draft service: {e}")
 
     async def _cleanup_expired_drafts_loop(self):
         """Background task to clean up expired drafts."""
@@ -80,7 +79,6 @@ class PlaylistDraftService(SingletonServiceBase):
         """Generate a unique draft ID."""
         return str(uuid.uuid4())
 
-    @handle_service_errors("save_draft")
     async def save_draft(self, user_id: str, prompt: str, songs: List[Song]) -> Optional[str]:
         """Save a playlist draft using user_id (unified approach)."""
         try:

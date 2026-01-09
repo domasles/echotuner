@@ -5,7 +5,7 @@ import logging
 from fastapi import HTTPException, APIRouter, Request
 from typing import Dict, Any
 
-from domain.shared.validation.decorators import validate_request_data, validate_request_headers
+from domain.shared.validation.decorators import validate_request_headers
 from domain.shared.validation.validators import UniversalValidator
 from domain.auth.decorators import debug_only
 from domain.config.settings import settings

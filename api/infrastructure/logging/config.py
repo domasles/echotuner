@@ -62,35 +62,6 @@ class ConsoleFormatter(logging.Formatter):
         
         return formatted_message
 
-class StructuredLogger:
-    """Wrapper for structured logging with context"""
-    
-    def __init__(self, name: str):
-        self.logger = logging.getLogger(name)
-        
-    def _log_with_context(self, level: int, message: str, **context):
-        """Log with additional context fields"""
-        record = self.logger.makeRecord(
-            self.logger.name, level, "", 0, message, (), None
-        )
-        record.extra_fields = context
-        self.logger.handle(record)
-        
-    def debug(self, message: str, **context):
-        self._log_with_context(logging.DEBUG, message, **context)
-        
-    def info(self, message: str, **context):
-        self._log_with_context(logging.INFO, message, **context)
-        
-    def warning(self, message: str, **context):
-        self._log_with_context(logging.WARNING, message, **context)
-        
-    def error(self, message: str, **context):
-        self._log_with_context(logging.ERROR, message, **context)
-        
-    def critical(self, message: str, **context):
-        self._log_with_context(logging.CRITICAL, message, **context)
-
 def configure_logging(
     level: str = "INFO", 
     structured: bool = False,
@@ -137,7 +108,3 @@ def configure_logging(
     for logger_name in service_loggers:
         logger = logging.getLogger(logger_name)
         logger.setLevel(numeric_level)
-
-def get_structured_logger(name: str) -> StructuredLogger:
-    """Get a structured logger instance"""
-    return StructuredLogger(name)

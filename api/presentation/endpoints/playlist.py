@@ -8,7 +8,7 @@ from fastapi import HTTPException, APIRouter, Request
 from datetime import datetime
 from typing import Union
 
-from domain.shared.validation.decorators import validate_request_data, validate_request_headers
+from domain.shared.validation.decorators import validate_request_headers
 from domain.shared.validation.validators import UniversalValidator
 from domain.playlist.generator import playlist_generator_service
 from domain.playlist.spotify import spotify_playlist_service
