@@ -56,28 +56,5 @@ class Settings:
 
     MAX_PROMPT_LENGTH: int = int(os.getenv("MAX_PROMPT_LENGTH", 128))
     MAX_PLAYLIST_NAME_LENGTH: int = int(os.getenv("MAX_PLAYLIST_NAME_LENGTH", 100))
-    
-    def validate_required_settings(self) -> list[str]:
-        """Validate that required settings are configured for production"""
-
-        errors = []
-
-        if not self.DEBUG:
-            if not self.SPOTIFY_CLIENT_ID:
-                errors.append("SPOTIFY_CLIENT_ID is required")
-
-            if not self.SPOTIFY_CLIENT_SECRET:
-                errors.append("SPOTIFY_CLIENT_SECRET is required")
-
-            if not self.SPOTIFY_REDIRECT_URI:
-                errors.append("SPOTIFY_REDIRECT_URI is required")
-
-            if not self.SECURE_HEADERS:
-                errors.append("SECURE_HEADERS should be enabled in production")
-
-            if not self.AUTH_REQUIRED:
-                errors.append("AUTH_REQUIRED should be enabled in production")
-
-        return errors
         
 settings = Settings()

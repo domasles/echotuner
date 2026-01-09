@@ -64,5 +64,6 @@ services:
     depends_on:
       - api
       - webapp
+      - docs
 
     profiles: ["full"]
