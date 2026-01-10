@@ -3,5 +3,5 @@
 from .decorators import *
 
 __all__ = [
-    'debug_only',
+    "debug_only",
 ]

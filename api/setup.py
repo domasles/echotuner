@@ -7,6 +7,7 @@ Automated setup for EchoTuner API
 import subprocess
 import sys
 
+
 def run_command(command, description):
     """Run a command and handle errors"""
 
@@ -24,11 +25,12 @@ def run_command(command, description):
 
         return False
 
+
 def main():
     """Main setup function"""
 
     print("EchoTuner Setup")
- 
+
     if sys.version_info < (3, 8):
         print("Error: Python 3.8 or higher is required")
         sys.exit(1)
@@ -41,6 +43,7 @@ def main():
 
     print("\nSetup completed!")
     print("\nFollow the instructions in the README for further installation steps.")
+
 
 if __name__ == "__main__":
     main()

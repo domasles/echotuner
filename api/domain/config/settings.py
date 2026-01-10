@@ -11,6 +11,7 @@ sys.path.insert(0, str(api_dir))
 
 load_dotenv(f"{api_dir}/.env")
 
+
 class Settings:
     """Configuration settings for EchoTuner API."""
 
@@ -56,5 +57,6 @@ class Settings:
 
     MAX_PROMPT_LENGTH: int = int(os.getenv("MAX_PROMPT_LENGTH", 128))
     MAX_PLAYLIST_NAME_LENGTH: int = int(os.getenv("MAX_PLAYLIST_NAME_LENGTH", 100))
-        
+
+
 settings = Settings()

@@ -12,14 +12,13 @@ from domain.config.settings import settings
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/config", tags=["config"])
 
+
 @router.get("/health")
 async def health_check():
     """Check API health and service status"""
 
-    return {
-        "status": "healthy",
-        "version": app_constants.API_VERSION
-    }
+    return {"status": "healthy", "version": app_constants.API_VERSION}
+
 
 @router.get("")
 async def get_config():
@@ -42,8 +41,9 @@ async def get_config():
             "auth_required": settings.AUTH_REQUIRED,
             "playlist_limit_enabled": settings.PLAYLIST_LIMIT_ENABLED,
         },
-        "shared_mode": settings.SHARED
+        "shared_mode": settings.SHARED,
     }
+
 
 async def root():
     """API root endpoint with welcome message and endpoint list"""
@@ -63,6 +63,6 @@ async def root():
             "auth_validate": "/auth/validate",
             "library": "/playlist/library",
             "add_to_spotify": "/spotify/create-playlist",
-            "get_draft": "/playlist/drafts"
-        }
+            "get_draft": "/playlist/drafts",
+        },
     }

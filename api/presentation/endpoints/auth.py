@@ -19,6 +19,7 @@ from domain.config.settings import settings
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
+
 @router.post("/init")
 async def auth_init(request: Request, app_id: str = Header(None, alias="X-Session-UUID")):
     """Initialize authentication flow based on mode and app UUID."""
@@ -37,34 +38,31 @@ async def auth_init(request: Request, app_id: str = Header(None, alias="X-Sessio
 
         if settings.SHARED:
             owner_creds = await oauth_service.get_owner_credentials()
-            
+
             if not owner_creds:
-                return JSONResponse({
-                    "auth_url": f"{request.base_url}auth/setup",
-                    "session_uuid": app_id,
-                    "action": "setup_required",
-                    "message": "Owner setup required. An external browser window will open to complete the setup process."
-                })
+                return JSONResponse(
+                    {
+                        "auth_url": f"{request.base_url}auth/setup",
+                        "session_uuid": app_id,
+                        "action": "setup_required",
+                        "message": "Owner setup required. An external browser window will open to complete the setup process.",
+                    }
+                )
 
             else:
-                auth_url = oauth_service.get_auth_url('google', app_id)
+                auth_url = oauth_service.get_auth_url("google", app_id)
 
-                return JSONResponse({
-                    "auth_url": auth_url,
-                    "session_uuid": app_id
-                })
+                return JSONResponse({"auth_url": auth_url, "session_uuid": app_id})
 
         else:
-            auth_url = oauth_service.get_auth_url('spotify', app_id)
+            auth_url = oauth_service.get_auth_url("spotify", app_id)
 
-            return JSONResponse({
-                "auth_url": auth_url,
-                "session_uuid": app_id
-            })
+            return JSONResponse({"auth_url": auth_url, "session_uuid": app_id})
 
     except Exception as e:
         logger.error(f"Auth init failed: {e}")
         raise HTTPException(status_code=500, detail="Authentication initialization failed")
+
 
 @router.get("/setup")
 async def setup_page(request: Request):
@@ -78,8 +76,9 @@ async def setup_page(request: Request):
     if owner_creds:
         return JSONResponse({"message": "Setup already completed"})
 
-    auth_url = oauth_service.get_auth_url('spotify')
+    auth_url = oauth_service.get_auth_url("spotify")
     return RedirectResponse(url=auth_url)
+
 
 @router.get("/spotify/callback")
 async def spotify_callback(code: str, state: str = None, error: str = None):
@@ -89,9 +88,7 @@ async def spotify_callback(code: str, state: str = None, error: str = None):
         logger.error(f"Spotify OAuth error: {error}")
 
         html_content = template_service.render_template(
-            "html/auth_error.html",
-            error_message="Authentication failed. Please try again.",
-            error_detail=""
+            "html/auth_error.html", error_message="Authentication failed. Please try again.", error_detail=""
         )
 
         return HTMLResponse(content=html_content, status_code=400)
@@ -111,12 +108,11 @@ async def spotify_callback(code: str, state: str = None, error: str = None):
         logger.error(f"Spotify callback failed: {e}")
 
         html_content = template_service.render_template(
-            "html/auth_error.html",
-            error_message="Authentication failed. Please try again.",
-            error_detail=""
+            "html/auth_error.html", error_message="Authentication failed. Please try again.", error_detail=""
         )
 
         return HTMLResponse(content=html_content, status_code=500)
+
 
 @router.get("/google/callback")
 async def google_callback(code: str, state: str = None, error: str = None):
@@ -126,9 +122,7 @@ async def google_callback(code: str, state: str = None, error: str = None):
         logger.error(f"Google OAuth error: {error}")
 
         html_content = template_service.render_template(
-            "html/auth_error.html",
-            error_message="Authentication failed. Please try again.",
-            error_detail=""
+            "html/auth_error.html", error_message="Authentication failed. Please try again.", error_detail=""
         )
 
         return HTMLResponse(content=html_content, status_code=400)
@@ -142,12 +136,11 @@ async def google_callback(code: str, state: str = None, error: str = None):
         logger.error(f"Google callback failed: {e}")
 
         html_content = template_service.render_template(
-            "html/auth_error.html",
-            error_message="Authentication failed. Please try again.",
-            error_detail=""
+            "html/auth_error.html", error_message="Authentication failed. Please try again.", error_detail=""
         )
 
         return HTMLResponse(content=html_content, status_code=500)
+
 
 @router.get("/status")
 async def auth_status(app_id: str = Header(None, alias="X-Session-UUID")):

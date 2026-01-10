@@ -14,9 +14,10 @@ from .base import BaseAIProvider
 
 logger = logging.getLogger(__name__)
 
+
 class GoogleProvider(BaseAIProvider):
     """Google Gemini AI provider implementation."""
-    
+
     def __init__(self):
         """Initialize Google provider."""
 
@@ -32,16 +33,13 @@ class GoogleProvider(BaseAIProvider):
             headers = self.headers.copy()
             headers["Content-Type"] = "application/json"
 
-            test_payload = {
-                "contents": [{"parts": [{"text": "Hi"}]}],
-                "generationConfig": {"maxOutputTokens": 1}
-            }
+            test_payload = {"contents": [{"parts": [{"text": "Hi"}]}], "generationConfig": {"maxOutputTokens": 1}}
 
             response = await self._client.post(
                 f"{self.endpoint}/v1beta/models/{self.generation_model}:generateContent",
                 headers=headers,
                 json=test_payload,
-                timeout=5
+                timeout=5,
             )
             return response.status_code == 200
 
@@ -59,17 +57,17 @@ class GoogleProvider(BaseAIProvider):
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {
                 "maxOutputTokens": kwargs.get("max_tokens", self.max_tokens),
-                "temperature": kwargs.get("temperature", self.temperature)
-            }
+                "temperature": kwargs.get("temperature", self.temperature),
+            },
         }
 
         response = await self._client.post(
             f"{self.endpoint}/v1beta/models/{self.generation_model}:generateContent",
             headers=headers,
             json=payload,
-            timeout=self.timeout
+            timeout=self.timeout,
         )
-        
+
         if response.status_code != 200:
             raise Exception(f"Google request failed: {response.text}")
 

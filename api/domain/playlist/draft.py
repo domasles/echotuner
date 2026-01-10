@@ -24,6 +24,7 @@ from domain.shared.validation.validators import UniversalValidator
 
 logger = logging.getLogger(__name__)
 
+
 class PlaylistDraftService(SingletonServiceBase):
     """Service for managing playlist drafts and Spotify playlist integration using ORM."""
 
@@ -47,7 +48,7 @@ class PlaylistDraftService(SingletonServiceBase):
             try:
                 await asyncio.sleep(3600)  # Run every hour
                 await self._cleanup_expired_drafts()
-                
+
             except Exception as e:
                 logger.error(f"Error in cleanup loop: {e}")
                 await asyncio.sleep(300)  # Wait 5 minutes before retrying
@@ -62,7 +63,7 @@ class PlaylistDraftService(SingletonServiceBase):
             deleted_count = 0
 
             for draft in all_drafts:
-                if draft.status == 'draft' and draft.created_at < cutoff_time:
+                if draft.status == "draft" and draft.created_at < cutoff_time:
                     await self.repository.delete(PlaylistDraftModel, draft.id)
                     deleted_count += 1
 
@@ -84,18 +85,18 @@ class PlaylistDraftService(SingletonServiceBase):
         try:
             draft_id = self._create_draft_id()
             songs_json = json.dumps([song.model_dump() for song in songs])
-            
+
             # Create data for new draft
             draft_data = {
-                'id': draft_id,
-                'user_id': user_id,
-                'prompt': prompt,
-                'songs_json': songs_json,
-                'status': 'draft',
-                'created_at': datetime.now(),
-                'updated_at': datetime.now(),
-                'spotify_playlist_id': None,
-                'spotify_playlist_url': None
+                "id": draft_id,
+                "user_id": user_id,
+                "prompt": prompt,
+                "songs_json": songs_json,
+                "status": "draft",
+                "created_at": datetime.now(),
+                "updated_at": datetime.now(),
+                "spotify_playlist_id": None,
+                "spotify_playlist_url": None,
             }
 
             # Save to database using repository
@@ -117,13 +118,13 @@ class PlaylistDraftService(SingletonServiceBase):
             logger.debug(f"Getting draft for ID: {draft_id}")
             # Get draft from database using repository
             draft_model = await self.repository.get_by_id(PlaylistDraftModel, draft_id)
-            
+
             if not draft_model:
                 logger.warning(f"No draft data found for ID: {draft_id}")
                 return None
 
             # Parse songs from JSON
-            songs_data = json.loads(draft_model.songs_json or '[]')
+            songs_data = json.loads(draft_model.songs_json or "[]")
             songs = [Song.model_validate(song_data) for song_data in songs_data]
 
             draft = PlaylistDraft(
@@ -131,9 +132,9 @@ class PlaylistDraftService(SingletonServiceBase):
                 user_id=draft_model.user_id,
                 prompt=draft_model.prompt,
                 songs=songs,
-                status=draft_model.status or 'draft',
+                status=draft_model.status or "draft",
                 created_at=draft_model.created_at,
-                updated_at=draft_model.updated_at
+                updated_at=draft_model.updated_at,
             )
 
             if draft_model.spotify_playlist_id:
@@ -151,16 +152,13 @@ class PlaylistDraftService(SingletonServiceBase):
 
         try:
             # Get drafts from database using repository
-            draft_models = await self.repository.list_with_conditions(
-                PlaylistDraftModel, 
-                {"user_id": user_id}
-            )
-            
+            draft_models = await self.repository.list_with_conditions(PlaylistDraftModel, {"user_id": user_id})
+
             drafts = []
             for draft_model in draft_models[:limit]:  # Apply limit
                 try:
                     # Parse songs from JSON
-                    songs_data = json.loads(draft_model.songs_json or '[]')
+                    songs_data = json.loads(draft_model.songs_json or "[]")
                     songs = [Song.model_validate(song_data) for song_data in songs_data]
 
                     draft = PlaylistDraft(
@@ -168,9 +166,9 @@ class PlaylistDraftService(SingletonServiceBase):
                         user_id=draft_model.user_id,
                         prompt=draft_model.prompt,
                         songs=songs,
-                        status=draft_model.status or 'draft',
+                        status=draft_model.status or "draft",
                         created_at=draft_model.created_at,
-                        updated_at=draft_model.updated_at
+                        updated_at=draft_model.updated_at,
                     )
                     drafts.append(draft)
 
@@ -202,13 +200,9 @@ class PlaylistDraftService(SingletonServiceBase):
         """Update an existing draft with new songs."""
         try:
             songs_json = json.dumps([song.model_dump() for song in songs])
-            
+
             # Update data for existing draft
-            update_data = {
-                'prompt': prompt,
-                'songs_json': songs_json,
-                'updated_at': datetime.now()
-            }
+            update_data = {"prompt": prompt, "songs_json": songs_json, "updated_at": datetime.now()}
 
             # Update in database using repository
             success = await self.repository.update(PlaylistDraftModel, draft_id, update_data)
@@ -231,7 +225,7 @@ class PlaylistDraftService(SingletonServiceBase):
                 drafts = await self.get_user_drafts(user_id)
                 for draft in drafts:
                     await self.delete_draft(draft.id)
-                
+
                 logger.debug(f"Cleaned up data for user {user_id}")
 
         except Exception as e:
@@ -242,53 +236,59 @@ class PlaylistDraftService(SingletonServiceBase):
         try:
             # Get all drafts that have been added to Spotify
             drafts = await self.repository.list_with_conditions(
-                PlaylistDraftModel, 
-                {"user_id": user_id, "status": "added_to_spotify"}
+                PlaylistDraftModel, {"user_id": user_id, "status": "added_to_spotify"}
             )
-            
+
             playlist_ids = []
             for draft in drafts:
                 if draft.spotify_playlist_id:
                     playlist_ids.append(draft.spotify_playlist_id)
-            
+
             logger.debug(f"Found {len(playlist_ids)} EchoTuner Spotify playlists for user {user_id}")
             return playlist_ids
-            
+
         except Exception as e:
             logger.error(f"Failed to get user EchoTuner Spotify playlist IDs: {e}")
             return []
 
-    async def mark_as_added_to_spotify(self, playlist_id: str, spotify_playlist_id: str, spotify_url: str, user_id: str, playlist_name: str) -> bool:
+    async def mark_as_added_to_spotify(
+        self, playlist_id: str, spotify_playlist_id: str, spotify_url: str, user_id: str, playlist_name: str
+    ) -> bool:
         """Mark a playlist draft as added to Spotify."""
         try:
             # Update the playlist draft to mark it as added to Spotify
-            draft = await self.repository.get_by_field(PlaylistDraftModel, 'id', playlist_id)
+            draft = await self.repository.get_by_field(PlaylistDraftModel, "id", playlist_id)
             if draft:
-                await self.repository.update(PlaylistDraftModel, playlist_id, {
-                    'spotify_playlist_id': spotify_playlist_id,
-                    'spotify_playlist_url': spotify_url,
-                    'status': 'added_to_spotify',
-                    'songs_json': '',  # Clear song data - now in Spotify
-                    'updated_at': datetime.now()
-                })
+                await self.repository.update(
+                    PlaylistDraftModel,
+                    playlist_id,
+                    {
+                        "spotify_playlist_id": spotify_playlist_id,
+                        "spotify_playlist_url": spotify_url,
+                        "status": "added_to_spotify",
+                        "songs_json": "",  # Clear song data - now in Spotify
+                        "updated_at": datetime.now(),
+                    },
+                )
 
             # Create a tracking record in SpotifyPlaylist table
             spotify_playlist_data = {
-                'spotify_playlist_id': spotify_playlist_id,
-                'user_id': user_id,
-                'original_draft_id': playlist_id,
-                'playlist_name': playlist_name,
-                'created_at': datetime.now(),
-                'updated_at': datetime.now()
+                "spotify_playlist_id": spotify_playlist_id,
+                "user_id": user_id,
+                "original_draft_id": playlist_id,
+                "playlist_name": playlist_name,
+                "created_at": datetime.now(),
+                "updated_at": datetime.now(),
             }
 
             await self.repository.create(SpotifyPlaylist, spotify_playlist_data)
             logger.info(f"Marked playlist {playlist_id} as added to Spotify with ID {spotify_playlist_id}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to mark playlist as added to Spotify: {e}")
             return False
+
 
 # Create singleton instance
 playlist_draft_service = PlaylistDraftService()

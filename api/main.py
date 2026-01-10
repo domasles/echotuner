@@ -43,12 +43,13 @@ configure_logging(level=settings.LOG_LEVEL)
 
 logger = logging.getLogger(__name__)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle"""
 
     logger.info("Initializing EchoTuner API services...")
-    
+
     try:
         service_manager.register_service("filesystem_service", filesystem_service)
         service_manager.register_service("rate_limiter_service", rate_limiter_service)
@@ -64,11 +65,11 @@ async def lifespan(app: FastAPI):
 
         await service_manager.initialize_all_services()
         logger.info("All services initialized successfully")
-        
+
     except Exception as e:
         logger.error(f"Failed to initialize services: {e}")
         raise
-    
+
     yield
 
     logger.info("Shutting down EchoTuner API...")
@@ -80,15 +81,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Error during shutdown: {e}")
 
+
 app = FastAPI(
     title=app_constants.API_TITLE,
     description="AI-powered playlist generation with real-time song search",
     version=app_constants.API_VERSION,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.mount("/static", StaticFiles(directory="templates"), name="static")
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -97,8 +100,8 @@ async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
     nonce = None
 
-    if hasattr(response, 'body') and b'nonce=' in response.body:
-        body_str = response.body.decode('utf-8')
+    if hasattr(response, "body") and b"nonce=" in response.body:
+        body_str = response.body.decode("utf-8")
         nonce_match = re.search(r'nonce="([^"]+)"', body_str)
 
         if nonce_match:
@@ -110,6 +113,7 @@ async def add_security_headers(request: Request, call_next):
         response.headers[header] = value
 
     return response
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -135,12 +139,9 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "main:app",
-
         host=settings.API_HOST,
         port=settings.API_PORT,
-
         log_level=settings.LOG_LEVEL.lower(),
-
         reload=settings.DEBUG,
-        reload_excludes=["__pycache__", "storage", "templates", ".git", ".github", "venv"]
+        reload_excludes=["__pycache__", "storage", "templates", ".git", ".github", "venv"],
     )

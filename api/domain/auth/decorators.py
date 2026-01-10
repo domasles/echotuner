@@ -13,16 +13,14 @@ from domain.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
+
 def debug_only(func):
     """Decorator to restrict endpoints to debug mode only"""
 
     @wraps(func)
     async def wrapper(*args, **kwargs):
         if not settings.DEBUG:
-            raise HTTPException(
-                status_code=403, 
-                detail="This endpoint is only available in debug mode"
-            )
+            raise HTTPException(status_code=403, detail="This endpoint is only available in debug mode")
 
         return await func(*args, **kwargs)
 

@@ -19,9 +19,10 @@ from .base import BaseAIProvider
 
 logger = logging.getLogger(__name__)
 
+
 class ProviderRegistry(SingletonServiceBase):
     """Registry for AI providers with service capabilities."""
-    
+
     def __init__(self):
         super().__init__()
 
@@ -34,7 +35,7 @@ class ProviderRegistry(SingletonServiceBase):
 
         self._auto_register_providers()
         self._setup_default_providers()
-        
+
         # Initialize the current provider
         if self._current_provider:
             try:
@@ -50,10 +51,10 @@ class ProviderRegistry(SingletonServiceBase):
         if self._active_provider_instance:
             await self._active_provider_instance.close()
             self._active_provider_instance = None
-            
+
         await self.close_all()
         logger.info("AI provider registry cleaned up")
-    
+
     def _auto_register_providers(self):
         """Automatically discover and register all provider classes."""
 
@@ -69,7 +70,11 @@ class ProviderRegistry(SingletonServiceBase):
                 module = importlib.import_module(f"infrastructure.ai.{module_name}")
 
                 for name, obj in inspect.getmembers(module, inspect.isclass):
-                    if (issubclass(obj, BaseAIProvider) and obj not in (BaseAIProvider, CustomProvider, AdvancedCustomProvider)):
+                    if issubclass(obj, BaseAIProvider) and obj not in (
+                        BaseAIProvider,
+                        CustomProvider,
+                        AdvancedCustomProvider,
+                    ):
                         provider = obj()
                         provider_name = provider.get_info().get("name", "").lower()
 
@@ -158,20 +163,20 @@ class ProviderRegistry(SingletonServiceBase):
 
     async def close_all(self):
         """Close all provider instances."""
-        
+
         for provider_id, provider in self._provider_instances.items():
             try:
                 await provider.close()
                 logger.debug(f"Closed provider: {provider_id}")
             except Exception as e:
                 logger.warning(f"Error closing provider {provider_id}: {e}")
-        
+
         self._provider_instances.clear()
 
     async def generate_text(self, prompt: str, provider_id: Optional[str] = None, **kwargs) -> str:
         """
         Generate text using the specified AI provider.
-        
+
         Args:
             prompt: Input prompt for text generation
             provider_id: Optional provider ID (uses default if None)
@@ -186,7 +191,7 @@ class ProviderRegistry(SingletonServiceBase):
             if not self._active_provider_instance:
                 self._active_provider_instance = self.get_provider(provider_id)
                 await self._active_provider_instance.initialize()
-                
+
             return await self._active_provider_instance.generate_text(prompt, **kwargs)
 
         except Exception as e:
@@ -198,5 +203,6 @@ class ProviderRegistry(SingletonServiceBase):
         """Get information about a specific provider."""
         provider = self.get_provider(provider_id)
         return provider.get_info()
+
 
 provider_registry = ProviderRegistry()

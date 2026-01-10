@@ -13,6 +13,7 @@ from infrastructure.ai.registry import provider_registry
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["ai"])
 
+
 @router.get("/models")
 async def get_ai_models():
     """Get available AI models and their configurations"""
@@ -31,6 +32,7 @@ async def get_ai_models():
         "available_models": models,
     }
 
+
 @router.post("/test")
 @debug_only
 async def test_ai_model(request):
@@ -42,15 +44,12 @@ async def test_ai_model(request):
         prompt = data.get("prompt", "Hello, this is a test.")
         response = await provider_registry.generate_text(prompt, model_id=model_id)
 
-        return {
-            "success": True,
-            "model_used": provider_registry.get_provider_info(model_id),
-            "response": response
-        }
+        return {"success": True, "model_used": provider_registry.get_provider_info(model_id), "response": response}
 
     except Exception as e:
         sanitized_error = UniversalValidator.sanitize_error_message(str(e))
         raise HTTPException(status_code=500, detail=f"AI test failed: {sanitized_error}")
+
 
 @debug_only
 async def production_readiness_check():
@@ -68,6 +67,6 @@ async def production_readiness_check():
             "Configure rate limiting",
             "Use HTTPS in production",
             "Set up proper logging",
-            "Configure monitoring"
-        ]
+            "Configure monitoring",
+        ],
     }

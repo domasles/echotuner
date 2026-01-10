@@ -13,11 +13,9 @@ from application.service_manager import service_manager
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/server", tags=["server"])
 
+
 @router.get("/mode")
 async def get_server_mode():
     """Get current server mode"""
 
-    return {
-        "shared_mode": settings.SHARED,
-        "mode": "shared" if settings.SHARED else "normal"
-    }
+    return {"shared_mode": settings.SHARED, "mode": "shared" if settings.SHARED else "normal"}

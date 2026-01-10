@@ -7,6 +7,7 @@ from sqlalchemy import Column, String, Integer, Text, ForeignKey, DateTime, func
 
 from ..core import Base
 
+
 class UserPersonality(Base):
     """User personality data table for all users (Spotify and Google)."""
 

@@ -12,6 +12,7 @@ from .base import BaseAIProvider
 
 logger = logging.getLogger(__name__)
 
+
 class OllamaProvider(BaseAIProvider):
     """Ollama AI provider implementation."""
 
@@ -41,16 +42,12 @@ class OllamaProvider(BaseAIProvider):
             "stream": False,
             "options": {
                 "num_predict": kwargs.get("max_tokens", self.max_tokens),
-                "temperature": kwargs.get("temperature", self.temperature)
-            }
+                "temperature": kwargs.get("temperature", self.temperature),
+            },
         }
 
-        response = await self._client.post(
-            f"{self.endpoint}/api/generate",
-            json=payload,
-            timeout=self.timeout
-        )
-        
+        response = await self._client.post(f"{self.endpoint}/api/generate", json=payload, timeout=self.timeout)
+
         if response.status_code != 200:
             raise Exception(f"Ollama request failed: {response.text}")
 

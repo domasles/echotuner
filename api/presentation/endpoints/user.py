@@ -17,6 +17,7 @@ from infrastructure.auth.service import oauth_service
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/user", tags=["user"])
 
+
 @router.get("/profile")
 @validate_request_headers()
 async def get_user_profile(request: Request, validated_user_id: str = None):
@@ -35,7 +36,7 @@ async def get_user_profile(request: Request, validated_user_id: str = None):
             "provider": user_account.provider,
             "display_name": user_account.display_name or "Unknown",
             "created_at": user_account.created_at.isoformat() if user_account.created_at else None,
-            "last_used_at": user_account.last_used_at.isoformat() if user_account.last_used_at else None
+            "last_used_at": user_account.last_used_at.isoformat() if user_account.last_used_at else None,
         }
 
     except HTTPException:
@@ -44,6 +45,7 @@ async def get_user_profile(request: Request, validated_user_id: str = None):
     except Exception as e:
         logger.error(f"Failed to get user profile: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve profile information")
+
 
 @router.get("/rate-limit-status")
 @validate_request_headers()
@@ -59,7 +61,7 @@ async def get_rate_limit_status(request: Request, validated_user_id: str = None)
             "requests_made_today": status.requests_made_today,
             "max_requests_per_day": status.max_requests_per_day,
             "can_make_request": status.can_make_request,
-            "playlist_limit_enabled": settings.PLAYLIST_LIMIT_ENABLED
+            "playlist_limit_enabled": settings.PLAYLIST_LIMIT_ENABLED,
         }
 
     except Exception as e:

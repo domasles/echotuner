@@ -20,6 +20,7 @@ from domain.shared.validation.validators import UniversalValidator
 
 logger = logging.getLogger(__name__)
 
+
 class RateLimiterService(SingletonServiceBase):
     """
     Service to handle rate limiting for playlist generation requests.
@@ -63,7 +64,7 @@ class RateLimiterService(SingletonServiceBase):
             device_hash = self._get_device_hash(device_id)
             current_date = datetime.now().date().isoformat()
 
-            rate_limit = await self.repository.get_by_field(RateLimit, 'user_id', device_hash)
+            rate_limit = await self.repository.get_by_field(RateLimit, "user_id", device_hash)
 
             if not rate_limit:
                 return True
@@ -87,7 +88,7 @@ class RateLimiterService(SingletonServiceBase):
             user_hash = self._get_device_hash(user_id)  # Reuse hash function for consistency
             current_date = datetime.now().date()
 
-            rate_limit = await self.repository.get_by_field(RateLimit, 'user_id', user_hash)
+            rate_limit = await self.repository.get_by_field(RateLimit, "user_id", user_hash)
 
             if rate_limit:
                 request_count = rate_limit.requests_count
@@ -97,20 +98,24 @@ class RateLimiterService(SingletonServiceBase):
                     request_count = 0
 
                 new_count = request_count + 1
-                await self.repository.update(RateLimit, user_hash, {
-                    'requests_count': new_count,
-                    'last_request_date': current_date,
-                    'updated_at': datetime.now()
-                }, id_field='user_id')
+                await self.repository.update(
+                    RateLimit,
+                    user_hash,
+                    {"requests_count": new_count, "last_request_date": current_date, "updated_at": datetime.now()},
+                    id_field="user_id",
+                )
 
             else:
-                await self.repository.create(RateLimit, {
-                    'user_id': user_hash,
-                    'requests_count': 1,
-                    'last_request_date': current_date,
-                    'created_at': datetime.now(),
-                    'updated_at': datetime.now()
-                })
+                await self.repository.create(
+                    RateLimit,
+                    {
+                        "user_id": user_hash,
+                        "requests_count": 1,
+                        "last_request_date": current_date,
+                        "created_at": datetime.now(),
+                        "updated_at": datetime.now(),
+                    },
+                )
 
         except Exception as e:
             logger.error(f"Error recording request: {e}")
@@ -122,7 +127,7 @@ class RateLimiterService(SingletonServiceBase):
 
         try:
             current_date = datetime.now().date().isoformat()
-            rate_limit = await self.repository.get_by_field(RateLimit, 'user_id', user_hash)
+            rate_limit = await self.repository.get_by_field(RateLimit, "user_id", user_hash)
 
             if not rate_limit:
                 return RateLimitStatus(
@@ -130,7 +135,7 @@ class RateLimiterService(SingletonServiceBase):
                     requests_made_today=0,
                     max_requests_per_day=self.max_requests_per_day,
                     can_make_request=True,
-                    playlist_limit_enabled=settings.PLAYLIST_LIMIT_ENABLED
+                    playlist_limit_enabled=settings.PLAYLIST_LIMIT_ENABLED,
                 )
 
             request_count = rate_limit.requests_count
@@ -148,7 +153,7 @@ class RateLimiterService(SingletonServiceBase):
                 max_requests_per_day=self.max_requests_per_day,
                 can_make_request=request_count < self.max_requests_per_day if self.is_rate_limiting_enabled else True,
                 reset_time=reset_time,
-                playlist_limit_enabled=settings.PLAYLIST_LIMIT_ENABLED
+                playlist_limit_enabled=settings.PLAYLIST_LIMIT_ENABLED,
             )
 
         except Exception as e:
@@ -159,7 +164,7 @@ class RateLimiterService(SingletonServiceBase):
                 requests_made_today=0,
                 max_requests_per_day=self.max_requests_per_day,
                 can_make_request=True,
-                playlist_limit_enabled=settings.PLAYLIST_LIMIT_ENABLED
+                playlist_limit_enabled=settings.PLAYLIST_LIMIT_ENABLED,
             )
 
     async def reset_daily_limits(self):
@@ -169,10 +174,11 @@ class RateLimiterService(SingletonServiceBase):
             # Delete all rate limit records
             rate_limits = await self.repository.list_with_conditions(RateLimit, [])
             for rate_limit in rate_limits:
-                await self.repository.delete(RateLimit, rate_limit.user_id, id_field='user_id')
+                await self.repository.delete(RateLimit, rate_limit.user_id, id_field="user_id")
             logger.info("Daily limits reset successfully")
 
         except Exception as e:
             logger.error(f"Error resetting daily limits: {e}")
+
 
 rate_limiter_service = RateLimiterService()

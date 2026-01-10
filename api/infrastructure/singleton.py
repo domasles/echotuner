@@ -4,6 +4,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class SingletonServiceBase:
     """Base class for singleton services with managed logging."""
 

@@ -11,6 +11,7 @@ from infrastructure.singleton import SingletonServiceBase
 
 from domain.shared.validation.validators import UniversalValidator
 
+
 class TemplateService(SingletonServiceBase):
     """Service for loading and rendering HTML templates"""
 
@@ -35,9 +36,11 @@ class TemplateService(SingletonServiceBase):
             template_path = self.templates_dir / template_name
 
             if not template_path.exists():
-                raise FileNotFoundError(UniversalValidator.sanitize_error_message(f"Template {template_name} not found"))
+                raise FileNotFoundError(
+                    UniversalValidator.sanitize_error_message(f"Template {template_name} not found")
+                )
 
-            with open(template_path, 'r', encoding='utf-8') as f:
+            with open(template_path, "r", encoding="utf-8") as f:
                 self._cache[template_name] = f.read()
 
         return self._cache[template_name]
@@ -47,8 +50,8 @@ class TemplateService(SingletonServiceBase):
 
         template_content = self.load_template(template_name)
 
-        if 'nonce' not in kwargs:
-            kwargs['nonce'] = self.generate_nonce()
+        if "nonce" not in kwargs:
+            kwargs["nonce"] = self.generate_nonce()
 
         for key, value in kwargs.items():
             placeholder = f"{{{{{key}}}}}"
@@ -60,5 +63,6 @@ class TemplateService(SingletonServiceBase):
         """Clear the template cache (useful for development)"""
 
         self._cache.clear()
+
 
 template_service = TemplateService()

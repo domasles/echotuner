@@ -21,6 +21,7 @@ from infrastructure.auth.service import oauth_service
 
 logger = logging.getLogger(__name__)
 
+
 class PersonalityService(SingletonServiceBase):
     """Service for managing user personality and preferences"""
 
@@ -38,24 +39,25 @@ class PersonalityService(SingletonServiceBase):
         """Save user personality preferences by user_id (unified auth system)."""
         try:
             logger.debug(f"Saving personality for user {user_id}")
-            
+
             # Validate JSON context for security
             from domain.shared.validation.validators import UniversalValidator
+
             validated_context = UniversalValidator.validate_json_context(user_context.context)
-            
+
             # Check if user personality already exists
-            existing_personality = await self.repository.get_by_field(UserPersonality, 'user_id', user_id)
-            
+            existing_personality = await self.repository.get_by_field(UserPersonality, "user_id", user_id)
+
             personality_data = {
-                'user_id': user_id,
-                'user_context': json.dumps(validated_context),
-                'updated_at': datetime.now()
+                "user_id": user_id,
+                "user_context": json.dumps(validated_context),
+                "updated_at": datetime.now(),
             }
-            
+
             if existing_personality:
                 success = await self.repository.update(UserPersonality, existing_personality.id, personality_data)
             else:
-                personality_data['created_at'] = datetime.now()
+                personality_data["created_at"] = datetime.now()
                 result = await self.repository.create(UserPersonality, personality_data)
                 success = result is not None
 
@@ -73,7 +75,7 @@ class PersonalityService(SingletonServiceBase):
     async def get_user_personality_by_user_id(self, user_id: str) -> Optional[UserContext]:
         """Get user personality by user_id (unified auth system)."""
         try:
-            user_personality = await self.repository.get_by_field(UserPersonality, 'user_id', user_id)
+            user_personality = await self.repository.get_by_field(UserPersonality, "user_id", user_id)
 
             if user_personality:
                 user_context_data = json.loads(user_personality.user_context)
@@ -81,7 +83,7 @@ class PersonalityService(SingletonServiceBase):
             else:
                 logger.debug(f"No personality data found for user {user_id}")
                 return None
-                
+
         except Exception as e:
             logger.error(f"Failed to get user personality for user {user_id}: {e}")
             return None
@@ -93,7 +95,7 @@ class PersonalityService(SingletonServiceBase):
             if settings.SHARED:
                 logger.debug("Shared mode enabled - not pulling followed artists from Spotify")
                 return []
-            
+
             access_token = await self.oauth_service.get_access_token_by_user_id(user_id)
 
             if not access_token:
@@ -105,18 +107,20 @@ class PersonalityService(SingletonServiceBase):
 
             for artist_data in followed_artists:
                 artist = SpotifyArtist(
-                    id=artist_data.get('id', ''),
-                    name=artist_data.get('name', ''),
-                    image_url=artist_data.get('images', [{}])[0].get('url') if artist_data.get('images') else None,
-                    genres=artist_data.get('genres', []),
-                    popularity=artist_data.get('popularity', 0)
+                    id=artist_data.get("id", ""),
+                    name=artist_data.get("name", ""),
+                    image_url=artist_data.get("images", [{}])[0].get("url") if artist_data.get("images") else None,
+                    genres=artist_data.get("genres", []),
+                    popularity=artist_data.get("popularity", 0),
                 )
                 artists.append(artist)
 
             return artists
 
         except Exception as e:
-            logger.warning(f"Failed to get followed artists for user {user_id} (this may be due to insufficient permissions): {e}")
+            logger.warning(
+                f"Failed to get followed artists for user {user_id} (this may be due to insufficient permissions): {e}"
+            )
             return []
 
     async def search_artists_by_user_id(self, user_id: str, query: str, limit: int = 20) -> List[SpotifyArtist]:
@@ -134,11 +138,11 @@ class PersonalityService(SingletonServiceBase):
 
             for artist_data in search_results:
                 artist = SpotifyArtist(
-                    id=artist_data.get('id', ''),
-                    name=artist_data.get('name', ''),
-                    image_url=artist_data.get('images', [{}])[0].get('url') if artist_data.get('images') else None,
-                    genres=artist_data.get('genres', []),
-                    popularity=artist_data.get('popularity', 0)
+                    id=artist_data.get("id", ""),
+                    name=artist_data.get("name", ""),
+                    image_url=artist_data.get("images", [{}])[0].get("url") if artist_data.get("images") else None,
+                    genres=artist_data.get("genres", []),
+                    popularity=artist_data.get("popularity", 0),
                 )
 
                 artists.append(artist)
@@ -154,11 +158,11 @@ class PersonalityService(SingletonServiceBase):
         try:
             # Get favorite artists from flexible JSON context
             favorite_artists = []
-            if user_context.context.get('favorite_artists'):
-                fav_artists = user_context.context['favorite_artists']
+            if user_context.context.get("favorite_artists"):
+                fav_artists = user_context.context["favorite_artists"]
                 if isinstance(fav_artists, list):
                     favorite_artists = fav_artists
-                    
+
             all_artists = set()
 
             for artist in favorite_artists:
@@ -178,10 +182,11 @@ class PersonalityService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Failed to merge favorite artists for user {user_id}: {e}")
             # Fallback to context data if available
-            if user_context.context.get('favorite_artists'):
-                fav_artists = user_context.context['favorite_artists']
+            if user_context.context.get("favorite_artists"):
+                fav_artists = user_context.context["favorite_artists"]
                 if isinstance(fav_artists, list):
                     return fav_artists
             return []
+
 
 personality_service = PersonalityService()

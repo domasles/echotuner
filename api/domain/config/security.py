@@ -9,6 +9,7 @@ from .settings import settings
 
 logger = logging.getLogger(__name__)
 
+
 class Security:
     def get_security_headers(self, nonce: str = None):
         """Get security headers for production deployment."""
@@ -18,11 +19,11 @@ class Security:
 
             return {
                 "X-Content-Type-Options": "nosniff",
-                "X-Frame-Options": "DENY", 
+                "X-Frame-Options": "DENY",
                 "X-XSS-Protection": "1; mode=block",
                 "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
                 "Content-Security-Policy": f"default-src 'self'; style-src 'self'; script-src {script_src}",
-                "Referrer-Policy": "strict-origin-when-cross-origin"
+                "Referrer-Policy": "strict-origin-when-cross-origin",
             }
 
         return {}
@@ -51,5 +52,6 @@ class Security:
             issues.append("PLAYLIST_LIMIT_ENABLED is disabled (recommended for production)")
 
         return issues
+
 
 security = Security()

@@ -18,6 +18,7 @@ from domain.config import app_constants
 logger = logging.getLogger(__name__)
 Base = declarative_base()
 
+
 class DatabaseCore(SingletonServiceBase):
     """Core database functionality with SQLAlchemy async engine."""
 
@@ -36,15 +37,12 @@ class DatabaseCore(SingletonServiceBase):
                 self.database_url,
                 echo=False,
                 future=True,
-                pool_size=20,           # Max persistent connections
-                max_overflow=10,        # Extra connections under load
+                pool_size=20,  # Max persistent connections
+                max_overflow=10,  # Extra connections under load
                 pool_pre_ping=True,
-                connect_args={
-                    "check_same_thread": False,
-                    "timeout": 30
-                }
+                connect_args={"check_same_thread": False, "timeout": 30},
             )
-            
+
             # Enable WAL mode for better concurrent read/write performance
             async with self.engine.connect() as conn:
                 await conn.execute(text("PRAGMA journal_mode=WAL"))
@@ -52,14 +50,13 @@ class DatabaseCore(SingletonServiceBase):
                 await conn.commit()
 
             self.async_session_factory = async_sessionmaker(
-                bind=self.engine,
-                class_=AsyncSession,
-                expire_on_commit=False
+                bind=self.engine, class_=AsyncSession, expire_on_commit=False
             )
 
             # Create all tables
             async with self.engine.begin() as conn:
                 from infrastructure.database.models import Base as ModelsBase
+
                 await conn.run_sync(ModelsBase.metadata.create_all)
 
             logger.debug("Database core initialized successfully with SQLAlchemy ORM")
@@ -92,6 +89,7 @@ class DatabaseCore(SingletonServiceBase):
                 logger.info("Database core connections closed")
         except Exception as e:
             logger.warning(f"Error closing database connections: {e}")
+
 
 # Global database core instance
 db_core = DatabaseCore()

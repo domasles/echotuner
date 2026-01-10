@@ -33,7 +33,6 @@ class PlaylistDraft(BaseModel):
     spotify_playlist_url: Optional[str] = None
 
 
-
 class LibraryPlaylistsRequest(BaseModel):
     include_drafts: Optional[bool] = True
 

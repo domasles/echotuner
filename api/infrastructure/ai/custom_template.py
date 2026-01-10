@@ -19,6 +19,7 @@ from .base import BaseAIProvider
 
 logger = logging.getLogger(__name__)
 
+
 class CustomProvider(BaseAIProvider):
     """
     Custom AI provider implementation template.
@@ -70,23 +71,25 @@ class CustomProvider(BaseAIProvider):
             "prompt": prompt,
             "model": self.generation_model,
             "max_tokens": kwargs.get("max_tokens", self.max_tokens),
-            "temperature": kwargs.get("temperature", self.temperature)
+            "temperature": kwargs.get("temperature", self.temperature),
         }
 
         response = await self._client.post(
             f"{self.endpoint}/v1/generate",  # Replace with your API endpoint
             headers=self.headers,
             json=payload,
-            timeout=self.timeout
+            timeout=self.timeout,
         )
-        
+
         if response.status_code != 200:
             raise Exception(f"Custom provider request failed: {response.text}")
 
         result = response.json()
         return result.get("text", "")  # Adjust based on your API response format
 
+
 # Additional helper methods you might want to implement:
+
 
 class AdvancedCustomProvider(CustomProvider):
     """
@@ -112,7 +115,7 @@ class AdvancedCustomProvider(CustomProvider):
         # Add your custom cleanup logic here
         logger.info(f"Closing {self.name} provider")
         await super().close()
-    
+
     def validate_config(self) -> List[str]:
         """
         Validate provider configuration.

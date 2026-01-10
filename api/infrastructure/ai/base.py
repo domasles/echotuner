@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 _shared_ai_client: Optional[httpx.AsyncClient] = None
 _client_lock = asyncio.Lock()  # Prevent race condition on client creation
 
+
 class BaseAIProvider(ABC):
     """Abstract base class for AI providers."""
 
@@ -37,19 +38,16 @@ class BaseAIProvider(ABC):
     async def initialize(self) -> None:
         """Initialize the provider (uses shared client for connection pooling)."""
         global _shared_ai_client
-        
+
         async with _client_lock:  # Prevent race condition
             if _shared_ai_client is None:
                 # Create shared client with connection pooling (100 max connections)
                 _shared_ai_client = httpx.AsyncClient(
                     timeout=httpx.Timeout(self.timeout),
-                    limits=httpx.Limits(
-                        max_connections=100,
-                        max_keepalive_connections=20
-                    )
+                    limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
                 )
                 logger.debug("Created shared httpx client for AI providers")
-        
+
         # All providers use the shared client
         self._client = _shared_ai_client
 
@@ -83,13 +81,14 @@ class BaseAIProvider(ABC):
             "generation_model": self.generation_model,
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,
-            "timeout": self.timeout
+            "timeout": self.timeout,
         }
+
 
 async def cleanup_shared_ai_client():
     """Cleanup the shared httpx client on application shutdown."""
     global _shared_ai_client
-    
+
     if _shared_ai_client:
         await _shared_ai_client.aclose()
         _shared_ai_client = None
