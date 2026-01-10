@@ -31,7 +31,7 @@ class BaseAIProvider(ABC):
         self.generation_model = settings.AI_GENERATION_MODEL
         self.max_tokens = settings.AI_MAX_TOKENS
         self.temperature = settings.AI_TEMPERATURE
-        self.timeout = settings.AI_TIMEOUT
+        self.timeout = settings.AI_TIMEOUT_SECONDS
         self._client: Optional[httpx.AsyncClient] = None
 
     async def initialize(self) -> None:

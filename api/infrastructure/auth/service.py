@@ -4,6 +4,8 @@ Manages OAuth providers and authentication flow.
 """
 
 import logging
+import asyncio
+
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 
@@ -22,6 +24,7 @@ class OAuthService(SingletonServiceBase):
     
     def __init__(self):
         super().__init__()
+        self._cleanup_task: Optional[asyncio.Task] = None
     
     async def _setup_service(self):
         """Initialize OAuth providers."""
@@ -39,6 +42,10 @@ class OAuthService(SingletonServiceBase):
             client_secret=settings.GOOGLE_CLIENT_SECRET,
             redirect_uri=settings.GOOGLE_REDIRECT_URI
         )
+
+        # Start background cleanup task for orphaned auth sessions
+        self._cleanup_task = asyncio.create_task(self._periodic_session_cleanup())
+        logger.info("Started background auth session cleanup task")
     
     def get_auth_url(self, provider: str, app_id: str = None) -> str:
         """Get OAuth authorization URL for the specified provider."""
@@ -185,6 +192,13 @@ class OAuthService(SingletonServiceBase):
         session = await repository.get_by_field(AuthSession, 'app_id', app_id)
         
         if not session:
+            return None
+        
+        # Check if session has expired (10 minute timeout)
+        max_age = timedelta(minutes=10)
+        if datetime.utcnow() - session.created_at > max_age:
+            logger.debug(f"Auth session {app_id} expired, deleting")
+            await repository.delete_by_conditions(AuthSession, {"app_id": app_id})
             return None
         
         if session.user_id:
@@ -340,5 +354,53 @@ class OAuthService(SingletonServiceBase):
         except Exception as e:
             logger.error(f"Failed to get access token for user {user_id}: {e}")
             return None
+    
+    async def _periodic_session_cleanup(self):
+        """Background task to cleanup expired auth sessions."""
+        
+        while True:
+            try:
+                await asyncio.sleep(int((settings.AUTH_UUID_CLEANUP_MINUTES / 2) * 60))
+                await self._cleanup_expired_sessions(settings.AUTH_UUID_CLEANUP_MINUTES)
+            except asyncio.CancelledError:
+                logger.info("Auth session cleanup task cancelled")
+                break
+            except Exception as e:
+                logger.error(f"Error in session cleanup task: {e}")
+    
+    async def _cleanup_expired_sessions(self, max_age_minutes: int = 10):
+        """Delete auth sessions older than max_age_minutes with no user_id."""
+        
+        try:
+            expiry_time = datetime.utcnow() - timedelta(minutes=max_age_minutes)
+            
+            # Get all expired orphaned sessions
+            all_sessions = await repository.list_all(AuthSession)
+            deleted_count = 0
+            
+            for session in all_sessions:
+                # Delete if: no user_id AND older than max_age
+                if not session.user_id and session.created_at < expiry_time:
+                    await repository.delete_by_conditions(AuthSession, {"app_id": session.app_id})
+                    deleted_count += 1
+            
+            if deleted_count > 0:
+                logger.info(f"Cleaned up {deleted_count} expired auth session(s)")
+        
+        except Exception as e:
+            logger.error(f"Failed to cleanup expired sessions: {e}")
+    
+    async def cleanup(self):
+        """Cleanup service resources."""
+        
+        # Cancel cleanup task
+        if self._cleanup_task and not self._cleanup_task.done():
+            self._cleanup_task.cancel()
+            try:
+                await self._cleanup_task
+            except asyncio.CancelledError:
+                pass
+        
+        logger.info("OAuth service cleaned up")
 
 oauth_service = OAuthService()

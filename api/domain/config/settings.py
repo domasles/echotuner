@@ -27,7 +27,7 @@ class Settings:
     AI_GENERATION_MODEL: str = os.getenv("AI_GENERATION_MODEL", "phi3:mini")
     AI_MAX_TOKENS: Optional[int] = int(os.getenv("AI_MAX_TOKENS", 65535))
     AI_TEMPERATURE: Optional[float] = float(os.getenv("AI_TEMPERATURE", 0.7))
-    AI_TIMEOUT: int = int(os.getenv("AI_TIMEOUT", 60))
+    AI_TIMEOUT_SECONDS: int = int(os.getenv("AI_TIMEOUT_SECONDS", 60))
 
     CLOUD_API_KEY: Optional[str] = os.getenv("CLOUD_API_KEY")
 
@@ -41,6 +41,7 @@ class Settings:
 
     AUTH_REQUIRED: bool = os.getenv("AUTH_REQUIRED", "true").lower() == "true"
     SECURE_HEADERS: bool = os.getenv("SECURE_HEADERS", "true").lower() == "true"
+    AUTH_UUID_CLEANUP_MINUTES: int = int(os.getenv("AUTH_UUID_CLEANUP_MINUTES", 10))
 
     CORS_ORIGINS: list[str] = loads(os.getenv("CORS_ORIGINS", '["*"]'))
 
