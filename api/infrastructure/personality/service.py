@@ -4,7 +4,8 @@ Manages user personality and preferences, including saving and retrieving user c
 """
 
 import logging
-import json
+
+import ujson as json
 
 from datetime import datetime
 from typing import Optional, List

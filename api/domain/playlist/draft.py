@@ -7,20 +7,17 @@ Uses standardized database operations and error handling.
 import asyncio
 import logging
 import uuid
-import json
+
+import ujson as json
 
 from datetime import datetime, timedelta
 from typing import List, Optional
 
 from infrastructure.singleton import SingletonServiceBase
 from application import PlaylistDraft, Song
-from domain.config.app_constants import AppConstants
-from domain.config.settings import settings
 
 from infrastructure.database.repository import repository
 from infrastructure.database.models.playlists import PlaylistDraft as PlaylistDraftModel, SpotifyPlaylist
-
-from domain.shared.validation.validators import UniversalValidator
 
 logger = logging.getLogger(__name__)
 

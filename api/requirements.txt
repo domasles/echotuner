@@ -12,6 +12,7 @@ requests==2.32.4
 
 # Loading JSON
 ujson==5.10.0
+json-repair==0.55.0
 
 # AI and ML
 ollama==0.6.1

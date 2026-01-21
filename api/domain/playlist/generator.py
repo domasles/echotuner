@@ -5,19 +5,19 @@ Generates playlists using AI-powered real-time song search.
 
 import logging
 import random
-import json
 import asyncio
 
-from typing import List, Dict, Any, Optional
+import ujson as json
+
+from json_repair import repair_json
+from typing import List, Optional
 
 from infrastructure.singleton import SingletonServiceBase
-from application import Song, UserContext
 from domain.config.settings import settings
-from domain.config.app_constants import app_constants
+from application import Song, UserContext
 
 from infrastructure.spotify.search_service import spotify_search_service
 from infrastructure.ai.registry import provider_registry
-from infrastructure.personality.service import personality_service
 
 from domain.shared.validation.validators import UniversalValidator
 
@@ -64,11 +64,8 @@ class PlaylistGeneratorService(SingletonServiceBase):
             if discovery_strategy not in ["new_music", "existing_music", "balanced"]:
                 discovery_strategy = "balanced"
 
-            target_count = min(
-                count + 10, settings.MAX_SONGS_PER_PLAYLIST
-            )  # Request slightly more for better filtering
             songs = await self._ai_lookup_real_songs(
-                prompt, user_context, discovery_strategy, target_count, original_prompt=prompt
+                prompt, user_context, discovery_strategy, settings.MAX_SONGS_PER_PLAYLIST, original_prompt=prompt
             )
 
             if not songs:
@@ -163,43 +160,20 @@ Constraints:
         """Parse AI response containing song suggestions"""
 
         try:
-            # Clean up the response text
-            response_text = response_text.strip()
+            songs_data = repair_json(response_text.strip(), return_objects=True)
 
-            # Find JSON array in response
-            start_idx = response_text.find("[")
-            end_idx = response_text.rfind("]") + 1
+            if not isinstance(songs_data, list):
+                return []
 
-            if start_idx >= 0 and end_idx > start_idx:
-                json_str = response_text[start_idx:end_idx]
+            return [
+                {"title": str(song["title"]).strip(), "artist": str(song["artist"]).strip()}
+                for song in songs_data
+                if isinstance(song, dict) and song.get("title") and song.get("artist")
+            ]
 
-                # Clean up common JSON issues
-                json_str = json_str.replace("\n", " ").replace("\r", " ")
-                json_str = " ".join(json_str.split())  # Remove extra whitespace
-
-                # Try to fix common JSON formatting issues
-                # Remove trailing commas before closing brackets
-                json_str = json_str.replace(",]", "]").replace(",}", "}")
-
-                songs_data = json.loads(json_str)
-
-                # Validate structure
-                if isinstance(songs_data, list) and len(songs_data) > 0:
-                    valid_songs = []
-                    for song in songs_data:
-                        if isinstance(song, dict) and "title" in song and "artist" in song:
-                            # Clean up song data
-                            clean_song = {"title": str(song["title"]).strip(), "artist": str(song["artist"]).strip()}
-                            if clean_song["title"] and clean_song["artist"]:
-                                valid_songs.append(clean_song)
-
-                    return valid_songs
-
-            return []
-
-        except json.JSONDecodeError as e:
+        except Exception as e:
             logger.error(f"Failed to parse AI song response: {e}")
-            logger.error(f"Response text: {response_text[:500]}...")  # Log first 500 chars for debugging
+            logger.error(f"Response text: {response_text[:500]}...")
             return []
 
     async def _verify_songs_on_spotify(self, ai_songs: List[dict]) -> List[Song]:

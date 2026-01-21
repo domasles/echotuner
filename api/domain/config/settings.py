@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 from typing import Optional
 from pathlib import Path
-from json import loads
+from ujson import loads
 
 api_dir = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(api_dir))

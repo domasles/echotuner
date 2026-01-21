@@ -6,8 +6,9 @@ Provides unified validation with decorators and validators.
 import logging
 import re
 
+import ujson as json
+
 from typing import Any, Optional
-from pydantic import BaseModel
 
 from domain.config.settings import settings
 
@@ -94,7 +95,6 @@ class UniversalValidator:
     @classmethod
     def validate_json_context(cls, json_data: dict, max_size_bytes: int = 10240) -> dict:
         """Validate and sanitize JSON user context data."""
-        import json
 
         if not isinstance(json_data, dict):
             raise Exception("User context must be a valid JSON object")
