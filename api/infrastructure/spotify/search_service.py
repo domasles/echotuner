@@ -68,6 +68,18 @@ class SpotifySearchService(SingletonServiceBase):
             logger.error("Full traceback:", exc_info=True)
             raise RuntimeError(f"Spotify Search Service initialization failed: {str(e)}")
 
+    async def _ensure_valid_token(self):
+        """Ensure the client credentials token is valid and refresh if needed"""
+
+        try:
+            # Refresh the client credentials token
+            await self.api_client.get_auth_token_with_client_credentials()
+            logger.debug("Refreshed Spotify client credentials token")
+
+        except Exception as e:
+            logger.error(f"Failed to refresh Spotify token: {e}")
+            raise
+
     async def _test_connection(self):
         """Test Spotify API connection"""
 
@@ -93,6 +105,9 @@ class SpotifySearchService(SingletonServiceBase):
         try:
             if not self.api_client:
                 raise RuntimeError("Spotify API client not initialized")
+
+            # Ensure we have a valid client credentials token
+            await self._ensure_valid_token()
 
             # Perform search
             results = await self.api_client.search.start(query=query, query_type=["track"], limit=limit)
