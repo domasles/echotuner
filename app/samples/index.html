@@ -34,7 +34,7 @@
                 height: 100vh;
             }
 
-            .webview-warning {
+            .mobile-warning {
                 display: none;
                 background: #1d1d1d;
                 color: #111;
@@ -46,23 +46,42 @@
                 box-shadow: 0 12px 30px rgba(0,0,0,0.4);
             }
 
-            .webview-warning h1 {
+            .mobile-warning h1 {
                 font-size: 3rem;
                 font-weight: bold;
                 margin: 0 0 1.5rem 0;
                 color: #ffffff;
             }
 
-            .webview-warning p {
+            .mobile-warning p {
                 font-size: 1.5rem;
                 line-height: 1.6;
                 margin: 0;
                 color: #ffffff;
             }
+
+            .loading-wheel {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 60px;
+                height: 60px;
+                border: 4px solid rgba(255, 255, 255, 0.1);
+                border-top: 4px solid #ffffff;
+                border-radius: 50%;
+                z-index: 2;
+                animation: spin 1s linear infinite;
+            }
+
+            @keyframes spin {
+                0% { transform: translate(-50%, -50%) rotate(0deg); }
+                100% { transform: translate(-50%, -50%) rotate(360deg); }
+            }
         </style>
     </head>
     <body>
-        <div id="webview-warning" class="webview-warning">
+        <div id="mobile-warning" class="mobile-warning">
             <h1>Uh oh!</h1>
             <p>EchoTuner requires a full browser with multi-tab support.<br>
             Please open it in Chrome, Safari, Firefox or Opera to enjoy!</p>
@@ -71,7 +90,15 @@
         <!-- Flutter container -->
         <div id="flutter-container"></div>
 
+        <!-- Loading wheel -->
+        <div id="loading-wheel" class="loading-wheel"></div>
+
         <script>
+            function hideLoadingWheel() {
+                const wheel = document.getElementById('loading-wheel');
+                if (wheel) wheel.style.display = 'none';
+            }
+
             function isWebView() {
                 const ua = navigator.userAgent || '';
 
@@ -83,7 +110,8 @@
             }
 
             if (isWebView()) {
-                document.getElementById("webview-warning").style.display = "block";
+                document.getElementById("mobile-warning").style.display = "block";
+                hideLoadingWheel();
             }
 
             else {
@@ -91,6 +119,12 @@
 
                 s.src = "flutter_bootstrap.js";
                 s.async = true;
+
+                s.onload = () => {
+                    window.addEventListener('flutter-first-frame', () => {
+                        hideLoadingWheel();
+                    });
+                };
 
                 document.body.appendChild(s);
             }
