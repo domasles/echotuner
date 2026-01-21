@@ -26,7 +26,7 @@ Check the overall health and status of the EchoTuner API.
 ```json
 {
   "status": "healthy",
-  "version": "2.1.0-beta"
+  "version": "2.1.1-beta"
 }
 ```
 
@@ -73,7 +73,7 @@ Retrieve client configuration settings, limits, and feature flags.
     "spotify",
     "google"
   ],
-  "api_version": "2.1.0-beta",
+  "api_version": "2.1.1-beta",
   "server_mode": "shared"
 }
 ```

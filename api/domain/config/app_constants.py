@@ -9,7 +9,7 @@ class AppConstants:
 
     API_NAME = "EchoTuner"
     API_TITLE = "EchoTuner API"
-    API_VERSION = "2.1.0-beta"
+    API_VERSION = "2.1.1-beta"
 
     DATABASE_FILEPATH = "storage/echotuner.db"
     SPOTIFY_CACHE_PATH = "storage/spotify_token_cache.json"
