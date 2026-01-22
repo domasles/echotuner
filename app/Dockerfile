@@ -9,7 +9,9 @@ COPY --chown=flutter:flutter . .
 
 # Install dependencies and build web app
 RUN flutter create .
+
 RUN cp samples/index.html web/index.html
+RUN cp samples/manifest.json web/manifest.json
 
 RUN dart run build_runner build --delete-conflicting-outputs
 RUN dart run flutter_launcher_icons
