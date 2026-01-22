@@ -81,6 +81,17 @@ class DatabaseCore(SingletonServiceBase):
         finally:
             await session.close()
 
+    async def checkpoint(self):
+        """Force WAL checkpoint to ensure write visibility across all connections."""
+
+        try:
+            async with self.engine.connect() as conn:
+                await conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+                await conn.commit()
+
+        except Exception as e:
+            logger.warning(f"WAL checkpoint failed: {e}")
+
     async def close(self):
         """Close database connections and clean up resources."""
         try:

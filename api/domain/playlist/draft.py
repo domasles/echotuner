@@ -16,6 +16,7 @@ from typing import List, Optional
 from infrastructure.singleton import SingletonServiceBase
 from application import PlaylistDraft, Song
 
+from infrastructure.database.core import db_core
 from infrastructure.database.repository import repository
 from infrastructure.database.models.playlists import PlaylistDraft as PlaylistDraftModel, SpotifyPlaylist
 
@@ -98,9 +99,13 @@ class PlaylistDraftService(SingletonServiceBase):
 
             # Save to database using repository
             saved_draft = await self.repository.create(PlaylistDraftModel, draft_data)
+
             if saved_draft:
-                logger.debug(f"Updated playlist draft {draft_id}")
+                # Force WAL checkpoint for immediate read visibility across connections
+                await db_core.checkpoint()
+                logger.debug(f"Saved playlist draft {draft_id}")
                 return draft_id  # Return the draft ID, not True
+
             else:
                 return None  # Return None on failure, not False
 
