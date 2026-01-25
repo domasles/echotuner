@@ -2,17 +2,17 @@
 
 import logging
 
-from fastapi import HTTPException, APIRouter
+from fastapi import APIRouter
 
-from domain.shared.validation.validators import UniversalValidator
 from domain.config.app_constants import app_constants
-from domain.auth.decorators import debug_only
+from domain.auth.decorators import no_logging
 from domain.config.settings import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/config", tags=["config"])
 
 
+@no_logging
 @router.get("/health")
 async def health_check():
     """Check API health and service status"""

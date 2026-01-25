@@ -9,6 +9,15 @@ import click
 from domain.config.app_constants import app_constants
 
 
+class NoHealthCheckFilter(logging.Filter):
+    """Filter to exclude health check endpoints from uvicorn access logs"""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        # Filter out health check requests from uvicorn access logs
+        message = record.getMessage()
+        return not any(path in message for path in ["/health", "/config/health"])
+
+
 class ConsoleFormatter(logging.Formatter):
     """Colored console formatter for development - maintains original EchoTuner style"""
 
@@ -46,6 +55,10 @@ def configure_logging(level: str = "INFO") -> None:
     console_handler.setFormatter(ConsoleFormatter("%(levelname)s%(message)s"))
 
     root_logger.addHandler(console_handler)
+
+    # Configure uvicorn access logger to filter health checks
+    uvicorn_access_logger = logging.getLogger("uvicorn.access")
+    uvicorn_access_logger.addFilter(NoHealthCheckFilter())
 
     # Service-specific loggers
     service_loggers = [

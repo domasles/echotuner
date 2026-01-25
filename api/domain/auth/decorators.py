@@ -1,6 +1,5 @@
 """
 Mode-based endpoint decorators for EchoTuner API.
-
 This module contains decorators for controlling endpoint access based on debug mode and production mode settings.
 """
 
@@ -24,4 +23,17 @@ def debug_only(func):
 
         return await func(*args, **kwargs)
 
+    return wrapper
+
+
+def no_logging(func):
+    """Decorator to exclude endpoint from access logging"""
+
+    func._no_logging = True
+
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        return await func(*args, **kwargs)
+
+    wrapper._no_logging = True
     return wrapper

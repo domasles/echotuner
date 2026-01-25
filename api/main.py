@@ -94,6 +94,22 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 @app.middleware("http")
+async def logging_middleware(request: Request, call_next):
+    """Middleware to handle logging for endpoints"""
+
+    response = await call_next(request)
+    route = request.scope.get("route")
+
+    if route and hasattr(route, "endpoint"):
+        endpoint = route.endpoint
+
+        if hasattr(endpoint, "_no_logging") and endpoint._no_logging:
+            request.state.skip_logging = True
+
+    return response
+
+
+@app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     """Add security headers to all responses."""
 
