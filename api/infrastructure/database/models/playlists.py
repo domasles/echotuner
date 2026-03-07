@@ -3,7 +3,8 @@ Playlist related ORM models.
 Unified playlist system for all users (Spotify and Google).
 """
 
-from sqlalchemy import Column, String, Text, ForeignKey, DateTime, func, Index
+from sqlalchemy import Column, String, Text, ForeignKey, DateTime, Index
+from datetime import datetime
 
 from ..core import Base
 
@@ -20,8 +21,8 @@ class PlaylistDraft(Base):
     status = Column(String, default="draft")
     spotify_playlist_id = Column(String)
     spotify_playlist_url = Column(String)
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime, default=datetime.now())
+    updated_at = Column(DateTime, default=datetime.now(), onupdate=datetime.now())
 
     __table_args__ = (
         Index("idx_playlist_drafts_user_id", "user_id"),
@@ -41,8 +42,8 @@ class SpotifyPlaylist(Base):
     user_id = Column(String(255), ForeignKey("user_accounts.user_id"), nullable=False)
     original_draft_id = Column(String, ForeignKey("playlist_drafts.id"))
     playlist_name = Column(String, nullable=False)
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime, default=datetime.now())
+    updated_at = Column(DateTime, default=datetime.now(), onupdate=datetime.now())
 
     __table_args__ = (Index("idx_spotify_playlists_user_id", "user_id"),)
 

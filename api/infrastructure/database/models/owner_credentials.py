@@ -3,7 +3,9 @@ Owner Spotify Credentials Database Model.
 Stores owner's Spotify tokens for shared mode operations.
 """
 
-from sqlalchemy import Column, String, DateTime, func
+from sqlalchemy import Column, String, DateTime
+from datetime import datetime
+
 from ..core import Base
 
 
@@ -17,7 +19,7 @@ class OwnerSpotifyCredentials(Base):
     refresh_token = Column(String(500), nullable=False)
     spotify_user_id = Column(String(255), nullable=False)
     expires_at = Column(DateTime, nullable=True)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime, default=datetime.now(), onupdate=datetime.now())
 
     def __repr__(self):
         return f"<OwnerSpotifyCredentials(spotify_user_id='{self.spotify_user_id}')>"

@@ -101,7 +101,7 @@ class OAuthService(SingletonServiceBase):
         # Calculate expiry
         expires_at = None
         if user_data.get("expires_in"):
-            expires_at = datetime.now(timezone.utc) + timedelta(seconds=user_data["expires_in"])
+            expires_at = datetime.now() + timedelta(seconds=user_data["expires_in"])
 
         # Store owner credentials
         owner_creds_data = {
@@ -152,7 +152,7 @@ class OAuthService(SingletonServiceBase):
         if not creds.expires_at:
             return False
 
-        return datetime.now(timezone.utc) >= creds.expires_at
+        return datetime.now() >= creds.expires_at
 
     async def _refresh_owner_token(self, creds: OwnerSpotifyCredentials) -> Optional[OwnerSpotifyCredentials]:
         """Refresh owner's access token."""
@@ -170,9 +170,7 @@ class OAuthService(SingletonServiceBase):
                 update_data = {"access_token": refreshed_data.get("access_token")}
 
                 if refreshed_data.get("expires_in"):
-                    update_data["expires_at"] = datetime.now(timezone.utc) + timedelta(
-                        seconds=refreshed_data["expires_in"]
-                    )
+                    update_data["expires_at"] = datetime.now() + timedelta(seconds=refreshed_data["expires_in"])
                 if refreshed_data.get("refresh_token"):
                     update_data["refresh_token"] = refreshed_data["refresh_token"]
 
@@ -228,7 +226,7 @@ class OAuthService(SingletonServiceBase):
         # Session is still pending - check if it has expired
         max_age = timedelta(minutes=10)
 
-        if datetime.now(timezone.utc) - session.created_at.replace(tzinfo=timezone.utc) > max_age:
+        if datetime.now() - session.created_at > max_age:
             logger.debug(f"Auth session {app_id} expired without completing, deleting")
             await repository.delete_by_conditions(AuthSession, {"app_id": app_id})
             return None
@@ -263,9 +261,7 @@ class OAuthService(SingletonServiceBase):
                 user_data_for_create["refresh_token"] = user_data.get("refresh_token")
 
                 if user_data.get("expires_in"):
-                    user_data_for_create["expires_at"] = datetime.now(timezone.utc) + timedelta(
-                        seconds=user_data["expires_in"]
-                    )
+                    user_data_for_create["expires_at"] = datetime.now() + timedelta(seconds=user_data["expires_in"])
 
             # Generate session token if the existing account doesn't have one
             user_data_for_create["session_token"] = secrets.token_hex(32)
@@ -289,7 +285,7 @@ class OAuthService(SingletonServiceBase):
                 update_data["refresh_token"] = user_data.get("refresh_token")
 
                 if user_data.get("expires_in"):
-                    update_data["expires_at"] = datetime.now(timezone.utc) + timedelta(seconds=user_data["expires_in"])
+                    update_data["expires_at"] = datetime.now() + timedelta(seconds=user_data["expires_in"])
 
             # Generate session token if the existing account doesn't have one
             if not user_account.session_token:
@@ -324,7 +320,7 @@ class OAuthService(SingletonServiceBase):
         """Store auth state for validation."""
 
         try:
-            expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+            expires_at = datetime.now() + timedelta(minutes=10)
 
             # Check if state already exists and delete it first
             existing_state = await repository.get_by_field(AuthState, "state", state)
@@ -336,7 +332,7 @@ class OAuthService(SingletonServiceBase):
                 "state": state,
                 "app_id": app_id,
                 "platform": platform,
-                "created_at": int(datetime.now(timezone.utc).timestamp()),
+                "created_at": int(datetime.now().timestamp()),
                 "expires_at": int(expires_at.timestamp()),
             }
 
@@ -358,7 +354,7 @@ class OAuthService(SingletonServiceBase):
                 return None
 
             # Check if expired
-            if auth_state.expires_at < datetime.now(timezone.utc).timestamp():
+            if auth_state.expires_at < datetime.now().timestamp():
                 logger.warning(f"Auth state expired: {state}")
                 await repository.delete(AuthState, auth_state.state, "state")
                 return None
@@ -424,14 +420,14 @@ class OAuthService(SingletonServiceBase):
         """Delete auth sessions older than max_age_minutes, regardless of user_id status."""
 
         try:
-            expiry_time = datetime.now(timezone.utc) - timedelta(minutes=max_age_minutes)
+            expiry_time = datetime.now() - timedelta(minutes=max_age_minutes)
 
             # Get all expired sessions
             all_sessions = await repository.list_all(AuthSession)
             deleted_count = 0
 
             for session in all_sessions:
-                if session.created_at.replace(tzinfo=timezone.utc) < expiry_time:
+                if session.created_at < expiry_time:
                     await repository.delete_by_conditions(AuthSession, {"app_id": session.app_id})
                     deleted_count += 1
 

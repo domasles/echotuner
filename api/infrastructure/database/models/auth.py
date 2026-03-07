@@ -3,7 +3,9 @@ Authentication related ORM models.
 Unified authentication system supporting Spotify and Google OAuth.
 """
 
-from sqlalchemy import Column, String, Integer, Boolean, Text, DateTime, func
+from sqlalchemy import Column, String, Integer, Text, DateTime
+from datetime import datetime
+
 from ..core import Base
 
 
@@ -20,8 +22,8 @@ class UserAccount(Base):
     refresh_token = Column(Text, nullable=True)  # User's own tokens (Normal mode only)
     expires_at = Column(DateTime, nullable=True)
     session_token = Column(String(64), unique=True, nullable=True, index=True)  # Opaque auth token sent by client
-    created_at = Column(DateTime, default=func.now())
-    last_used_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime, default=datetime.now())
+    last_used_at = Column(DateTime, default=datetime.now(), onupdate=datetime.now())
 
     def __repr__(self):
         return f"<UserAccount(user_id='{self.user_id}', provider='{self.provider}')>"
