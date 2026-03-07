@@ -153,8 +153,8 @@ class ApiService {
     }
 
     Future<PlaylistResponse> generatePlaylist(PlaylistRequest request) async {
-        final userId = _authService?.userId;
-        if (userId == null) {
+        final sessionToken = _authService?.sessionToken;
+        if (sessionToken == null) {
             throw ApiException('User not authenticated');
         }
 
@@ -163,7 +163,7 @@ class ApiService {
 
             headers: {
                 'Content-Type': 'application/json',
-                'X-User-ID': userId,
+                'X-Auth-Token': sessionToken,
             },
 
             body: jsonEncode(request.toJson()),
@@ -237,15 +237,15 @@ class ApiService {
     }
 
     Future<RateLimitStatus> getUserRateLimitStatus() async {
-        final userId = _authService?.userId;
-        if (userId == null) {
+        final sessionToken = _authService?.sessionToken;
+        if (sessionToken == null) {
             throw ApiException('User not authenticated');
         }
 
         final response = await _client.get(
             Uri.parse(AppConfig.apiUrl('/user/rate-limit-status')),
             headers: {
-                'X-User-ID': userId,
+                'X-Auth-Token': sessionToken,
             },
         );
 
@@ -299,8 +299,8 @@ class ApiService {
     }
 
     Future<SpotifyPlaylistResponse> createSpotifyPlaylist(SpotifyPlaylistRequest request, String playlistId) async {
-        final userId = _authService?.userId;
-        if (userId == null) {
+        final sessionToken = _authService?.sessionToken;
+        if (sessionToken == null) {
             throw ApiException('User not authenticated');
         }
 
@@ -309,7 +309,7 @@ class ApiService {
 
             headers: {
                 'Content-Type': 'application/json',
-                'X-User-ID': userId,
+                'X-Auth-Token': sessionToken,
                 'X-Playlist-ID': playlistId,
             },
 
@@ -335,8 +335,8 @@ class ApiService {
     }
 
     Future<LibraryPlaylistsResponse> getLibraryPlaylists({String? status}) async {
-        final userId = _authService?.userId;
-        if (userId == null) {
+        final sessionToken = _authService?.sessionToken;
+        if (sessionToken == null) {
             throw ApiException('User not authenticated');
         }
 
@@ -349,7 +349,7 @@ class ApiService {
             Uri.parse(AppConfig.apiUrl(endpoint)),
 
             headers: {
-                'X-User-ID': userId,
+                'X-Auth-Token': sessionToken,
             },
         );
 
@@ -368,15 +368,15 @@ class ApiService {
     }
 
     Future<PlaylistDraft> getDraftPlaylist(String playlistId) async {
-        final userId = _authService?.userId;
-        if (userId == null) {
+        final sessionToken = _authService?.sessionToken;
+        if (sessionToken == null) {
             throw ApiException('User not authenticated');
         }
 
         final response = await _client.get(
             Uri.parse(AppConfig.apiUrl('/playlists')),
             headers: {
-                'X-User-ID': userId,
+                'X-Auth-Token': sessionToken,
                 'X-Playlist-ID': playlistId,
             },
         );
@@ -404,15 +404,15 @@ class ApiService {
     }
 
     Future<bool> deleteDraftPlaylist(String playlistId) async {
-        final userId = _authService?.userId;
-        if (userId == null) {
+        final sessionToken = _authService?.sessionToken;
+        if (sessionToken == null) {
             throw ApiException('User not authenticated');
         }
 
         final response = await _client.delete(
             Uri.parse(AppConfig.apiUrl('/playlists')),
             headers: {
-                'X-User-ID': userId,
+                'X-Auth-Token': sessionToken,
                 'X-Playlist-ID': playlistId,
             },
         );
@@ -432,8 +432,8 @@ class ApiService {
     }
 
     Future<bool> removeTrackFromSpotifyPlaylist(String spotifyPlaylistId, String trackUri) async {
-        final userId = _authService?.userId;
-        if (userId == null) {
+        final sessionToken = _authService?.sessionToken;
+        if (sessionToken == null) {
             throw ApiException('User not authenticated');
         }
 
@@ -441,7 +441,7 @@ class ApiService {
             Uri.parse(AppConfig.apiUrl('/spotify/tracks')),
             headers: {
                 'Content-Type': 'application/json',
-                'X-User-ID': userId,
+                'X-Auth-Token': sessionToken,
                 'X-Spotify-Playlist-ID': spotifyPlaylistId,
             },
             body: jsonEncode({
@@ -458,15 +458,15 @@ class ApiService {
     }
 
     Future<List<Map<String, dynamic>>> getSpotifyPlaylistTracks(String spotifyPlaylistId) async {
-        final userId = _authService?.userId;
-        if (userId == null) {
+        final sessionToken = _authService?.sessionToken;
+        if (sessionToken == null) {
             throw ApiException('User not authenticated');
         }
 
         final response = await _client.get(
             Uri.parse(AppConfig.apiUrl('/spotify/tracks')),
             headers: {
-                'X-User-ID': userId,
+                'X-Auth-Token': sessionToken,
                 'X-Spotify-Playlist-ID': spotifyPlaylistId,
             },
         );
@@ -487,8 +487,8 @@ class ApiService {
     }
 
     Future<PlaylistResponse> updatePlaylistDraft(PlaylistRequest request, String playlistId) async {
-        final userId = _authService?.userId;
-        if (userId == null) {
+        final sessionToken = _authService?.sessionToken;
+        if (sessionToken == null) {
             throw ApiException('User not authenticated');
         }
 
@@ -496,7 +496,7 @@ class ApiService {
             Uri.parse(AppConfig.apiUrl('/playlists')),
             headers: {
                 'Content-Type': 'application/json',
-                'X-User-ID': userId,
+                'X-Auth-Token': sessionToken,
                 'X-Playlist-ID': playlistId,
             },
             body: jsonEncode(request.toJson()),
@@ -526,15 +526,15 @@ class ApiService {
     }
 
     Future<Map<String, dynamic>> getUserProfile() async {
-        final userId = _authService?.userId;
-        if (userId == null) {
+        final sessionToken = _authService?.sessionToken;
+        if (sessionToken == null) {
             throw ApiException('User not authenticated');
         }
 
         final response = await _client.get(
             Uri.parse(AppConfig.apiUrl('/user/profile')),
             headers: {
-                'X-User-ID': userId,
+                'X-Auth-Token': sessionToken,
             },
         );
 

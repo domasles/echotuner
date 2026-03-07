@@ -19,6 +19,7 @@ class UserAccount(Base):
     access_token = Column(Text, nullable=True)  # User's own tokens (Normal mode only)
     refresh_token = Column(Text, nullable=True)  # User's own tokens (Normal mode only)
     expires_at = Column(DateTime, nullable=True)
+    session_token = Column(String(64), unique=True, nullable=True, index=True)  # Opaque auth token sent by client
     created_at = Column(DateTime, default=func.now())
     last_used_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
@@ -33,7 +34,7 @@ class AuthState(Base):
 
     state = Column(String(255), primary_key=True)  # OAuth state parameter
     app_id = Column(String(36), nullable=True)  # App ID for linking to auth session
-    platfsorm = Column(String(50), nullable=False)  # 'spotify' or 'google'
+    platform = Column(String(50), nullable=False)  # 'spotify' or 'google'
     created_at = Column(Integer, nullable=False)  # Unix timestamp
     expires_at = Column(Integer, nullable=False)  # Unix timestamp
 

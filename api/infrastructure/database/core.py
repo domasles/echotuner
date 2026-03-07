@@ -4,6 +4,7 @@ No domain knowledge, just database core functionality.
 """
 
 import logging
+
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from pathlib import Path
@@ -59,25 +60,61 @@ class DatabaseCore(SingletonServiceBase):
 
                 await conn.run_sync(ModelsBase.metadata.create_all)
 
+            # Run incremental migrations for columns added after initial schema creation
+            await self._run_migrations()
+
             logger.debug("Database core initialized successfully with SQLAlchemy ORM")
 
         except Exception as e:
             logger.error(f"Database core initialization failed: {e}")
             raise
 
+    async def _run_migrations(self):
+        """Auto-detect and add any columns present in models but missing from existing DB tables."""
+
+        from infrastructure.database.models import Base as ModelsBase
+
+        async with self.engine.begin() as conn:
+            # Read current DB column names for every table via SQLite's PRAGMA
+            db_columns: dict[str, set[str]] = {}
+
+            for table_name in ModelsBase.metadata.tables:
+                result = await conn.execute(text(f"PRAGMA table_info({table_name})"))
+                db_columns[table_name] = {row[1].lower() for row in result.fetchall()}
+
+            # Compare model definitions against DB and add any missing columns
+            added = 0
+
+            for table_name, table in ModelsBase.metadata.tables.items():
+                existing = db_columns.get(table_name, set())
+
+                for column in table.columns:
+                    if column.name.lower() not in existing:
+                        col_type = column.type.compile(dialect=conn.dialect)
+                        await conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column.name} {col_type}"))
+                        logger.info(f"Auto-migration: added '{column.name}' ({col_type}) to '{table_name}'")
+                        added += 1
+
+            if added == 0:
+                logger.debug("Auto-migration: schema is up to date")
+
     @asynccontextmanager
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
         """Create and provide a database session with proper cleanup."""
+
         if not self.async_session_factory:
             raise RuntimeError("Database not initialized. Call initialize() first.")
 
         session = self.async_session_factory()
+
         try:
             yield session
             await session.commit()
+
         except Exception:
             await session.rollback()
             raise
+
         finally:
             await session.close()
 
@@ -94,10 +131,12 @@ class DatabaseCore(SingletonServiceBase):
 
     async def close(self):
         """Close database connections and clean up resources."""
+
         try:
             if self.engine:
                 await self.engine.dispose()
                 logger.info("Database core connections closed")
+
         except Exception as e:
             logger.warning(f"Error closing database connections: {e}")
 

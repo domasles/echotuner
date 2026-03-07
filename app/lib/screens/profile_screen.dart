@@ -194,7 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
 
                     Consumer<AuthService>(
                         builder: (context, authService, child) {
-                            if (!authService.isAuthenticated || authService.userId == null) {
+                            if (!authService.isAuthenticated) {
                                 return const SizedBox.shrink();
                             }
 
@@ -220,8 +220,8 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                                             
                                             const Divider(height: 24),
                                             _buildCopyableInfoRow(
-                                                'API Token (User ID)',
-                                                authService.userId!,
+                                                'Session Token',
+                                                authService.sessionToken ?? 'Not available',
                                                 Icons.key,
                                                 context,
                                             ),

@@ -27,7 +27,7 @@ class PersonalityService {
         final response = await _apiService.put('/personality', 
             body: requestBody,
             headers: {
-                'X-User-ID': await _getUserId() ?? '',
+                'X-Auth-Token': await _getSessionToken() ?? '',
             }
         );
 
@@ -45,7 +45,7 @@ class PersonalityService {
 
         try {
             final response = await _apiService.get('/personality', headers: {
-                'X-User-ID': await _getUserId() ?? '',
+                'X-Auth-Token': await _getSessionToken() ?? '',
             });
 
             final userContextWrapper = response['user_context'];
@@ -77,20 +77,20 @@ class PersonalityService {
 
         await _apiService.delete('/personality', 
             headers: {
-                'X-User-ID': await _getUserId() ?? '',
+                'X-Auth-Token': await _getSessionToken() ?? '',
             }
         );
 
         AppLogger.personality('Context cleared from API');
     }
 
-    Future<List<SpotifyArtist>> fetchFollowedArtists({String? userId}) async {
+    Future<List<SpotifyArtist>> fetchFollowedArtists() async {
         try {
-            final userId = await _getUserId();
-            if (userId == null) throw Exception('No user ID available');
+            final sessionToken = await _getSessionToken();
+            if (sessionToken == null) throw Exception('No session token available');
 
             final response = await _apiService.get('/personality/artists?type=followed', headers: {
-                'X-User-ID': await _getUserId() ?? '',
+                'X-Auth-Token': sessionToken,
             });
 
             final List<dynamic> artistsJson = response['artists'] ?? [];
@@ -113,15 +113,15 @@ class PersonalityService {
 
     Future<List<SpotifyArtist>> searchArtists(String query) async {
         try {
-            final userId = await _getUserId();
+            final sessionToken = await _getSessionToken();
 
-            if (userId == null) {
-                throw Exception('No user ID available');
+            if (sessionToken == null) {
+                throw Exception('No session token available');
             }
 
             final response = await _apiService.get('/personality/artists?q=${Uri.encodeComponent(query)}&limit=20', 
                 headers: {
-                    'X-User-ID': await _getUserId() ?? '',
+                    'X-Auth-Token': sessionToken,
                 }
             );
 
@@ -144,8 +144,8 @@ class PersonalityService {
         }
     }
 
-    Future<String?> _getUserId() async {
-        return _authService.userId;
+    Future<String?> _getSessionToken() async {
+        return _authService.sessionToken;
     }
 
     Future<bool> shouldSyncArtists() async {
@@ -165,8 +165,8 @@ class PersonalityService {
         await prefs.setInt(_lastSyncKey, DateTime.now().millisecondsSinceEpoch);
     }
 
-    Future<UserContext> getDefaultPersonalityContext({String? userId}) async {
-        final followedArtists = userId != null ? await fetchFollowedArtists(userId: userId) : <SpotifyArtist>[];
+    Future<UserContext> getDefaultPersonalityContext() async {
+        final followedArtists = await fetchFollowedArtists();
 
         return UserContext(
             favoriteArtists: followedArtists.map((artist) => artist.name).toList(),

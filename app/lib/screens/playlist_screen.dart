@@ -419,12 +419,11 @@ class _PlaylistScreenState extends State<PlaylistScreen> with WidgetsBindingObse
         if (confirmed == true && context.mounted) {
             provider.removeSong(song);
 
-            if (provider.isPlaylistAddedToSpotify && provider.currentPlaylistId != null && authService.userId != null && song.uri.isNotEmpty) {
+            if (provider.isPlaylistAddedToSpotify && provider.currentPlaylistId != null && song.uri.isNotEmpty) {
                 try {
                     final success = await provider.removeSongFromSpotifyPlaylist(
                         provider.currentPlaylistId!,
                         song.uri,
-                        authService.userId!,
                     );
 
                     if (success && context.mounted) {

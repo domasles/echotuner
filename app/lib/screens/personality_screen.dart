@@ -158,11 +158,11 @@ class _PersonalityScreenState extends State<PersonalityScreen> with TickerProvid
 
     Future<void> _loadFollowedArtists() async {
         final authService = context.read<AuthService>();
-        if (authService.userId == null) return;
+        if (!authService.isAuthenticated) return;
 
         try {
             final personalityService = context.read<PersonalityService>();
-            _followedArtists = await personalityService.fetchFollowedArtists(userId: authService.userId);
+            _followedArtists = await personalityService.fetchFollowedArtists();
 
             if (_userContext == null) {
                 // Create default context using already loaded followed artists

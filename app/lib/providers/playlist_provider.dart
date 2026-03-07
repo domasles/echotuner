@@ -146,11 +146,7 @@ class PlaylistProvider extends ChangeNotifier {
         notifyListeners();
 
         try {
-            final userId = _authService.userId;
-
-            AppLogger.debug('Generating playlist with user: ${userId?.substring(0, 20)}...');
-
-            if (userId == null) {
+            if (!_authService.isAuthenticated) {
                 throw Exception('Not authenticated');
             }
 
@@ -215,8 +211,7 @@ class PlaylistProvider extends ChangeNotifier {
         if (_currentPlaylistId == null) return;
 
         try {
-            final userId = _authService.userId;
-            if (userId == null) return;
+            if (!_authService.isAuthenticated) return;
 
             final request = PlaylistRequest(
                 prompt: _currentPrompt.isNotEmpty ? _currentPrompt : 'Updated playlist',
@@ -234,7 +229,7 @@ class PlaylistProvider extends ChangeNotifier {
         }
     }
 
-    Future<bool> removeSongFromSpotifyPlaylist(String playlistId, String trackUri, String userId) async {
+    Future<bool> removeSongFromSpotifyPlaylist(String playlistId, String trackUri) async {
         try {
             return await _apiService.removeTrackFromSpotifyPlaylist(playlistId, trackUri);
         }
@@ -277,7 +272,7 @@ class PlaylistProvider extends ChangeNotifier {
 
     Future<void> _loadRateLimitStatus() async {
         try {
-            if (_authService.isAuthenticated && _authService.userId != null) {
+            if (_authService.isAuthenticated) {
                 _rateLimitStatus = await getRateLimitStatus();
                 notifyListeners();
             }
@@ -293,7 +288,7 @@ class PlaylistProvider extends ChangeNotifier {
     }
 
     Future<void> onAuthenticationChanged() async {
-        if (_authService.isAuthenticated && _authService.userId != null) {
+        if (_authService.isAuthenticated) {
             await _loadRateLimitStatus();
         }
 
@@ -311,8 +306,7 @@ class PlaylistProvider extends ChangeNotifier {
         if (_currentPlaylistId == null) {
             if (_currentPlaylist.isEmpty) throw Exception('No playlist to add to Spotify');
 
-            final userId = _authService.userId;
-            if (userId == null) throw Exception('Not authenticated');
+            if (!_authService.isAuthenticated) throw Exception('Not authenticated');
 
             final request = PlaylistRequest(
                 prompt: _currentPrompt.isNotEmpty ? _currentPrompt : 'Spotify playlist update',
@@ -323,8 +317,7 @@ class PlaylistProvider extends ChangeNotifier {
             _currentPlaylistId = response.playlistId;
         }
 
-        final userId = _authService.userId;
-        if (userId == null) throw Exception('Not authenticated');
+        if (!_authService.isAuthenticated) throw Exception('Not authenticated');
 
         _isAddingToSpotify = true;
         notifyListeners();
@@ -361,16 +354,13 @@ class PlaylistProvider extends ChangeNotifier {
     }
 
     Future<RateLimitStatus> getRateLimitStatus() async {
-        final userId = _authService.userId;
-        
-        if (_authService.isAuthenticated && userId != null) {
+        if (_authService.isAuthenticated) {
             try {
                 return await _apiService.getUserRateLimitStatus();
             } catch (e) {
                 AppLogger.warning('Failed to get rate limit status from API: $e');
-                // Return fallback status with config values
                 return RateLimitStatus(
-                    userId: userId,
+                    userId: '',
                     requestsMadeToday: 0,
                     maxRequestsPerDay: maxPlaylistsPerDay,
                     canMakeRequest: true,
@@ -381,7 +371,7 @@ class PlaylistProvider extends ChangeNotifier {
 
         else {
             return RateLimitStatus(
-                userId: userId ?? '',
+                userId: '',
                 requestsMadeToday: 0,
                 maxRequestsPerDay: 0,
                 canMakeRequest: false,
@@ -391,9 +381,7 @@ class PlaylistProvider extends ChangeNotifier {
     }
 
     Future<LibraryPlaylistsResponse> getLibraryPlaylists({bool forceRefresh = false}) async {
-        final userId = _authService.userId;
-
-        if (userId == null) throw Exception('Not authenticated');
+        if (!_authService.isAuthenticated) throw Exception('Not authenticated');
 
         // Load playlists from server (local storage removed)
         return await _apiService.getLibraryPlaylists();
@@ -417,17 +405,14 @@ class PlaylistProvider extends ChangeNotifier {
     }
 
     Future<void> deleteDraft(String playlistId) async {
-        final userId = _authService.userId;
-        if (userId == null) throw Exception('Not authenticated');
+        if (!_authService.isAuthenticated) throw Exception('Not authenticated');
         
         // Delete draft from server (local storage removed)
         await _apiService.deleteDraftPlaylist(playlistId);
     }
 
     Future<void> deleteSpotifyPlaylist(String playlistId) async {
-        final userId = _authService.userId;
-
-        if (userId == null) throw Exception('Not authenticated');
+        if (!_authService.isAuthenticated) throw Exception('Not authenticated');
         
         // Delete from Spotify via API (local storage removed)
         await _apiService.deleteSpotifyPlaylist(playlistId);
@@ -440,8 +425,7 @@ class PlaylistProvider extends ChangeNotifier {
         notifyListeners();
 
         try {
-            final userId = _authService.userId;
-            if (userId == null) throw Exception('Not authenticated');
+            if (!_authService.isAuthenticated) throw Exception('Not authenticated');
 
             final spotifyTracks = await _apiService.getSpotifyPlaylistTracks(
                 spotifyPlaylist['id']

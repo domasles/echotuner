@@ -56,9 +56,13 @@ class AuthStatusResponse {
     @JsonKey(name: 'user_id')
     final String? userId;
 
+    @JsonKey(name: 'session_token')
+    final String? sessionToken;
+
     AuthStatusResponse({
         required this.status,
         this.userId,
+        this.sessionToken,
     });
 
     factory AuthStatusResponse.fromJson(Map<String, dynamic> json) => _$AuthStatusResponseFromJson(json);

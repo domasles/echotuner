@@ -9,11 +9,9 @@ import uuid
 from fastapi import APIRouter, Request, HTTPException, Header
 from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
 
-from infrastructure.rate_limiting.limit_service import rate_limiter_service
 from infrastructure.template.service import template_service
 from infrastructure.auth.service import oauth_service
 
-from domain.shared.validation.decorators import validate_request_headers
 from domain.config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -156,10 +154,16 @@ async def auth_status(app_id: str = Header(None, alias="X-Session-UUID")):
         raise HTTPException(status_code=400, detail="Invalid X-Session-UUID format")
 
     try:
-        user_id = await oauth_service.check_auth_session(app_id)
+        result = await oauth_service.check_auth_session(app_id)
 
-        if user_id:
-            return JSONResponse({"status": "completed", "user_id": user_id})
+        if result:
+            return JSONResponse(
+                {
+                    "status": "completed",
+                    "user_id": result["user_id"],
+                    "session_token": result["session_token"],
+                }
+            )
 
         else:
             return JSONResponse({"status": "pending"})
@@ -167,3 +171,19 @@ async def auth_status(app_id: str = Header(None, alias="X-Session-UUID")):
     except Exception as e:
         logger.error(f"Session status check failed: {e}")
         raise HTTPException(status_code=500, detail="Session status check failed")
+
+
+@router.post("/logout")
+async def auth_logout(session_token: str = Header(None, alias="X-Auth-Token")):
+    """Invalidate session token on logout."""
+
+    if not session_token:
+        raise HTTPException(status_code=400, detail="X-Auth-Token header required")
+
+    try:
+        await oauth_service.clear_session_token(session_token)
+        return JSONResponse({"message": "Logged out successfully"})
+
+    except Exception as e:
+        logger.error(f"Logout failed: {e}")
+        raise HTTPException(status_code=500, detail="Logout failed")

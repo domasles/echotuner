@@ -5,9 +5,10 @@ Manages OAuth providers and authentication flow.
 
 import logging
 import asyncio
+import secrets
 
 from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from infrastructure.singleton import SingletonServiceBase
 from domain.config.settings import settings
@@ -100,7 +101,7 @@ class OAuthService(SingletonServiceBase):
         # Calculate expiry
         expires_at = None
         if user_data.get("expires_in"):
-            expires_at = datetime.utcnow() + timedelta(seconds=user_data["expires_in"])
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=user_data["expires_in"])
 
         # Store owner credentials
         owner_creds_data = {
@@ -147,12 +148,15 @@ class OAuthService(SingletonServiceBase):
 
     def _is_token_expired(self, creds: OwnerSpotifyCredentials) -> bool:
         """Check if token is expired."""
+
         if not creds.expires_at:
             return False
-        return datetime.utcnow() >= creds.expires_at
+
+        return datetime.now(timezone.utc) >= creds.expires_at
 
     async def _refresh_owner_token(self, creds: OwnerSpotifyCredentials) -> Optional[OwnerSpotifyCredentials]:
         """Refresh owner's access token."""
+
         try:
             if not creds.refresh_token:
                 logger.error("No refresh token available for owner")
@@ -163,11 +167,12 @@ class OAuthService(SingletonServiceBase):
 
             if refreshed_data:
                 # Update owner credentials
-                update_data = {
-                    "access_token": refreshed_data.get("access_token"),
-                }
+                update_data = {"access_token": refreshed_data.get("access_token")}
+
                 if refreshed_data.get("expires_in"):
-                    update_data["expires_at"] = datetime.utcnow() + timedelta(seconds=refreshed_data["expires_in"])
+                    update_data["expires_at"] = datetime.now(timezone.utc) + timedelta(
+                        seconds=refreshed_data["expires_in"]
+                    )
                 if refreshed_data.get("refresh_token"):
                     update_data["refresh_token"] = refreshed_data["refresh_token"]
 
@@ -201,17 +206,32 @@ class OAuthService(SingletonServiceBase):
         if not session:
             return None
 
-        # Check if session has expired (10 minute timeout)
+        if session.user_id:
+            # Authentication completed - return token immediately regardless of session age
+            user_account = await repository.get_by_field(UserAccount, "user_id", session.user_id)
+            await repository.delete_by_conditions(AuthSession, {"app_id": session.app_id})
+
+            # Ensure session_token exists - generate if missing (shouldn't happen but be safe)
+            session_token = user_account.session_token if user_account else None
+
+            if user_account and not session_token:
+                session_token = secrets.token_hex(32)
+                await repository.update_by_conditions(
+                    UserAccount, {"user_id": session.user_id}, {"session_token": session_token}
+                )
+
+            return {
+                "user_id": session.user_id,
+                "session_token": session_token,
+            }
+
+        # Session is still pending - check if it has expired
         max_age = timedelta(minutes=10)
-        if datetime.utcnow() - session.created_at > max_age:
-            logger.debug(f"Auth session {app_id} expired, deleting")
+
+        if datetime.now(timezone.utc) - session.created_at.replace(tzinfo=timezone.utc) > max_age:
+            logger.debug(f"Auth session {app_id} expired without completing, deleting")
             await repository.delete_by_conditions(AuthSession, {"app_id": app_id})
             return None
-
-        if session.user_id:
-            # Authentication completed, cleanup session
-            await repository.delete_by_conditions(AuthSession, {"app_id": session.app_id})
-            return session.user_id
 
         return None  # Still waiting
 
@@ -243,9 +263,15 @@ class OAuthService(SingletonServiceBase):
                 user_data_for_create["refresh_token"] = user_data.get("refresh_token")
 
                 if user_data.get("expires_in"):
-                    user_data_for_create["expires_at"] = datetime.utcnow() + timedelta(seconds=user_data["expires_in"])
+                    user_data_for_create["expires_at"] = datetime.now(timezone.utc) + timedelta(
+                        seconds=user_data["expires_in"]
+                    )
+
+            # Generate session token if the existing account doesn't have one
+            user_data_for_create["session_token"] = secrets.token_hex(32)
 
             await repository.create(UserAccount, user_data_for_create)
+
         else:
             update_data = {}
 
@@ -263,10 +289,27 @@ class OAuthService(SingletonServiceBase):
                 update_data["refresh_token"] = user_data.get("refresh_token")
 
                 if user_data.get("expires_in"):
-                    update_data["expires_at"] = datetime.utcnow() + timedelta(seconds=user_data["expires_in"])
+                    update_data["expires_at"] = datetime.now(timezone.utc) + timedelta(seconds=user_data["expires_in"])
+
+            # Generate session token if the existing account doesn't have one
+            if not user_account.session_token:
+                update_data["session_token"] = secrets.token_hex(32)
 
             if update_data:
                 await repository.update_by_conditions(UserAccount, {"user_id": user_id}, update_data)
+
+    async def clear_session_token(self, session_token: str) -> bool:
+        """Invalidate a session token on logout."""
+
+        user_account = await repository.get_by_field(UserAccount, "session_token", session_token)
+
+        if user_account:
+            await repository.update_by_conditions(
+                UserAccount, {"session_token": session_token}, {"session_token": None}
+            )
+            return True
+
+        return False
 
     async def _update_auth_session(self, app_id: str, user_id: str) -> None:
         """Update auth session with user_id."""
@@ -279,11 +322,13 @@ class OAuthService(SingletonServiceBase):
 
     async def store_auth_state(self, state: str, app_id: str, platform: str) -> bool:
         """Store auth state for validation."""
+
         try:
-            expires_at = datetime.utcnow() + timedelta(minutes=10)
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
 
             # Check if state already exists and delete it first
             existing_state = await repository.get_by_field(AuthState, "state", state)
+
             if existing_state:
                 await repository.delete(AuthState, existing_state.state, "state")
 
@@ -291,7 +336,7 @@ class OAuthService(SingletonServiceBase):
                 "state": state,
                 "app_id": app_id,
                 "platform": platform,
-                "created_at": int(datetime.utcnow().timestamp()),
+                "created_at": int(datetime.now(timezone.utc).timestamp()),
                 "expires_at": int(expires_at.timestamp()),
             }
 
@@ -304,14 +349,16 @@ class OAuthService(SingletonServiceBase):
 
     async def validate_auth_state(self, state: str) -> Optional[Dict[str, str]]:
         """Validate auth state and return app info."""
+
         try:
             auth_state = await repository.get_by_field(AuthState, "state", state)
+
             if not auth_state:
                 logger.warning(f"Auth state not found: {state}")
                 return None
 
             # Check if expired
-            if auth_state.expires_at < datetime.utcnow().timestamp():
+            if auth_state.expires_at < datetime.now(timezone.utc).timestamp():
                 logger.warning(f"Auth state expired: {state}")
                 await repository.delete(AuthState, auth_state.state, "state")
                 return None
@@ -331,18 +378,19 @@ class OAuthService(SingletonServiceBase):
 
     async def get_access_token_by_user_id(self, user_id: str) -> Optional[str]:
         """Get access token by user_id (unified auth system)."""
+
         try:
             # In shared mode, use owner credentials
             if settings.SHARED:
                 owner_creds = await self.get_owner_credentials()
+
                 if not owner_creds:
                     logger.error("No owner credentials found in shared mode")
                     return None
 
-                # Check if token is expired and refresh if needed
-                now = datetime.now()
                 if self._is_token_expired(owner_creds):
                     refreshed_creds = await self._refresh_owner_token(owner_creds)
+
                     if refreshed_creds:
                         return refreshed_creds.access_token
                     else:
@@ -376,14 +424,14 @@ class OAuthService(SingletonServiceBase):
         """Delete auth sessions older than max_age_minutes, regardless of user_id status."""
 
         try:
-            expiry_time = datetime.utcnow() - timedelta(minutes=max_age_minutes)
+            expiry_time = datetime.now(timezone.utc) - timedelta(minutes=max_age_minutes)
 
             # Get all expired sessions
             all_sessions = await repository.list_all(AuthSession)
             deleted_count = 0
 
             for session in all_sessions:
-                if session.created_at < expiry_time:
+                if session.created_at.replace(tzinfo=timezone.utc) < expiry_time:
                     await repository.delete_by_conditions(AuthSession, {"app_id": session.app_id})
                     deleted_count += 1
 
@@ -399,6 +447,7 @@ class OAuthService(SingletonServiceBase):
         # Cancel cleanup task
         if self._cleanup_task and not self._cleanup_task.done():
             self._cleanup_task.cancel()
+
             try:
                 await self._cleanup_task
             except asyncio.CancelledError:
