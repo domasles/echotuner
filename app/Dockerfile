@@ -19,7 +19,7 @@ RUN dart run flutter_launcher_icons
 RUN flutter build web --release
 
 # Production stage with Nginx
-FROM nginx:1.27-alpine
+FROM nginx:stable-alpine
 
 # Copy Flutter web app build
 COPY --from=flutter-builder /app/build/web /usr/share/nginx/html

@@ -56,14 +56,3 @@ services:
       - "0.0.0.0:8080:80"
 
     restart: unless-stopped
-
-  # Full Stack (launches both services)
-  full:
-    image: hello-world
-
-    depends_on:
-      - api
-      - webapp
-      - docs
-
-    profiles: ["full"]

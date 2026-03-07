@@ -292,12 +292,8 @@ async def get_playlists(request: Request, validated_user_id: str = None):
         spotify_playlists = []
 
         if status_filter in ["all", "draft"]:
-            try:
-                all_drafts = await playlist_draft_service.get_user_drafts(user_id=user_id, include_spotify=False)
-                # Filter out drafts that have been added to Spotify
-                drafts = [draft for draft in all_drafts if draft.status != "added_to_spotify"]
-            except Exception as e:
-                logger.warning(f"Failed to get user drafts for {user_id}: {e}")
+            all_drafts = await playlist_draft_service.get_user_drafts(user_id=user_id, include_spotify=False)
+            drafts = [draft for draft in all_drafts if draft.status != "added_to_spotify"]
 
         if status_filter in ["all", "spotify"]:
             # Get Spotify playlists for both modes

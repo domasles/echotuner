@@ -184,6 +184,12 @@ class OAuthService(SingletonServiceBase):
     async def create_auth_session(self, app_id: str) -> None:
         """Create new auth session for polling."""
 
+        existing = await repository.get_by_field(AuthSession, "app_id", app_id)
+
+        if existing:
+            logger.debug(f"Auth session {app_id} already exists, skipping creation")
+            return
+
         session_data = {"app_id": app_id}
         await repository.create(AuthSession, session_data)
 
@@ -367,18 +373,17 @@ class OAuthService(SingletonServiceBase):
                 logger.error(f"Error in session cleanup task: {e}")
 
     async def _cleanup_expired_sessions(self, max_age_minutes: int = 10):
-        """Delete auth sessions older than max_age_minutes with no user_id."""
+        """Delete auth sessions older than max_age_minutes, regardless of user_id status."""
 
         try:
             expiry_time = datetime.utcnow() - timedelta(minutes=max_age_minutes)
 
-            # Get all expired orphaned sessions
+            # Get all expired sessions
             all_sessions = await repository.list_all(AuthSession)
             deleted_count = 0
 
             for session in all_sessions:
-                # Delete if: no user_id AND older than max_age
-                if not session.user_id and session.created_at < expiry_time:
+                if session.created_at < expiry_time:
                     await repository.delete_by_conditions(AuthSession, {"app_id": session.app_id})
                     deleted_count += 1
 

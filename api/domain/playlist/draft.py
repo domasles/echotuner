@@ -155,9 +155,10 @@ class PlaylistDraftService(SingletonServiceBase):
         try:
             # Get drafts from database using repository
             draft_models = await self.repository.list_with_conditions(PlaylistDraftModel, {"user_id": user_id})
+            draft_models = sorted(draft_models, key=lambda d: d.created_at or datetime.min, reverse=True)
 
             drafts = []
-            for draft_model in draft_models[:limit]:  # Apply limit
+            for draft_model in draft_models[:limit]:  # Apply limit after sorting
                 try:
                     # Parse songs from JSON
                     songs_data = json.loads(draft_model.songs_json or "[]")

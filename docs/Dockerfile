@@ -20,7 +20,7 @@ RUN bundle install
 RUN JEKYLL_ENV=production bundle exec jekyll build
 
 # Production stage with Nginx
-FROM nginx:1.27-alpine
+FROM nginx:stable-alpine
 
 # Copy Jekyll build
 COPY --from=jekyll-builder /docs/_site /usr/share/nginx/html

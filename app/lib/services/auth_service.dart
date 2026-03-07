@@ -19,6 +19,7 @@ class AuthService extends ChangeNotifier {
 
     bool _isAuthenticated = false;
     bool _isLoading = false;
+    bool _isInitializing = false;
 
     String? get userId => _userId;
     String? get sessionUuid => _tempSessionUuid;
@@ -27,6 +28,18 @@ class AuthService extends ChangeNotifier {
     bool get isLoading => _isLoading;
 
     Future<void> initialize() async {
+        if (_isInitializing) {
+            AppLogger.debug('Auth initialization already in progress, skipping');
+            return;
+        }
+
+        // If already authenticated with a known user ID, skip full re-init
+        if (_isAuthenticated && _userId != null) {
+            AppLogger.debug('Already authenticated, skipping re-initialization');
+            return;
+        }
+
+        _isInitializing = true;
         _isLoading = true;
         notifyListeners();
 
@@ -62,6 +75,7 @@ class AuthService extends ChangeNotifier {
             _isAuthenticated = false;
         }
 
+        _isInitializing = false;
         _isLoading = false;
         notifyListeners();
     }
