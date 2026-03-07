@@ -22,6 +22,7 @@ class UserAccount(Base):
     refresh_token = Column(Text, nullable=True)  # User's own tokens (Normal mode only)
     expires_at = Column(DateTime, nullable=True)
     session_token = Column(String(64), unique=True, nullable=True, index=True)  # Opaque auth token sent by client
+    session_token_expires_at = Column(DateTime, nullable=True)  # NULL means no expiry
     created_at = Column(DateTime, default=datetime.now())
     last_used_at = Column(DateTime, default=datetime.now(), onupdate=datetime.now())
 

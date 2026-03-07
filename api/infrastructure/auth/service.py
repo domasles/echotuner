@@ -214,9 +214,14 @@ class OAuthService(SingletonServiceBase):
 
             if user_account and not session_token:
                 session_token = secrets.token_hex(32)
-                await repository.update_by_conditions(
-                    UserAccount, {"user_id": session.user_id}, {"session_token": session_token}
-                )
+                extra = {"session_token": session_token}
+
+                if settings.SESSION_TOKEN_EXPIRY_DAYS > 0:
+                    extra["session_token_expires_at"] = datetime.now() + timedelta(
+                        days=settings.SESSION_TOKEN_EXPIRY_DAYS
+                    )
+
+                await repository.update_by_conditions(UserAccount, {"user_id": session.user_id}, extra)
 
             return {
                 "user_id": session.user_id,
@@ -263,8 +268,13 @@ class OAuthService(SingletonServiceBase):
                 if user_data.get("expires_in"):
                     user_data_for_create["expires_at"] = datetime.now() + timedelta(seconds=user_data["expires_in"])
 
-            # Generate session token if the existing account doesn't have one
+            # Generate session token for new account
             user_data_for_create["session_token"] = secrets.token_hex(32)
+
+            if settings.SESSION_TOKEN_EXPIRY_DAYS > 0:
+                user_data_for_create["session_token_expires_at"] = datetime.now() + timedelta(
+                    days=settings.SESSION_TOKEN_EXPIRY_DAYS
+                )
 
             await repository.create(UserAccount, user_data_for_create)
 
@@ -287,9 +297,16 @@ class OAuthService(SingletonServiceBase):
                 if user_data.get("expires_in"):
                     update_data["expires_at"] = datetime.now() + timedelta(seconds=user_data["expires_in"])
 
-            # Generate session token if the existing account doesn't have one
-            if not user_account.session_token:
-                update_data["session_token"] = secrets.token_hex(32)
+            # Rotate session token on every login (or generate if missing)
+            update_data["session_token"] = secrets.token_hex(32)
+
+            if settings.SESSION_TOKEN_EXPIRY_DAYS > 0:
+                update_data["session_token_expires_at"] = datetime.now() + timedelta(
+                    days=settings.SESSION_TOKEN_EXPIRY_DAYS
+                )
+
+            else:
+                update_data["session_token_expires_at"] = None
 
             if update_data:
                 await repository.update_by_conditions(UserAccount, {"user_id": user_id}, update_data)
@@ -301,7 +318,7 @@ class OAuthService(SingletonServiceBase):
 
         if user_account:
             await repository.update_by_conditions(
-                UserAccount, {"session_token": session_token}, {"session_token": None}
+                UserAccount, {"session_token": session_token}, {"session_token": None, "session_token_expires_at": None}
             )
             return True
 

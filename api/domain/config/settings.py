@@ -43,6 +43,7 @@ class Settings:
     AUTH_REQUIRED: bool = os.getenv("AUTH_REQUIRED", "true").lower() == "true"
     SECURE_HEADERS: bool = os.getenv("SECURE_HEADERS", "true").lower() == "true"
     AUTH_UUID_CLEANUP_MINUTES: int = int(os.getenv("AUTH_UUID_CLEANUP_MINUTES", 10))
+    SESSION_TOKEN_EXPIRY_DAYS: int = int(os.getenv("SESSION_TOKEN_EXPIRY_DAYS", 7))
 
     CORS_ORIGINS: list[str] = loads(os.getenv("CORS_ORIGINS", '["*"]'))
 
