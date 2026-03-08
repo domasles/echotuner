@@ -360,7 +360,6 @@ class PlaylistProvider extends ChangeNotifier {
             } catch (e) {
                 AppLogger.warning('Failed to get rate limit status from API: $e');
                 return RateLimitStatus(
-                    userId: '',
                     requestsMadeToday: 0,
                     maxRequestsPerDay: maxPlaylistsPerDay,
                     canMakeRequest: true,
@@ -371,7 +370,6 @@ class PlaylistProvider extends ChangeNotifier {
 
         else {
             return RateLimitStatus(
-                userId: '',
                 requestsMadeToday: 0,
                 maxRequestsPerDay: 0,
                 canMakeRequest: false,

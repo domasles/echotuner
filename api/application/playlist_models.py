@@ -23,7 +23,6 @@ class PlaylistResponse(BaseModel):
 
 class PlaylistDraft(BaseModel):
     id: str
-    user_id: str  # Format: spotify_{id} or google_{id}
     prompt: str
     songs: List[Song]
     created_at: datetime

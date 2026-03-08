@@ -25,7 +25,7 @@ Generate a new AI playlist (draft) or create a Spotify playlist from an existing
 - `status`: **Optional** - `draft` (default) or `spotify`
 
 #### Headers
-- `X-User-ID`: **Required** - Authenticated user ID
+- `X-Auth-Token`: **Required** - Session token from authentication
 - `X-Playlist-ID`: **Required for Spotify creation** - Draft playlist ID
 
 #### Request Body (Draft Generation)
@@ -95,7 +95,7 @@ Generate a new AI playlist (draft) or create a Spotify playlist from an existing
 
 ```bash
 curl -X POST "https://echotuner-api.domax.lt/playlists?status=draft" \
-  -H "X-User-ID: user_12345" \
+  -H "X-Auth-Token: <session_token>" \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "Chill lo-fi hip hop for studying",
@@ -107,7 +107,7 @@ curl -X POST "https://echotuner-api.domax.lt/playlists?status=draft" \
 
 ```bash
 curl -X POST "https://echotuner-api.domax.lt/playlists?status=spotify" \
-  -H "X-User-ID: user_12345" \
+  -H "X-Auth-Token: <session_token>" \
   -H "X-Playlist-ID: playlist_12345" \
   -H "Content-Type: application/json" \
   -d '{
@@ -128,7 +128,7 @@ PUT /playlists
 Update an existing draft playlist.
 
 #### Headers
-- `X-User-ID`: **Required** - Authenticated user ID
+- `X-Auth-Token`: **Required** - Session token from authentication
 - `X-Playlist-ID`: **Required** - Playlist ID to update
 
 #### Request Body
@@ -155,7 +155,7 @@ GET /playlists
 Retrieve all playlists (drafts and Spotify) for the authenticated user.
 
 #### Headers
-- `X-User-ID`: **Required** - Authenticated user ID
+- `X-Auth-Token`: **Required** - Session token from authentication
 
 #### Response
 
@@ -195,7 +195,7 @@ GET /playlists/{playlist_id}
 Retrieve details of a specific playlist.
 
 #### Headers
-- `X-User-ID`: **Required** - Authenticated user ID
+- `X-Auth-Token`: **Required** - Session token from authentication
 
 #### Response
 
@@ -231,7 +231,7 @@ DELETE /playlists/{playlist_id}
 Delete a draft playlist (does not delete Spotify playlists).
 
 #### Headers
-- `X-User-ID`: **Required** - Authenticated user ID
+- `X-Auth-Token`: **Required** - Session token from authentication
 
 #### Response
 
@@ -247,18 +247,18 @@ Delete a draft playlist (does not delete Spotify playlists).
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `prompt` | string | ✅ | Description of desired playlist |
-| `discovery_strategy` | string | ❌ | `balanced`, `exploration`, `conservative` |
-| `user_context` | UserContext | ❌ | User preferences and context |
+| `prompt` | string | Yes | Description of desired playlist |
+| `discovery_strategy` | string | No | `balanced`, `exploration`, `conservative` |
+| `user_context` | UserContext | No | User preferences and context |
 
 ### SpotifyPlaylistRequest (Spotify Creation)
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `name` | string | ✅ | Playlist name |
-| `description` | string | ❌ | Playlist description |
-| `public` | boolean | ❌ | Make playlist public (default: false) |
-| `songs` | array | ❌ | Song list (required in shared mode) |
+| `name` | string | Yes | Playlist name |
+| `description` | string | No | Playlist description |
+| `public` | boolean | No | Make playlist public (default: false) |
+| `songs` | array | No | Song list (required in shared mode) |
 
 ### UserContext
 

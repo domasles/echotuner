@@ -52,52 +52,15 @@ class AuthStatusRequest {
 @JsonSerializable()
 class AuthStatusResponse {
     final String status;
-    
-    @JsonKey(name: 'user_id')
-    final String? userId;
 
     @JsonKey(name: 'session_token')
     final String? sessionToken;
 
     AuthStatusResponse({
         required this.status,
-        this.userId,
         this.sessionToken,
     });
 
     factory AuthStatusResponse.fromJson(Map<String, dynamic> json) => _$AuthStatusResponseFromJson(json);
     Map<String, dynamic> toJson() => _$AuthStatusResponseToJson(this);
-}
-
-@JsonSerializable()
-class UserValidationRequest {
-    @JsonKey(name: 'user_id')
-    final String userId;
-
-    UserValidationRequest({
-        required this.userId,
-    });
-
-    factory UserValidationRequest.fromJson(Map<String, dynamic> json) => _$UserValidationRequestFromJson(json);
-    Map<String, dynamic> toJson() => _$UserValidationRequestToJson(this);
-}
-
-@JsonSerializable()
-class UserValidationResponse {
-    final bool valid;
-
-    @JsonKey(name: 'user_id')
-    final String? userId;
-
-    @JsonKey(name: 'account_type')
-    final String? accountType; // "shared" or "normal"
-
-    UserValidationResponse({
-        required this.valid,
-        this.userId,
-        this.accountType,
-    });
-
-    factory UserValidationResponse.fromJson(Map<String, dynamic> json) => _$UserValidationResponseFromJson(json);
-    Map<String, dynamic> toJson() => _$UserValidationResponseToJson(this);
 }

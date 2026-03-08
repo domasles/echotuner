@@ -157,13 +157,7 @@ async def auth_status(app_id: str = Header(None, alias="X-Session-UUID")):
         result = await oauth_service.check_auth_session(app_id)
 
         if result:
-            return JSONResponse(
-                {
-                    "status": "completed",
-                    "user_id": result["user_id"],
-                    "session_token": result["session_token"],
-                }
-            )
+            return JSONResponse({"status": "completed", "session_token": result})
 
         else:
             return JSONResponse({"status": "pending"})

@@ -20,7 +20,7 @@ https://echotuner-api.domax.lt
 
 The API uses OAuth 2.0 for authentication with support for both Spotify and Google providers. All authenticated endpoints require either:
 
-- **X-User-ID** header with a valid user identifier
+- **X-Auth-Token** header with a valid session token (obtained after OAuth)
 - **X-Session-UUID** header for session-based authentication
 
 ## API Categories
@@ -85,7 +85,6 @@ All API responses follow a consistent JSON format with direct data objects:
 
 ```json
 {
-  "user_id": "user_12345",
   "provider": "spotify",
   "display_name": "John Doe"
 }
@@ -103,7 +102,7 @@ Error responses use a consistent format:
 
 ### Required Headers
 - `Content-Type: application/json`
-- `X-User-ID: {user_id}` (for authenticated endpoints)
+- `X-Auth-Token: <session_token>` (for authenticated endpoints)
 
 ### Optional Headers
 - `X-Session-UUID: {session_uuid}` (for session-based auth)

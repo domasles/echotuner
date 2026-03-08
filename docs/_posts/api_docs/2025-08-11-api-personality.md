@@ -22,7 +22,7 @@ PUT /personality
 Save or update user's music personality and preferences.
 
 #### Headers
-- `X-User-ID`: **Required** - Authenticated user ID
+- `X-Auth-Token`: **Required** - Session token from authentication
 
 #### Request Body
 
@@ -73,7 +73,6 @@ Save or update user's music personality and preferences.
 
 ```json
 {
-  "user_id": "user_12345",
   "personality_saved": true,
   "artists_count": 4,
   "genres_count": 4,
@@ -85,7 +84,7 @@ Save or update user's music personality and preferences.
 
 ```bash
 curl -X PUT "https://echotuner-api.domax.lt/personality" \
-  -H "X-User-ID: user_12345" \
+  -H "X-Auth-Token: <session_token>" \
   -H "Content-Type: application/json" \
   -d '{
     "context": {
@@ -107,13 +106,12 @@ GET /personality
 Retrieve user's saved personality and preferences.
 
 #### Headers
-- `X-User-ID`: **Required** - Authenticated user ID
+- `X-Auth-Token`: **Required** - Session token from authentication
 
 #### Response
 
 ```json
 {
-  "user_id": "user_12345",
   "context": {
     "favorite_artists": [
       "Radiohead",
@@ -154,7 +152,7 @@ POST /personality/artists/search
 Search for artists to add to preferences.
 
 #### Headers
-- `X-User-ID`: **Required** - Authenticated user ID
+- `X-Auth-Token`: **Required** - Session token from authentication
 
 #### Request Body
 
@@ -203,7 +201,7 @@ Search for artists to add to preferences.
 
 ```bash
 curl -X POST "https://echotuner-api.domax.lt/personality/artists/search" \
-  -H "X-User-ID: user_12345" \
+  -H "X-Auth-Token: <session_token>" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "daft punk",
@@ -222,7 +220,7 @@ GET /personality/artists/followed
 Get user's followed artists from Spotify (normal mode only).
 
 #### Headers
-- `X-User-ID`: **Required** - Authenticated user ID
+- `X-Auth-Token`: **Required** - Session token from authentication
 
 #### Response
 
@@ -258,7 +256,7 @@ DELETE /personality
 Delete all personality data for the user.
 
 #### Headers
-- `X-User-ID`: **Required** - Authenticated user ID
+- `X-Auth-Token`: **Required** - Session token from authentication
 
 #### Response
 
@@ -291,8 +289,8 @@ Delete all personality data for the user.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `query` | string | ✅ | Artist search query |
-| `limit` | integer | ❌ | Max results (default: 10, max: 50) |
+| `query` | string  | Yes | Artist search query |
+| `limit` | integer | No  | Max results (default: 10, max: 50) |
 
 ## Personality Data Usage
 
@@ -389,7 +387,7 @@ The API enforces strict limits on personality data:
 ```javascript
 import { useState, useEffect } from 'react';
 
-const PersonalityForm = ({ userId }) => {
+const PersonalityForm = ({ sessionToken }) => {
   const [preferences, setPreferences] = useState({
     favorite_artists: [],
     favorite_genres: [],
@@ -401,7 +399,7 @@ const PersonalityForm = ({ userId }) => {
     const loadPreferences = async () => {
       try {
         const response = await fetch('/personality', {
-          headers: { 'X-User-ID': userId }
+          headers: { 'X-Auth-Token': sessionToken }
         });
         
         if (response.ok) {
@@ -414,7 +412,7 @@ const PersonalityForm = ({ userId }) => {
     };
 
     loadPreferences();
-  }, [userId]);
+  }, [sessionToken]);
 
   // Save preferences
   const savePreferences = async () => {
@@ -422,7 +420,7 @@ const PersonalityForm = ({ userId }) => {
       const response = await fetch('/personality', {
         method: 'PUT',
         headers: {
-          'X-User-ID': userId,
+          'X-Auth-Token': sessionToken,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ context: preferences })
@@ -448,7 +446,7 @@ const PersonalityForm = ({ userId }) => {
 ### Artist Search Component
 
 ```javascript
-const ArtistSearch = ({ userId, onArtistSelect }) => {
+const ArtistSearch = ({ sessionToken, onArtistSelect }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
 
@@ -459,7 +457,7 @@ const ArtistSearch = ({ userId, onArtistSelect }) => {
       const response = await fetch('/personality/artists/search', {
         method: 'POST',
         headers: {
-          'X-User-ID': userId,
+          'X-Auth-Token': sessionToken,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ query, limit: 10 })

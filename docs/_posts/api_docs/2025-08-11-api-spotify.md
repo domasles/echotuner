@@ -22,7 +22,7 @@ POST /spotify/playlists
 Create a new playlist on Spotify from a draft playlist or provided song list.
 
 #### Headers
-- `X-User-ID`: **Required** - Authenticated user ID
+- `X-Auth-Token`: **Required** - Session token from authentication
 - `X-Playlist-ID`: **Required** - Draft playlist ID to create from
 
 #### Request Body
@@ -55,7 +55,7 @@ Create a new playlist on Spotify from a draft playlist or provided song list.
 
 ```bash
 curl -X POST "https://echotuner-api.domax.lt/spotify/playlists" \
-  -H "X-User-ID: user_12345" \
+  -H "X-Auth-Token: <session_token>" \
   -H "X-Playlist-ID: playlist_67890" \
   -H "Content-Type: application/json" \
   -d '{
@@ -76,7 +76,7 @@ DELETE /spotify/playlists/{playlist_id}/tracks
 Remove specific tracks from a Spotify playlist.
 
 #### Headers
-- `X-User-ID`: **Required** - Authenticated user ID
+- `X-Auth-Token`: **Required** - Session token from authentication
 
 #### Request Body
 
@@ -105,7 +105,7 @@ Remove specific tracks from a Spotify playlist.
 
 ```bash
 curl -X DELETE "https://echotuner-api.domax.lt/spotify/playlists/37i9dQZF1DX0XUsuxWHRQd/tracks" \
-  -H "X-User-ID: user_12345" \
+  -H "X-Auth-Token: <session_token>" \
   -H "Content-Type: application/json" \
   -d '{
     "tracks": [
@@ -125,7 +125,7 @@ GET /spotify/playlists
 Retrieve user's existing Spotify playlists (requires Spotify OAuth in normal mode).
 
 #### Headers
-- `X-User-ID`: **Required** - Authenticated user ID
+- `X-Auth-Token`: **Required** - Session token from authentication
 
 #### Response
 
@@ -159,7 +159,7 @@ GET /spotify/playlists/{playlist_id}
 Get detailed information about a specific Spotify playlist.
 
 #### Headers
-- `X-User-ID`: **Required** - Authenticated user ID
+- `X-Auth-Token`: **Required** - Session token from authentication
 
 #### Response
 
@@ -203,17 +203,17 @@ Get detailed information about a specific Spotify playlist.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `name` | string | ✅ | Playlist name (max 100 characters) |
-| `description` | string | ❌ | Playlist description (max 300 characters) |
-| `public` | boolean | ❌ | Make playlist public (default: false) |
-| `songs` | array | ❌ | Song list (required in shared mode) |
+| `name` | string | Yes | Playlist name (max 100 characters) |
+| `description` | string | No | Playlist description (max 300 characters) |
+| `public` | boolean | No | Make playlist public (default: false) |
+| `songs` | array | No | Song list (required in shared mode) |
 
 ### SpotifyPlaylistTrackRemoveRequest
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `tracks` | array | ✅ | Array of track objects to remove |
-| `tracks[].spotify_id` | string | ✅ | Spotify track ID |
+| `tracks` | array | Yes | Array of track objects to remove |
+| `tracks[].spotify_id` | string | Yes | Spotify track ID |
 
 ### Song Object
 
@@ -333,7 +333,7 @@ When Spotify's API returns errors, they are passed through with context:
 const draftResponse = await fetch('/playlists?status=draft', {
   method: 'POST',
   headers: {
-    'X-User-ID': userId,
+    'X-Auth-Token': sessionToken,
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
@@ -347,7 +347,7 @@ const { playlist_id } = await draftResponse.json();
 const spotifyResponse = await fetch('/spotify/playlists', {
   method: 'POST',
   headers: {
-    'X-User-ID': userId,
+    'X-Auth-Token': sessionToken,
     'X-Playlist-ID': playlist_id,
     'Content-Type': 'application/json'
   },
@@ -368,7 +368,7 @@ const { playlist_url } = await spotifyResponse.json();
 const response = await fetch('/spotify/playlists', {
   method: 'POST',
   headers: {
-    'X-User-ID': userId,
+    'X-Auth-Token': sessionToken,
     'X-Playlist-ID': draftId,
     'Content-Type': 'application/json'
   },

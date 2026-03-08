@@ -223,10 +223,7 @@ class OAuthService(SingletonServiceBase):
 
                 await repository.update_by_conditions(UserAccount, {"user_id": session.user_id}, extra)
 
-            return {
-                "user_id": session.user_id,
-                "session_token": session_token,
-            }
+            return session_token
 
         # Session is still pending - check if it has expired
         max_age = timedelta(minutes=10)

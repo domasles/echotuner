@@ -4,9 +4,6 @@ part 'rate_limit_models.g.dart';
 
 @JsonSerializable()
 class RateLimitStatus {
-    @JsonKey(name: 'user_id')
-    final String userId;
-
     @JsonKey(name: 'requests_made_today')
     final int requestsMadeToday;
 
@@ -23,7 +20,6 @@ class RateLimitStatus {
     final bool playlistLimitEnabled;
 
     RateLimitStatus({
-        required this.userId,
         required this.requestsMadeToday,
         required this.maxRequestsPerDay,
         required this.canMakeRequest,

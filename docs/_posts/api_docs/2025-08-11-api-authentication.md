@@ -9,6 +9,8 @@ tags: [api, auth, oauth, spotify, google]
 
 The Authentication API provides OAuth 2.0 integration with Spotify and Google for secure user authentication. It supports both normal mode (individual Spotify accounts) and shared mode (single owner account with Google authentication).
 
+Authentication is token-based. After completing the OAuth flow, clients receive an opaque **session token** which must be sent as `X-Auth-Token` on all subsequent authenticated requests.
+
 ## Base Path: `/auth`
 
 ## Endpoints
@@ -117,21 +119,22 @@ Poll the authentication status for a given session (used by mobile apps and web 
 #### Headers
 - `X-Session-UUID`: **Required** - Session UUID to check
 
-#### Response
+#### Response (completed)
 ```json
 {
   "status": "completed",
-  "user_id": "user_12345"
+  "session_token": "a3f9c2e1..."
 }
 ```
 
-or
-
+#### Response (still waiting)
 ```json
 {
   "status": "pending"
 }
 ```
+
+> **Important**: Store the `session_token` securely. It is required as `X-Auth-Token` on all subsequent API calls. The session UUID is no longer needed after this point.
 
 #### Example
 ```bash
@@ -139,30 +142,86 @@ curl -X GET "https://echotuner-api.domax.lt/auth/status" \
   -H "X-Session-UUID: 550e8400-e29b-41d4-a716-446655440000"
 ```
 
+---
+
+### Logout
+
+```http
+POST /auth/logout
+```
+
+Invalidate the current session token server-side.
+
+#### Headers
+- `X-Auth-Token`: **Required** - The session token to revoke
+
+#### Response
+```json
+{
+  "message": "Logged out successfully"
+}
+```
+
+#### Example
+```bash
+curl -X POST "https://echotuner-api.domax.lt/auth/logout" \
+  -H "X-Auth-Token: a3f9c2e1..."
+```
+
+---
+
 ## Authentication Flow
 
 ### Normal Mode Flow
 
-1. **Initialize**: Call `/auth/init` with session UUID
-2. **Authorize**: User visits returned auth URL (Spotify OAuth)
+1. **Initialize**: `POST /auth/init` with session UUID -> receive `auth_url`
+2. **Authorize**: User opens `auth_url` in browser (Spotify OAuth)
 3. **Callback**: Spotify redirects to `/auth/spotify/callback`
-4. **Poll Status**: App polls `/auth/status` until completion
-5. **Complete**: Receive user ID for authenticated requests
+4. **Poll Status**: App polls `GET /auth/status` every ~2 s until `status == "completed"`
+5. **Store Token**: Save `session_token` from the completed response
+6. **Authenticate**: Send `X-Auth-Token: <session_token>` on all subsequent requests
 
 ### Shared Mode Flow
 
-#### First Time Setup (Owner)
-1. **Initialize**: Call `/auth/init` (returns setup URL)
-2. **Setup**: Owner visits setup page
-3. **Authorize**: Owner authorizes Spotify account
-4. **Complete**: Owner credentials stored
+#### First-Time Setup (Owner)
+1. **Initialize**: `POST /auth/init` -> receives `action: "setup_required"`
+2. **Setup**: Owner visits the setup URL in a browser
+3. **Authorize**: Owner authorizes with their Spotify account
+4. **Complete**: Owner credentials stored; server is ready for users
 
 #### User Authentication
-1. **Initialize**: Call `/auth/init` with session UUID
-2. **Authorize**: User visits Google OAuth URL
+1. **Initialize**: `POST /auth/init` -> receive Google OAuth `auth_url`
+2. **Authorize**: User opens `auth_url` (Google OAuth)
 3. **Callback**: Google redirects to `/auth/google/callback`
-4. **Poll Status**: App polls `/auth/status` until completion
-5. **Complete**: Receive user ID for authenticated requests
+4. **Poll Status**: App polls `GET /auth/status` until `status == "completed"`
+5. **Store Token**: Save `session_token`
+6. **Authenticate**: Send `X-Auth-Token: <session_token>` on all subsequent requests
+
+---
+
+## Using the Session Token
+
+All endpoints that require authentication expect:
+
+```http
+X-Auth-Token: <session_token>
+```
+
+The server looks up the token in its database, resolves the user server-side, and authorizes the request. The internal user identity is never exposed to clients. Sending an invalid or expired token returns `401 Unauthorized`.
+
+---
+
+## Session Token Expiry
+
+Session tokens expire after the configured `SESSION_TOKEN_EXPIRY_DAYS` period (default: 7 days). A token is invalidated only when it expires or is explicitly revoked (for example, every device that had the token logs out). When an expired token is used the server returns:
+
+```json
+{
+  "detail": "Session token expired"
+}
+```
+
+The client should re-authenticate by starting a fresh auth flow.
 
 ## Error Handling
 
@@ -193,50 +252,50 @@ curl -X GET "https://echotuner-api.domax.lt/auth/status" \
 
 - **Session UUIDs**: Must be valid UUID format
 - **State Parameter**: Used to prevent CSRF attacks
-- **Token Storage**: Access tokens are securely stored server-side
+- **Token Storage**: The opaque session token is the only credential ever sent to clients
+- **User Identity**: Internal user IDs are never exposed to clients
 - **Rate Limiting**: Applied to prevent abuse
 
 ## Mobile Implementation
 
-For mobile apps using the authentication flow:
+For mobile apps (Flutter, React Native, etc.):
 
 ```javascript
 // 1. Generate session UUID
 const sessionUuid = crypto.randomUUID();
 
 // 2. Initialize auth
-const response = await fetch('/auth/init', {
+const initRes = await fetch('/auth/init', {
   method: 'POST',
-  headers: {
-    'X-Session-UUID': sessionUuid,
-    'Content-Type': 'application/json'
-  }
+  headers: { 'X-Session-UUID': sessionUuid }
 });
+const { auth_url } = await initRes.json();
 
-const { auth_url } = await response.json();
-
-// 3. Open browser for auth
+// 3. Open browser for OAuth
 window.open(auth_url);
 
 // 4. Poll for completion
 const pollAuth = async () => {
-  const statusResponse = await fetch('/auth/status', {
+  const statusRes = await fetch('/auth/status', {
     headers: { 'X-Session-UUID': sessionUuid }
   });
-  
-  const { status, user_id } = await statusResponse.json();
-  
+  const { status, session_token } = await statusRes.json();
+
   if (status === 'completed') {
-    // Store user_id for future requests
-    localStorage.setItem('user_id', user_id);
-    return user_id;
-  } else {
-    // Continue polling
-    setTimeout(pollAuth, 2000);
+    // Persist the session token for all future requests
+    localStorage.setItem('session_token', session_token);
+    return session_token;
   }
+  // Continue polling
+  setTimeout(pollAuth, 2000);
 };
 
-pollAuth();
+await pollAuth();
+
+// 5. Use token on subsequent requests
+const playlist = await fetch('/playlists', {
+  headers: { 'X-Auth-Token': localStorage.getItem('session_token') }
+});
 ```
 
 ## Next Steps

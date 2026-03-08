@@ -7,10 +7,6 @@ part 'playlist_draft_models.g.dart';
 @JsonSerializable()
 class PlaylistDraft {
     final String id;
-
-    @JsonKey(name: 'user_id')
-    final String userId;
-
     final String prompt;
     final List<Song> songs;
 
@@ -27,8 +23,6 @@ class PlaylistDraft {
 
     PlaylistDraft({
         required this.id,
-        required this.userId,
-
         required this.prompt,
         required this.songs,
         required this.createdAt,
